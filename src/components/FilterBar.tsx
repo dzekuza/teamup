@@ -1,24 +1,23 @@
 import React from 'react';
 
 const PADEL_LOCATIONS = [
-  'Padel Vilnius - Liepkalnio g. 2C, Vilnius 02105',
-  'Ozo Padel & Tennis - Ozo g. 14C, Vilnius 08200',
-  'SET Padel Club - Kareivių g. 14, Vilnius 09117',
-  'Tennis Pro Academy Padel - Naugarduko g. 76, Vilnius 03202',
-  'GO9 Padel - Gedimino pr. 9, Vilnius 01103',
-  'Padel House Vilnius - Žygio g. 97A, Vilnius 08234',
-  'LTU Padel Club - Viršuliškių g. 40, Vilnius 05131'
+  'Tali Padel',
+  'Smash Center',
+  'Billebeino Padel',
+  'Padel Club Finland'
 ];
 
 const LEVELS = ['Beginner', 'Intermediate', 'Advanced'];
 
+interface Filters {
+  date: string;
+  level: string;
+  location: string;
+}
+
 interface FilterBarProps {
-  filters: {
-    date: string;
-    level: string;
-    location: string;
-  };
-  onFilterChange: (name: string, value: string) => void;
+  filters: Filters;
+  onFilterChange: (key: keyof Filters, value: string) => void;
   onClearFilters: () => void;
 }
 

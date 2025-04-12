@@ -5,16 +5,8 @@ import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { useClickOutside } from '../hooks/useClickOutside';
 import { SuccessMessage } from './SuccessMessage';
-
-const PADEL_LOCATIONS = [
-  'Padel Vilnius - Liepkalnio g. 2C, Vilnius 02105',
-  'Ozo Padel & Tennis - Ozo g. 14C, Vilnius 08200',
-  'SET Padel Club - Kareivių g. 14, Vilnius 09117',
-  'Tennis Pro Academy Padel - Naugarduko g. 76, Vilnius 03202',
-  'GO9 Padel - Gedimino pr. 9, Vilnius 01103',
-  'Padel House Vilnius - Žygio g. 97A, Vilnius 08234',
-  'LTU Padel Club - Viršuliškių g. 40, Vilnius 05131'
-];
+import { LocationPicker } from './LocationPicker';
+import { Dialog } from '@headlessui/react';
 
 interface CreateEventDialogProps {
   open: boolean;
@@ -25,12 +17,14 @@ interface CreateEventDialogProps {
 export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, onEventCreated }) => {
   const [title, setTitle] = useState('');
   const [location, setLocation] = useState('');
+  const [coordinates, setCoordinates] = useState<{ lat: number; lng: number } | null>(null);
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
-  const [price, setPrice] = useState('');
-  const [maxPlayers, setMaxPlayers] = useState('4');
-  const [level, setLevel] = useState('Beginner');
+  const [price, setPrice] = useState<number>(0);
+  const [level, setLevel] = useState('');
+  const [maxPlayers, setMaxPlayers] = useState<number>(4);
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [eventId, setEventId] = useState<string | null>(null);
   const { user } = useAuth();
@@ -46,31 +40,40 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
   const resetForm = () => {
     setTitle('');
     setLocation('');
+    setCoordinates(null);
     setDate('');
     setTime('');
-    setPrice('');
-    setMaxPlayers('4');
-    setLevel('Beginner');
+    setPrice(0);
+    setLevel('');
+    setMaxPlayers(4);
     setError('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !coordinates) return;
+
+    setIsLoading(true);
+    setError('');
 
     try {
+      // Split location into name and address
+      const [locationName, address] = location.split(' - ');
+
       const eventData = {
         title,
-        location,
+        locationName,
+        address,
+        coordinates,
         date,
         time,
-        price: Number(price),
-        maxPlayers: Number(maxPlayers),
+        price,
+        level,
+        maxPlayers,
         currentPlayers: 1,
-        createdBy: user.uid,
-        createdAt: new Date().toISOString(),
         players: [user.uid],
-        level
+        createdAt: new Date().toISOString(),
+        createdBy: user.uid
       };
 
       const docRef = await addDoc(collection(db, 'events'), eventData);
@@ -80,6 +83,8 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
     } catch (err) {
       setError('Failed to create event');
       console.error('Error creating event:', err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -103,112 +108,125 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
     );
   }
 
-  return open ? (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-      <div ref={dialogRef} className="bg-[#1E1E1E] rounded-3xl p-8 w-full max-w-md relative">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-white"
-        >
-          ✕
-        </button>
-        <h2 className="text-2xl font-bold text-white mb-6">Create new event</h2>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <input
-              type="text"
-              placeholder="Event title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
-              required
-            />
-          </div>
-
-          <div>
-            <select
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
-              required
-            >
-              <option value="">Event location</option>
-              {PADEL_LOCATIONS.map((loc) => (
-                <option key={loc} value={loc}>{loc}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <input
-              type="number"
-              placeholder="Price"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
-              required
-            />
-          </div>
-
-          <div>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
-              required
-            />
-          </div>
-
-          <div>
-            <input
-              type="time"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-              className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
-              required
-            />
-          </div>
-
-          <div>
-            <select
-              value={level}
-              onChange={(e) => setLevel(e.target.value)}
-              className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
-              required
-            >
-              <option value="Beginner">Beginner</option>
-              <option value="Intermediate">Intermediate</option>
-              <option value="Advanced">Advanced</option>
-            </select>
-          </div>
-
-          <div>
-            <select
-              value={maxPlayers}
-              onChange={(e) => setMaxPlayers(e.target.value)}
-              className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
-              required
-            >
-              <option value="4">4 players</option>
-              <option value="3">3 players</option>
-              <option value="2">2 players</option>
-            </select>
-          </div>
-
-          {error && (
-            <p className="text-red-500 text-sm">{error}</p>
-          )}
-
-          <button
-            type="submit"
-            className="w-full bg-transparent border border-[#C1FF2F] text-[#C1FF2F] rounded-xl py-3 hover:bg-[#C1FF2F] hover:text-black transition-colors"
-          >
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      className="relative z-50"
+    >
+      <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+      <div className="fixed inset-0 flex items-center justify-center p-4">
+        <Dialog.Panel className="mx-auto max-w-2xl w-full rounded-2xl bg-[#1E1E1E] p-6 shadow-xl space-y-6">
+          <Dialog.Title className="text-xl font-semibold text-white">
             Create new event
-          </button>
-        </form>
+          </Dialog.Title>
+
+          <div className="space-y-6">
+            <div>
+              <input
+                type="text"
+                placeholder="Event title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
+              />
+            </div>
+
+            <div>
+              <LocationPicker
+                onLocationSelect={(location) => {
+                  setLocation(`${location.name} - ${location.address}`);
+                  setCoordinates(location.coordinates);
+                }}
+                defaultLocation={location ? {
+                  name: location.split(' - ')[0],
+                  address: location.split(' - ')[1] || '',
+                  coordinates: coordinates || { lat: 0, lng: 0 }
+                } : undefined}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
+                />
+              </div>
+              <div>
+                <input
+                  type="time"
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
+                  className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
+                />
+              </div>
+            </div>
+
+            <div>
+              <input
+                type="number"
+                placeholder="Price"
+                value={price}
+                onChange={(e) => setPrice(Number(e.target.value))}
+                className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
+              />
+            </div>
+
+            <div>
+              <select
+                value={level}
+                onChange={(e) => setLevel(e.target.value)}
+                className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
+              >
+                <option value="">Select level</option>
+                <option value="Beginner">Beginner</option>
+                <option value="Intermediate">Intermediate</option>
+                <option value="Advanced">Advanced</option>
+              </select>
+            </div>
+
+            <div>
+              <select
+                value={maxPlayers}
+                onChange={(e) => setMaxPlayers(Number(e.target.value))}
+                className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
+              >
+                <option value="4">4 players</option>
+                <option value="3">3 players</option>
+                <option value="2">2 players</option>
+              </select>
+            </div>
+
+            {error && (
+              <p className="text-red-500 text-sm">{error}</p>
+            )}
+          </div>
+
+          <div className="flex justify-end space-x-4">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 rounded-xl text-white hover:bg-[#2A2A2A] transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={isLoading || !title || !coordinates || !date || !time || !price || !level || !maxPlayers}
+              className={`px-4 py-2 rounded-xl ${
+                !isLoading && title && coordinates && date && time && price && level && maxPlayers
+                  ? 'bg-[#C1FF2F] text-black hover:bg-opacity-90'
+                  : 'bg-gray-500 cursor-not-allowed'
+              } transition-colors`}
+            >
+              {isLoading ? 'Creating...' : 'Create Event'}
+            </button>
+          </div>
+        </Dialog.Panel>
       </div>
-    </div>
-  ) : null;
+    </Dialog>
+  );
 }; 

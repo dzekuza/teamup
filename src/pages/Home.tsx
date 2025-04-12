@@ -4,25 +4,34 @@ import { useEvents } from '../hooks/useEvents';
 import { EventCard } from '../components/EventCard';
 import { CreateEventDialog } from '../components/CreateEventDialog';
 import { FilterBar } from '../components/FilterBar';
+import { MapView } from '../components/MapView';
+import { Event } from '../types';
+import { MapIcon, ListBulletIcon } from '@heroicons/react/24/outline';
+import { migrateEvents } from '../utils/migrateEvents';
+import { Link } from 'react-router-dom';
 
-const Home = () => {
+interface Filters {
+  date: string;
+  level: string;
+  location: string;
+}
+
+export const Home = () => {
   const { user } = useAuth();
   const { events, loading, error } = useEvents();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<Filters>({
     date: '',
     level: '',
     location: ''
   });
+  const [showMap, setShowMap] = useState(false);
 
-  const handleFilterChange = (name: string, value: string) => {
-    setFilters(prev => ({
-      ...prev,
-      [name]: value
-    }));
+  const handleFilterChange = (key: keyof Filters, value: string) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
   };
 
-  const clearFilters = () => {
+  const handleClearFilters = () => {
     setFilters({
       date: '',
       level: '',
@@ -30,12 +39,22 @@ const Home = () => {
     });
   };
 
+  const handleMigration = async () => {
+    try {
+      await migrateEvents();
+      alert('Migration completed successfully!');
+    } catch (error) {
+      console.error('Migration failed:', error);
+      alert('Migration failed. Check console for details.');
+    }
+  };
+
   const filteredEvents = useMemo(() => {
     return events.filter(event => {
-      const dateMatch = !filters.date || event.date === filters.date;
-      const levelMatch = !filters.level || event.level === filters.level;
-      const locationMatch = !filters.location || event.location === filters.location;
-      return dateMatch && levelMatch && locationMatch;
+      if (filters.date && event.date !== filters.date) return false;
+      if (filters.level && event.level !== filters.level) return false;
+      if (filters.location && !event.location.includes(filters.location)) return false;
+      return true;
     });
   }, [events, filters]);
 
@@ -46,43 +65,23 @@ const Home = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-medium text-white mb-8">All events</h1>
-        
-        <FilterBar
-          filters={filters}
-          onFilterChange={handleFilterChange}
-          onClearFilters={clearFilters}
-        />
-
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {loading ? (
-            <div className="text-gray-400">Loading events...</div>
-          ) : error ? (
-            <div className="text-red-500">{error}</div>
-          ) : filteredEvents.length === 0 ? (
-            <div className="text-gray-400">
-              {events.length === 0
-                ? "No events found. Be the first to create one!"
-                : "No events match your filters."}
-            </div>
-          ) : (
-            filteredEvents.map((event) => (
-              <EventCard 
-                key={event.id} 
-                event={event} 
-                onEventUpdated={handleEventChange}
-              />
-            ))
-          )}
-        </div>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-white">Events</h1>
       </div>
 
-      <CreateEventDialog
-        open={isCreateDialogOpen}
-        onClose={() => setIsCreateDialogOpen(false)}
-        onEventCreated={handleEventChange}
-      />
+      {loading ? (
+        <div className="text-center text-white">Loading events...</div>
+      ) : error ? (
+        <div className="text-center text-red-500">{error}</div>
+      ) : events.length === 0 ? (
+        <div className="text-center text-white">No events found</div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {events.map((event) => (
+            <EventCard key={event.id} event={event} />
+          ))}
+        </div>
+      )}
     </div>
   );
 };

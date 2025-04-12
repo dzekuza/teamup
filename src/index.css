@@ -67,3 +67,58 @@
       monospace;
   }
 }
+
+/* Safari-compatible dropdown styles */
+select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 0.7rem center;
+  background-size: 1.2em;
+  padding-right: 2.5rem;
+}
+
+/* Ensure consistent dropdown styling across browsers */
+select::-ms-expand {
+  display: none;
+}
+
+select {
+  cursor: pointer;
+  border: 1px solid #3A3A3A;
+  border-radius: 0.5rem;
+  padding: 0.5rem 2.5rem 0.5rem 1rem;
+  font-size: 1rem;
+  line-height: 1.5;
+  transition: all 0.2s ease-in-out;
+}
+
+select:focus {
+  outline: none;
+  border-color: #C1FF2F;
+  box-shadow: 0 0 0 2px rgba(193, 255, 47, 0.2);
+}
+
+/* Dark theme specific styles */
+select {
+  background-color: #2A2A2A;
+  color: white;
+}
+
+select option {
+  background-color: #2A2A2A;
+  color: white;
+}
+
+/* Hover state */
+select:hover {
+  border-color: #C1FF2F;
+}
+
+/* Disabled state */
+select:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}

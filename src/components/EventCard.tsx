@@ -9,6 +9,7 @@ import Avatar1 from '../assets/avatars/Avatar1.png';
 import Avatar2 from '../assets/avatars/Avatar2.png';
 import Avatar3 from '../assets/avatars/Avatar3.png';
 import Avatar4 from '../assets/avatars/Avatar4.png';
+import { UserProfileDialog } from './UserProfileDialog';
 
 const avatars = {
   Avatar1,
@@ -34,6 +35,7 @@ export const EventCard: FC<EventCardProps> = ({ event, onEventUpdated }) => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [playerInfos, setPlayerInfos] = useState<PlayerInfo[]>([]);
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchPlayerInfos = async () => {
@@ -114,60 +116,53 @@ export const EventCard: FC<EventCardProps> = ({ event, onEventUpdated }) => {
       {/* Player Avatars */}
       <div className="flex -space-x-2 mb-6">
         {playerInfos.map((player) => (
-          <div 
+          <button 
             key={player.id}
-            className="w-8 h-8 rounded-full overflow-hidden border-2 border-[#1E1E1E]"
+            onClick={() => setSelectedPlayerId(player.id)}
+            className="w-8 h-8 rounded-full overflow-hidden border-2 border-[#1E1E1E] hover:scale-110 transition-transform"
           >
             <img
               src={avatars[player.photoURL as keyof typeof avatars] || avatars.Avatar1}
               alt="Player Avatar"
               className="w-full h-full object-cover"
             />
-          </div>
+          </button>
         ))}
       </div>
 
       {/* Actions */}
-      <div className="space-y-2">
-        {user ? (
-          <>
-            {isJoined ? (
-              <button
-                onClick={handleLeaveEvent}
-                disabled={isLoading}
-                className="w-full py-3 rounded-xl text-center border border-red-500 text-red-500 hover:bg-red-500 hover:text-white transition-colors disabled:opacity-50"
-              >
-                {isLoading ? 'Processing...' : 'Leave event'}
-              </button>
-            ) : (
-              <button
-                onClick={handleJoinEvent}
-                disabled={!canJoin || isLoading}
-                className={`w-full py-3 rounded-xl text-center ${
-                  canJoin
-                    ? 'bg-[#C1FF2F] text-black hover:bg-[#B1EF1F]'
-                    : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                } transition-colors disabled:opacity-50`}
-              >
-                {isLoading ? 'Processing...' : canJoin ? 'Join event' : 'Event full'}
-              </button>
-            )}
-          </>
+      <div className="flex gap-2">
+        {canJoin ? (
+          <button
+            onClick={handleJoinEvent}
+            disabled={isLoading}
+            className="flex-1 bg-[#C1FF2F] text-black rounded-xl py-2 font-medium hover:bg-[#B1EF1F] transition-colors disabled:opacity-50"
+          >
+            Join Event
+          </button>
+        ) : isJoined ? (
+          <button
+            onClick={handleLeaveEvent}
+            disabled={isLoading}
+            className="flex-1 bg-transparent border border-red-500 text-red-500 rounded-xl py-2 hover:bg-red-500 hover:text-white transition-colors disabled:opacity-50"
+          >
+            Leave Event
+          </button>
         ) : (
           <button
-            onClick={() => navigate('/login')}
-            className="w-full py-3 rounded-xl text-center bg-[#C1FF2F] text-black hover:bg-[#B1EF1F] transition-colors"
+            disabled
+            className="flex-1 bg-gray-600 text-gray-400 rounded-xl py-2 font-medium cursor-not-allowed"
           >
-            Login to join
+            Event Full
           </button>
         )}
-        
+
         {user?.uid === event.createdBy && (
-          <button 
+          <button
             onClick={() => setIsEditDialogOpen(true)}
-            className="w-full text-center py-2 text-[#C1FF2F] hover:underline"
+            className="px-4 py-2 text-[#C1FF2F] hover:underline"
           >
-            Edit event
+            Edit
           </button>
         )}
       </div>
@@ -175,10 +170,14 @@ export const EventCard: FC<EventCardProps> = ({ event, onEventUpdated }) => {
       <EditEventDialog
         open={isEditDialogOpen}
         onClose={() => setIsEditDialogOpen(false)}
-        onEventUpdated={() => {
-          if (onEventUpdated) onEventUpdated();
-        }}
         eventId={event.id}
+        onEventUpdated={() => onEventUpdated?.()}
+      />
+
+      <UserProfileDialog
+        open={!!selectedPlayerId}
+        onClose={() => setSelectedPlayerId(null)}
+        userId={selectedPlayerId || ''}
       />
     </div>
   );
