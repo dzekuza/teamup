@@ -133,16 +133,15 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
             </div>
 
             <div>
-              <LocationPicker
-                onLocationSelect={(location) => {
-                  setLocation(`${location.name} - ${location.address}`);
-                  setCoordinates(location.coordinates);
+              <input
+                type="text"
+                placeholder="Location"
+                value={location}
+                onChange={(e) => {
+                  setLocation(e.target.value);
+                  setCoordinates({ lat: 0, lng: 0 }); // Default coordinates
                 }}
-                defaultLocation={location ? {
-                  name: location.split(' - ')[0],
-                  address: location.split(' - ')[1] || '',
-                  coordinates: coordinates || { lat: 0, lng: 0 }
-                } : undefined}
+                className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
               />
             </div>
 
