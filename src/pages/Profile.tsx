@@ -18,11 +18,15 @@ const avatars = {
   Avatar4,
 };
 
+const LEVELS = ['Beginner', 'Intermediate', 'Advanced'];
+
 const Profile = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [level, setLevel] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
@@ -40,6 +44,8 @@ const Profile = () => {
         if (userDoc.exists()) {
           const userData = userDoc.data();
           setSelectedAvatar(userData.photoURL || 'Avatar1');
+          setPhoneNumber(userData.phoneNumber || '');
+          setLevel(userData.level || '');
         }
       }
     };
@@ -67,6 +73,8 @@ const Profile = () => {
         displayName,
         email: user.email,
         photoURL: selectedAvatar,
+        phoneNumber,
+        level,
         updatedAt: new Date().toISOString()
       }, { merge: true });
 
@@ -131,6 +139,7 @@ const Profile = () => {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
+              <label className="block text-gray-400 text-sm mb-2">Display Name</label>
               <input
                 type="text"
                 placeholder="Display Name"
@@ -141,12 +150,38 @@ const Profile = () => {
               />
             </div>
             <div>
+              <label className="block text-gray-400 text-sm mb-2">Email</label>
               <input
                 type="email"
                 value={email}
                 disabled
                 className="w-full bg-[#2A2A2A] text-gray-400 rounded-xl p-3"
               />
+            </div>
+            <div>
+              <label className="block text-gray-400 text-sm mb-2">Phone Number</label>
+              <input
+                type="tel"
+                placeholder="Phone Number"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
+              />
+            </div>
+            <div>
+              <label className="block text-gray-400 text-sm mb-2">Game Level</label>
+              <select
+                value={level}
+                onChange={(e) => setLevel(e.target.value)}
+                className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F] appearance-none"
+              >
+                <option value="">Select your level</option>
+                {LEVELS.map((l) => (
+                  <option key={l} value={l}>
+                    {l}
+                  </option>
+                ))}
+              </select>
             </div>
             <button
               type="submit"
