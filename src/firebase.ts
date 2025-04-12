@@ -2,15 +2,20 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
-// Your web app's Firebase configuration
-// Replace these values with the ones from your Firebase Console
-// You can find these by:
-// 1. Go to Firebase Console (https://console.firebase.google.com)
-// 2. Select your project
-// 3. Click on the gear icon (Project Settings)
-// 4. Scroll down to "Your apps" section
-// 5. Under the web app, click "Config"
-const firebaseConfig = {
+declare global {
+  interface Window {
+    FIREBASE_CONFIG?: {
+      apiKey: string;
+      authDomain: string;
+      projectId: string;
+      storageBucket: string;
+      messagingSenderId: string;
+      appId: string;
+    };
+  }
+}
+
+const firebaseConfig = window.FIREBASE_CONFIG || {
   apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
   authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
   projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
