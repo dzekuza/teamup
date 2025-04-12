@@ -50,15 +50,21 @@ jobs:
           target: "/var/www/weteamup/"
           strip_components: 1
 
-      - name: Configure VPS
+      - name: Setup VPS
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
+            # Install Node.js and npm if not installed
+            if ! command -v node &> /dev/null; then
+              curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+              sudo apt-get install -y nodejs npm
+            fi
+
             cd /var/www/weteamup/
-            
+
             # Create runtime configuration
             cat > config.js << EOL
             window.FIREBASE_CONFIG = {
@@ -74,9 +80,16 @@ jobs:
             # Add config.js to index.html
             sed -i '/<head>/a \    <script src="/config.js"></script>' index.html
 
+            # Install Firebase dependencies
+            if [ ! -d "node_modules" ]; then
+              npm init -y
+              npm install firebase
+            fi
+
             # Set proper permissions
-            chmod 644 config.js
-            chmod 644 .env
+            sudo chown -R www-data:www-data .
+            sudo chmod 644 config.js .env
+            sudo chmod 755 node_modules
 
       - name: Notify on Success
         if: success()
