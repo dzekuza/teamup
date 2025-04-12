@@ -1,8 +1,6 @@
 import { FC } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { ThemeProvider, createTheme } from '@mui/material';
-import CssBaseline from '@mui/material/CssBaseline';
-import Navbar from './components/Navbar';
+import { Navbar } from './components/Navbar';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -10,21 +8,9 @@ import EventDetails from './pages/EventDetails';
 import EditEvent from './pages/EditEvent';
 import Profile from './pages/Profile';
 
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: '#1976d2',
-    },
-    secondary: {
-      main: '#dc004e',
-    },
-  },
-});
-
 const App: FC = () => {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
+    <div className="min-h-screen bg-background text-foreground dark">
       <Router>
         <Navbar />
         <Routes>
@@ -36,7 +22,7 @@ const App: FC = () => {
           <Route path="/profile" element={<Profile />} />
         </Routes>
       </Router>
-    </ThemeProvider>
+    </div>
   );
 };
 

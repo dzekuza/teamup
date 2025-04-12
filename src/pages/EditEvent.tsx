@@ -56,7 +56,7 @@ const EditEvent = () => {
         const eventDoc = await getDoc(doc(db, 'events', id));
         if (eventDoc.exists()) {
           const eventData = eventDoc.data() as Event;
-          if (eventData.createdBy !== user.id) {
+          if (eventData.createdBy !== user.uid) {
             navigate('/');
             return;
           }

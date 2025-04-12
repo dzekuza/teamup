@@ -8,14 +8,15 @@ export interface User {
 export interface Event {
   id: string;
   title: string;
+  description: string;
   location: string;
   level: 'Beginner' | 'Intermediate' | 'Advanced';
   price: number;
   maxPlayers: number;
   currentPlayers: number;
   createdBy: string;
-  createdAt: Date;
-  date: Date;
+  createdAt: string;
+  date: string;
   time: string;
   players: string[];
 } 

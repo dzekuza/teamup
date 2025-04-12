@@ -1,43 +1,33 @@
 import { useState, useEffect } from 'react';
 import { 
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut,
+  getAuth, 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signOut as firebaseSignOut,
   onAuthStateChanged,
-  User as FirebaseUser,
+  User,
   updateProfile
 } from 'firebase/auth';
-import { auth } from '../firebase';
-import { User } from '../types';
 
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const auth = getAuth();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
-      if (firebaseUser) {
-        setUser({
-          id: firebaseUser.uid,
-          email: firebaseUser.email || '',
-          displayName: firebaseUser.displayName || '',
-        });
-      } else {
-        setUser(null);
-      }
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user);
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [auth]);
 
   const login = async (email: string, password: string) => {
     try {
       await signInWithEmailAndPassword(auth, email, password);
-    } catch (error: any) {
-      if (error.code === 'auth/invalid-credential') {
-        throw new Error('Invalid email or password');
-      }
+    } catch (error) {
+      console.error('Error logging in:', error);
       throw error;
     }
   };
@@ -45,26 +35,23 @@ export const useAuth = () => {
   const register = async (email: string, password: string, displayName: string) => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      await updateProfile(userCredential.user, { displayName });
-    } catch (error: any) {
-      if (error.code === 'auth/email-already-in-use') {
-        throw new Error('Email is already registered');
-      } else if (error.code === 'auth/weak-password') {
-        throw new Error('Password should be at least 6 characters');
-      } else if (error.code === 'auth/invalid-email') {
-        throw new Error('Invalid email address');
+      if (userCredential.user) {
+        await updateProfile(userCredential.user, { displayName });
       }
-      throw error;
-    }
-  };
-
-  const logout = async () => {
-    try {
-      await signOut(auth);
     } catch (error) {
+      console.error('Error registering:', error);
       throw error;
     }
   };
 
-  return { user, loading, login, register, logout };
+  const signOut = async () => {
+    try {
+      await firebaseSignOut(auth);
+    } catch (error) {
+      console.error('Error signing out:', error);
+      throw error;
+    }
+  };
+
+  return { user, loading, login, register, signOut };
 }; 

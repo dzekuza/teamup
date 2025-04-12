@@ -2,15 +2,17 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Event } from '../types';
+import { Event, User } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '../components/ui/card';
 import { Edit, Share } from 'lucide-react';
+import PlayerAvatars from '../components/PlayerAvatars';
 
 const EventDetails = () => {
   const { id } = useParams<{ id: string }>();
   const [event, setEvent] = useState<Event | null>(null);
+  const [players, setPlayers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -21,7 +23,20 @@ const EventDetails = () => {
       try {
         const eventDoc = await getDoc(doc(db, 'events', id));
         if (eventDoc.exists()) {
-          setEvent({ id: eventDoc.id, ...eventDoc.data() } as Event);
+          const eventData = { id: eventDoc.id, ...eventDoc.data() } as Event;
+          setEvent(eventData);
+          
+          // Fetch player details
+          const playerPromises = eventData.players.map(async (playerId) => {
+            const userDoc = await getDoc(doc(db, 'users', playerId));
+            if (userDoc.exists()) {
+              return { id: userDoc.id, ...userDoc.data() } as User;
+            }
+            return null;
+          });
+
+          const playersData = (await Promise.all(playerPromises)).filter((player): player is User => player !== null);
+          setPlayers(playersData);
         }
       } catch (error) {
         console.error('Error fetching event:', error);
@@ -39,12 +54,12 @@ const EventDetails = () => {
     try {
       const eventRef = doc(db, 'events', event.id);
       await updateDoc(eventRef, {
-        players: arrayUnion(user.id),
+        players: arrayUnion(user.uid),
         currentPlayers: event.currentPlayers + 1
       });
       setEvent({
         ...event,
-        players: [...event.players, user.id],
+        players: [...event.players, user.uid],
         currentPlayers: event.currentPlayers + 1
       });
     } catch (error) {
@@ -58,12 +73,12 @@ const EventDetails = () => {
     try {
       const eventRef = doc(db, 'events', event.id);
       await updateDoc(eventRef, {
-        players: arrayRemove(user.id),
+        players: arrayRemove(user.uid),
         currentPlayers: event.currentPlayers - 1
       });
       setEvent({
         ...event,
-        players: event.players.filter(playerId => playerId !== user.id),
+        players: event.players.filter(playerId => playerId !== user.uid),
         currentPlayers: event.currentPlayers - 1
       });
     } catch (error) {
@@ -94,9 +109,9 @@ const EventDetails = () => {
     );
   }
 
-  const isJoined = user ? event.players.includes(user.id) : false;
+  const isJoined = user ? event.players.includes(user.uid) : false;
   const canJoin = user && !isJoined && event.currentPlayers < event.maxPlayers;
-  const isCreator = user && user.id === event.createdBy;
+  const isCreator = user && user.uid === event.createdBy;
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -140,7 +155,20 @@ const EventDetails = () => {
             </div>
             <div>
               <h4 className="font-medium">Players</h4>
-              <p className="text-muted-foreground">{event.currentPlayers} / {event.maxPlayers}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-muted-foreground">{event.currentPlayers} / {event.maxPlayers}</p>
+                <PlayerAvatars playerIds={event.players} maxDisplay={4} />
+              </div>
+              <div className="mt-2 space-y-2">
+                {players.map((player) => (
+                  <div key={player.id} className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                      {player.displayName?.[0] || player.email?.[0] || '?'}
+                    </div>
+                    <span className="text-sm">{player.displayName || player.email}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </CardContent>

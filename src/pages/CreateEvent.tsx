@@ -57,16 +57,17 @@ const CreateEvent = () => {
     try {
       const eventData: Omit<Event, 'id'> = {
         title,
+        description: '',
         location,
         level,
         price: Number(price),
         maxPlayers: Number(maxPlayers),
         currentPlayers: 1,
-        createdBy: user.id,
-        createdAt: new Date(),
-        date: new Date(date),
+        createdBy: user.uid,
+        createdAt: new Date().toISOString(),
+        date: date,
         time,
-        players: [user.id],
+        players: [user.uid],
       };
 
       await addDoc(collection(db, 'events'), eventData);

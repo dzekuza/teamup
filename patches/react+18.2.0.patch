@@ -1,0 +1,35 @@
+'use strict';
+
+if (process.env.NODE_ENV === 'production') {
+  module.exports = require('./cjs/react.production.min.js');
+} else {
+  module.exports = require('./cjs/react.development.js');
+}
+module.exports.default = module.exports;
+module.exports.Children = module.exports.Children;
+module.exports.Component = module.exports.Component;
+module.exports.Fragment = module.exports.Fragment;
+module.exports.Profiler = module.exports.Profiler;
+module.exports.PureComponent = module.exports.PureComponent;
+module.exports.StrictMode = module.exports.StrictMode;
+module.exports.Suspense = module.exports.Suspense;
+module.exports.cloneElement = module.exports.cloneElement;
+module.exports.createContext = module.exports.createContext;
+module.exports.createElement = module.exports.createElement;
+module.exports.createFactory = module.exports.createFactory;
+module.exports.createRef = module.exports.createRef;
+module.exports.forwardRef = module.exports.forwardRef;
+module.exports.isValidElement = module.exports.isValidElement;
+module.exports.lazy = module.exports.lazy;
+module.exports.memo = module.exports.memo;
+module.exports.useCallback = module.exports.useCallback;
+module.exports.useContext = module.exports.useContext;
+module.exports.useDebugValue = module.exports.useDebugValue;
+module.exports.useEffect = module.exports.useEffect;
+module.exports.useImperativeHandle = module.exports.useImperativeHandle;
+module.exports.useLayoutEffect = module.exports.useLayoutEffect;
+module.exports.useMemo = module.exports.useMemo;
+module.exports.useReducer = module.exports.useReducer;
+module.exports.useRef = module.exports.useRef;
+module.exports.useState = module.exports.useState;
+module.exports.version = module.exports.version; 

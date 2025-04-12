@@ -6,7 +6,7 @@ import { updateProfile } from 'firebase/auth';
 import { auth } from '../firebase';
 
 const Profile = () => {
-  const { user, logout } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
@@ -43,7 +43,7 @@ const Profile = () => {
 
   const handleLogout = async () => {
     try {
-      await logout();
+      await signOut();
       navigate('/');
     } catch (error) {
       setError('Failed to log out.');
