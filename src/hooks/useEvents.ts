@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { collection, query, getDocs, orderBy, Timestamp } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Event } from '../types';
+import { Event } from '../types/index';
 
 export const useEvents = () => {
   const [events, setEvents] = useState<Event[]>([]);

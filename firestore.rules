@@ -1,0 +1,77 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Events collection
+    match /events/{eventId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated() && resource.data.createdBy == request.auth.uid;
+    }
+
+    // Friends collection
+    match /friends/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (
+        request.auth.uid == userId || 
+        request.resource.data.keys().hasAll(['friends']) && 
+        request.resource.data.friends.hasOnly([request.auth.uid])
+      );
+      allow update: if isAuthenticated() && (
+        request.auth.uid == userId || 
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['friends']) &&
+         request.resource.data.friends.hasAll(resource.data.friends))
+      );
+      
+      // Friend requests subcollection
+      match /requests/{requestId} {
+        allow read: if isAuthenticated() && (
+          request.auth.uid == userId || 
+          request.auth.uid == resource.data.fromUserId
+        );
+        allow create: if isAuthenticated() && 
+          request.auth.uid == request.resource.data.fromUserId &&
+          request.resource.data.toUserId == userId;
+        allow update: if isAuthenticated() && 
+          request.auth.uid == userId;
+        allow delete: if isAuthenticated() && (
+          request.auth.uid == userId || 
+          request.auth.uid == resource.data.fromUserId
+        );
+      }
+    }
+
+    // Mail collection for email sending
+    match /mail/{document=**} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated();
+    }
+
+    // Notifications collection
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    // Default deny for all other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+} 

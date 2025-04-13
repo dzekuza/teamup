@@ -1,21 +1,45 @@
+export interface User {
+  id: string;
+  email: string;
+  displayName: string;
+  photoURL?: string;
+}
+
+export interface MatchResult {
+  teamAScore: string;
+  teamBScore: string;
+  winner: 'Team A' | 'Team B';
+}
+
 export interface Event {
   id: string;
   title: string;
-  description?: string;
   date: string;
   time: string;
+  endTime: string;
   location: string;
-  locationName?: string;
-  address?: string;
-  coordinates?: {
-    lat: number;
-    lng: number;
-  };
   level: string;
-  price: number;
+  players: Player[];
   maxPlayers: number;
-  currentPlayers: number;
-  players: string[];
+  createdBy: string;
+  price: number;
+  status: 'open' | 'closed' | 'completed';
+  matchResults?: MatchResult | MatchResult[];
+}
+
+export interface Player {
+  id: string;
+  name: string;
+  photoURL?: string;
+}
+
+export interface Notification {
+  id: string;
+  type: 'new_event' | 'event_joined' | 'event_cancelled';
+  eventId: string;
+  eventTitle: string;
+  createdBy: string;
   createdAt: string;
-  createdBy?: string;
+  read: boolean;
+  userId: string;
 } 

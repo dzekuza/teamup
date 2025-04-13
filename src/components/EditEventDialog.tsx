@@ -1,8 +1,8 @@
 import { FC, useState, useEffect, useRef } from 'react';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../hooks/useAuth';
-import { Event } from '../types';
+import { Event } from '../types/index';
 import { useClickOutside } from '../hooks/useClickOutside';
 
 const PADEL_LOCATIONS = [
@@ -27,11 +27,13 @@ export const EditEventDialog: FC<EditEventDialogProps> = ({ open, onClose, onEve
   const [location, setLocation] = useState('');
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
+  const [endTime, setEndTime] = useState('');
   const [price, setPrice] = useState('');
   const [maxPlayers, setMaxPlayers] = useState('4');
   const [level, setLevel] = useState('Beginner');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const { user } = useAuth();
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -50,8 +52,9 @@ export const EditEventDialog: FC<EditEventDialogProps> = ({ open, onClose, onEve
           }
           setTitle(eventData.title);
           setLocation(eventData.location);
-          setDate(eventData.date);
+          setDate(eventData.date.split('T')[0]);
           setTime(eventData.time);
+          setEndTime(eventData.endTime);
           setLevel(eventData.level);
           setPrice(eventData.price.toString());
           setMaxPlayers(eventData.maxPlayers.toString());
@@ -64,38 +67,78 @@ export const EditEventDialog: FC<EditEventDialogProps> = ({ open, onClose, onEve
       }
     };
 
-    if (open) {
+    if (open && eventId) {
       fetchEvent();
     }
-  }, [eventId, user, open]);
+  }, [open, eventId, onClose, user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!eventId || !user) return;
 
     try {
       const eventRef = doc(db, 'events', eventId);
       await updateDoc(eventRef, {
         title,
         location,
-        date,
+        date: new Date(date).toISOString(),
         time,
+        endTime,
         level,
-        price: Number(price),
-        maxPlayers: Number(maxPlayers)
+        price: parseFloat(price),
+        maxPlayers: parseInt(maxPlayers)
       });
+
+      if (onEventUpdated) {
+        onEventUpdated();
+      }
+      onClose();
+    } catch (error) {
+      console.error('Error updating event:', error);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!eventId || !user) return;
+
+    try {
+      await deleteDoc(doc(db, 'events', eventId));
       onEventUpdated();
       onClose();
     } catch (error) {
-      setError('Failed to update event.');
-      console.error('Error updating event:', error);
+      setError('Failed to delete event.');
+      console.error('Error deleting event:', error);
     }
   };
 
   if (!open) return null;
 
+  if (showDeleteConfirm) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[60]">
+        <div ref={dialogRef} className="bg-[#1E1E1E] rounded-3xl p-8 w-full max-w-md relative">
+          <h2 className="text-2xl font-bold text-white mb-6">Delete Event</h2>
+          <p className="text-white mb-6">Are you sure you want to delete this event? This action cannot be undone.</p>
+          <div className="flex justify-end space-x-4">
+            <button
+              onClick={() => setShowDeleteConfirm(false)}
+              className="px-4 py-2 text-sm font-medium text-white bg-[#2A2A2A] rounded-xl hover:bg-[#3A3A3A] transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleDelete}
+              className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-xl hover:bg-red-700 transition-colors"
+            >
+              Delete Event
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[60]">
       <div ref={dialogRef} className="bg-[#1E1E1E] rounded-3xl p-8 w-full max-w-md relative">
         <button
           onClick={onClose}
@@ -166,6 +209,16 @@ export const EditEventDialog: FC<EditEventDialogProps> = ({ open, onClose, onEve
             </div>
 
             <div>
+              <input
+                type="time"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
+                required
+              />
+            </div>
+
+            <div>
               <select
                 value={level}
                 onChange={(e) => setLevel(e.target.value)}
@@ -195,12 +248,21 @@ export const EditEventDialog: FC<EditEventDialogProps> = ({ open, onClose, onEve
               <p className="text-red-500 text-sm">{error}</p>
             )}
 
-            <button
-              type="submit"
-              className="w-full bg-transparent border border-[#C1FF2F] text-[#C1FF2F] rounded-xl py-3 hover:bg-[#C1FF2F] hover:text-black transition-colors"
-            >
-              Update event
-            </button>
+            <div className="flex justify-between items-center space-x-4">
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-xl hover:bg-red-700 transition-colors"
+              >
+                Delete Event
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 text-sm font-medium text-black bg-[#C1FF2F] rounded-xl hover:bg-[#B1EF1F] transition-colors"
+              >
+                Update event
+              </button>
+            </div>
           </form>
         )}
       </div>

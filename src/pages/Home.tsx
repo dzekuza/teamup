@@ -1,10 +1,29 @@
-import React from 'react';
-import { EventCard } from '../components/EventCard';
-import { useEvents } from '../hooks/useEvents';
-import { useAuth } from '../hooks/useAuth';
+import React, { useState } from 'react';
+import { CreateEventDialog } from '../components/CreateEventDialog';
+import { EditEventDialog } from '../components/EditEventDialog';
+import { Filters } from '../components/Filters';
+import { EventList } from '../components/EventList';
 
-export const Home = () => {
-  const { events, loading, error } = useEvents();
+interface FilterOptions {
+  date: string;
+  level: string;
+  location: string;
+  showJoinedOnly: boolean;
+}
+
+const Home: React.FC = () => {
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [filters, setFilters] = useState<FilterOptions>({
+    date: '',
+    level: '',
+    location: '',
+    showJoinedOnly: false
+  });
+
+  const handleFilterChange = (newFilters: FilterOptions) => {
+    setFilters(newFilters);
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -12,18 +31,27 @@ export const Home = () => {
         <h1 className="text-2xl font-bold text-white">Events</h1>
       </div>
 
-      {loading ? (
-        <div className="text-center text-white">Loading events...</div>
-      ) : error ? (
-        <div className="text-center text-red-500">{error}</div>
-      ) : events.length === 0 ? (
-        <div className="text-center text-white">No events found</div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {events.map((event) => (
-            <EventCard key={event.id} event={event} />
-          ))}
-        </div>
+      <Filters onFilterChange={handleFilterChange} />
+      
+      <div className="mt-6">
+        <EventList filters={filters} />
+      </div>
+
+      {isCreateDialogOpen && (
+        <CreateEventDialog
+          open={isCreateDialogOpen}
+          onClose={() => setIsCreateDialogOpen(false)}
+          onEventCreated={() => setIsCreateDialogOpen(false)}
+        />
+      )}
+
+      {selectedEventId && (
+        <EditEventDialog
+          eventId={selectedEventId}
+          open={!!selectedEventId}
+          onClose={() => setSelectedEventId(null)}
+          onEventUpdated={() => setSelectedEventId(null)}
+        />
       )}
     </div>
   );

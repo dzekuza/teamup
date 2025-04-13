@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { addDoc, collection } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../hooks/useAuth';
-import { Event } from '../types';
+import { Event } from '../types/index';
 
 // Predefined padel locations
 const PADEL_LOCATIONS = [
@@ -57,17 +57,20 @@ const CreateEvent = () => {
     try {
       const eventData: Omit<Event, 'id'> = {
         title,
-        description: '',
         location,
         level,
         price: Number(price),
         maxPlayers: Number(maxPlayers),
-        currentPlayers: 1,
         createdBy: user.uid,
-        createdAt: new Date().toISOString(),
-        date: date,
+        date: new Date(date).toISOString(),
         time,
-        players: [user.uid],
+        endTime: new Date(new Date(date).getTime() + 2 * 60 * 60 * 1000).toISOString(), // Default 2 hours duration
+        players: [{
+          id: user.uid,
+          name: user.displayName || user.email || 'Unknown Player',
+          photoURL: user.photoURL || undefined
+        }],
+        status: 'open',
       };
 
       await addDoc(collection(db, 'events'), eventData);
@@ -178,4 +181,4 @@ const CreateEvent = () => {
   );
 };
 
-export default CreateEvent; 
+export default CreateEvent;

@@ -6,6 +6,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import EventDetails from './pages/EventDetails';
 import Profile from './pages/Profile';
+import { EmailTest } from './components/EmailTest';
 
 const App: FC = () => {
   return (
@@ -18,6 +19,7 @@ const App: FC = () => {
           <Route path="/register" element={<Register />} />
           <Route path="/event/:id" element={<EventDetails />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/test-email" element={<EmailTest />} />
         </Routes>
       </Router>
     </div>

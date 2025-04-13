@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Box, Avatar, Typography, Tooltip } from '@mui/material';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { User } from '../types';
+import { User } from '../types/index';
 
 interface PlayerAvatarsProps {
   playerIds: string[];
@@ -46,13 +46,13 @@ const PlayerAvatars = ({ playerIds, maxDisplay = 4 }: PlayerAvatarsProps) => {
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
       {displayedPlayers.map((player) => (
-        <Tooltip key={player.id} title={player.displayName}>
+        <Tooltip key={player.id} title={player.displayName || player.email || 'Unknown Player'}>
           <Avatar
             src={player.photoURL}
-            alt={player.displayName}
+            alt={player.displayName || player.email || 'Unknown Player'}
             sx={{ width: 32, height: 32 }}
           >
-            {player.displayName?.[0] || player.email?.[0] || '?'}
+            {player.displayName ? player.displayName[0] : (player.email ? player.email[0] : '?')}
           </Avatar>
         </Tooltip>
       ))}
