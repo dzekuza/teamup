@@ -466,56 +466,27 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
           </div>
         </div>
 
-        {/* Match Results or Add Results Button */}
-        {event.matchResults ? (
-          <div className="mt-4 bg-[#2A2A2A] rounded-xl p-4">
-            <h3 className="text-lg font-medium text-white mb-3">Match Results</h3>
-            {Array.isArray(event.matchResults) ? event.matchResults.map((result, index) => (
-              <div key={index} className="mb-4 last:mb-0">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-400">Score</p>
-                    <p className="text-white">{result.teamAScore}/{result.teamBScore}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-400">Winner</p>
-                    <p className="text-[#C1FF2F]">{result.winner}</p>
-                  </div>
-                </div>
-              </div>
-            )) : (
-              <div className="mb-4 last:mb-0">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-400">Score</p>
-                    <p className="text-white">{event.matchResults.teamAScore}/{event.matchResults.teamBScore}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-400">Winner</p>
-                    <p className="text-[#C1FF2F]">{event.matchResults.winner}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-            {/* Edit match results button */}
-            {user?.uid === event.createdBy && (
-              <button
-                onClick={() => setIsMatchResultsOpen(true)}
-                className="w-full mt-4 px-4 py-2 text-[#C1FF2F] border border-[#C1FF2F] font-medium rounded-xl hover:bg-[#C1FF2F]/10 transition-colors"
-              >
-                Edit Match Results
-              </button>
-            )}
-          </div>
-        ) : (
-          isPastEvent() && user?.uid === event.createdBy && (
-            <button
-              onClick={() => setIsMatchResultsOpen(true)}
-              className="w-full mt-4 px-4 py-2 bg-[#C1FF2F] text-black font-medium rounded-xl hover:bg-[#B1EF1F] transition-colors"
-            >
-              Add Match Results
-            </button>
-          )
+        {/* Match Results Button - Show for all events with results */}
+        {event.matchResults && (
+          <button
+            onClick={() => setIsMatchResultsOpen(true)}
+            className="w-full mt-4 px-4 py-2 bg-[#2A2A2A] text-white font-medium rounded-xl hover:bg-[#3A3A3A] transition-colors flex items-center justify-center gap-2"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            View Match Statistics
+          </button>
+        )}
+
+        {/* Add Results Button - Only show for past events and event creator */}
+        {!event.matchResults && isPastEvent() && user?.uid === event.createdBy && (
+          <button
+            onClick={() => setIsMatchResultsOpen(true)}
+            className="w-full mt-4 px-4 py-2 bg-[#C1FF2F] text-black font-medium rounded-xl hover:bg-[#B1EF1F] transition-colors"
+          >
+            Add Match Results
+          </button>
         )}
 
         {/* Edit Button - Only show if event is not completed */}
