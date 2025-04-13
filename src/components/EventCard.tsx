@@ -527,6 +527,17 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
             Edit event
           </button>
         )}
+
+        {/* Leave Event Button - Only show if user has joined and is not the creator */}
+        {isJoined && user?.uid !== event.createdBy && !isPastEvent() && (
+          <button
+            onClick={handleLeaveEvent}
+            disabled={isLoading}
+            className="w-full mt-4 px-4 py-2 bg-red-600 text-white font-medium rounded-xl hover:bg-red-700 transition-colors"
+          >
+            {isLoading ? 'Leaving...' : 'Leave Event'}
+          </button>
+        )}
       </div>
 
       <EditEventDialog
