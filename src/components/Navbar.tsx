@@ -78,21 +78,22 @@ export const Navbar: FC = () => {
             <div className="relative" ref={profileMenuRef}>
               <button
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
-                className="w-12 h-12 rounded-full overflow-hidden hover:opacity-90 transition-opacity border-2 border-[#2A2A2A] hover:border-[#C1FF2F]"
+                className="flex items-center space-x-3 focus:outline-none"
               >
-                {user ? (
+                <div className="relative">
                   <img
                     src={avatars[userAvatar as keyof typeof avatars] || avatars.Avatar1}
                     alt="Profile"
-                    className="w-full h-full object-cover"
+                    className="h-8 w-8 rounded-full"
                   />
-                ) : (
-                  <div className="w-full h-full bg-[#2A2A2A] flex items-center justify-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                  </div>
-                )}
+                  {user?.emailVerified && (
+                    <div className="absolute -top-1 -right-1">
+                      <svg className="h-4 w-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
               </button>
               {showProfileMenu && (
                 <div className="absolute right-0 mt-2 w-48 bg-[#1E1E1E] rounded-xl shadow-lg py-2 border border-[#2A2A2A]">

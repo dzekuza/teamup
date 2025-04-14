@@ -1,0 +1,33 @@
+2025-04-14T14:18:35.789Z: SendGrid API Key found: false
+2025-04-14T14:18:35.793Z: SendGrid API Key: not found
+2025-04-14T14:18:35.795Z: Server is running on port 3001
+2025-04-14T14:19:03.128Z: Attempting to send email to: info@weteamup.app
+2025-04-14T14:19:03.129Z: From email: info@weteamup.app
+2025-04-14T14:19:03.453Z: Error sending email: Unauthorized
+2025-04-14T14:19:03.453Z: SendGrid error response: {"errors":[{"message":"The provided authorization grant is invalid, expired, or revoked","field":null,"help":null}]}
+2025-04-14T14:20:10.087Z: Current working directory: /Users/gvozdovic/webpadel
+2025-04-14T14:20:10.091Z: Environment variables:
+2025-04-14T14:20:10.091Z: SENDGRID_API_KEY: not set
+2025-04-14T14:20:10.091Z: SENDGRID_FROM_EMAIL: not set
+2025-04-14T14:20:10.092Z: Attempting to read .env file from: /Users/gvozdovic/webpadel/.env
+2025-04-14T14:20:10.092Z: Found .env file with content length: 533
+2025-04-14T14:20:10.092Z: SendGrid API Key found: false
+2025-04-14T14:20:10.093Z: SendGrid API Key: not found
+2025-04-14T14:20:10.097Z: Server is running on port 3001
+2025-04-14T14:21:00.561Z: Loading .env file from: /Users/gvozdovic/webpadel/.env
+2025-04-14T14:21:00.565Z: Environment variables loaded successfully
+2025-04-14T14:21:00.565Z: Environment variables after loading:
+2025-04-14T14:21:00.565Z: SENDGRID_API_KEY: not set
+2025-04-14T14:21:00.565Z: SENDGRID_FROM_EMAIL: not set
+2025-04-14T14:21:00.565Z: SendGrid API Key is missing
+2025-04-14T14:22:21.247Z: Loading .env file from: /Users/gvozdovic/webpadel/.env
+2025-04-14T14:22:21.251Z: Environment variables loaded successfully
+2025-04-14T14:22:21.251Z: Environment variables after loading:
+2025-04-14T14:22:21.251Z: REACT_APP_SENDGRID_API_KEY: set (length: 69)
+2025-04-14T14:22:21.251Z: REACT_APP_SENDER_EMAIL: info@weteamup.app
+2025-04-14T14:22:21.252Z: SendGrid API Key found: true
+2025-04-14T14:22:21.252Z: SendGrid API Key prefix: SG.ZexSfmL
+2025-04-14T14:22:21.254Z: Server is running on port 3001
+2025-04-14T14:23:16.710Z: Attempting to send email to: info@weteamup.app
+2025-04-14T14:23:16.711Z: From email: info@weteamup.app
+2025-04-14T14:23:17.289Z: SendGrid response: [{"statusCode":202,"body":"","headers":{"server":"nginx","date":"Mon, 14 Apr 2025 14:23:17 GMT","content-length":"0","connection":"keep-alive","x-message-id":"oZHnMz2sQA2GEtm6ioxXQg","access-control-allow-origin":"https://sendgrid.api-docs.io","access-control-allow-methods":"POST","access-control-allow-headers":"Authorization, Content-Type, On-behalf-of, x-sg-elas-acl","access-control-max-age":"600","x-no-cors-reason":"https://sendgrid.com/docs/Classroom/Basics/API/cors.html","strict-transport-security":"max-age=31536000; includeSubDomains","content-security-policy":"frame-ancestors 'none'","cache-control":"no-cache","x-content-type-options":"no-sniff","referrer-policy":"strict-origin-when-cross-origin"}},""]

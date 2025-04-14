@@ -1,19 +1,13 @@
 import { FC, useState, useEffect, useRef } from 'react';
-import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, deleteDoc, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../hooks/useAuth';
 import { Event } from '../types/index';
 import { useClickOutside } from '../hooks/useClickOutside';
-
-const PADEL_LOCATIONS = [
-  'Padel Vilnius - Liepkalnio g. 2C, Vilnius 02105',
-  'Ozo Padel & Tennis - Ozo g. 14C, Vilnius 08200',
-  'SET Padel Club - Kareivių g. 14, Vilnius 09117',
-  'Tennis Pro Academy Padel - Naugarduko g. 76, Vilnius 03202',
-  'GO9 Padel - Gedimino pr. 9, Vilnius 01103',
-  'Padel House Vilnius - Žygio g. 97A, Vilnius 08234',
-  'LTU Padel Club - Viršuliškių g. 40, Vilnius 05131'
-];
+import { PADEL_LOCATIONS, Location } from '../constants/locations';
+import { sendEventInvitation } from '../services/emailService';
+import { createNotification } from '../services/notificationService';
+import { FriendSearch } from './FriendSearch';
 
 interface EditEventDialogProps {
   open: boolean;
@@ -34,7 +28,12 @@ export const EditEventDialog: FC<EditEventDialogProps> = ({ open, onClose, onEve
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const { user } = useAuth();
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [password, setPassword] = useState('');
+  const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [invitedEmails, setInvitedEmails] = useState<string[]>([]);
+  const { user, userFriends } = useAuth();
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useClickOutside(dialogRef, onClose);
@@ -58,6 +57,8 @@ export const EditEventDialog: FC<EditEventDialogProps> = ({ open, onClose, onEve
           setLevel(eventData.level);
           setPrice(eventData.price.toString());
           setMaxPlayers(eventData.maxPlayers.toString());
+          setIsPrivate(eventData.isPrivate || false);
+          setPassword(eventData.password || '');
         }
       } catch (error) {
         console.error('Error fetching event:', error);
@@ -85,8 +86,65 @@ export const EditEventDialog: FC<EditEventDialogProps> = ({ open, onClose, onEve
         endTime,
         level,
         price: parseFloat(price),
-        maxPlayers: parseInt(maxPlayers)
+        maxPlayers: parseInt(maxPlayers),
+        isPrivate,
+        ...(isPrivate && { password }),
       });
+
+      // Send notifications and invitation emails to selected friends
+      if (selectedFriends.length > 0) {
+        try {
+          for (const friendId of selectedFriends) {
+            const friendDoc = await getDoc(doc(db, 'users', friendId));
+            if (friendDoc.exists()) {
+              const friendData = friendDoc.data();
+              
+              // Create notification
+              await createNotification({
+                type: 'new_event',
+                eventId,
+                eventTitle: title,
+                createdBy: user!.uid,
+                createdAt: new Date().toISOString(),
+                read: false,
+                userId: friendId
+              });
+
+              // Send email invitation if email is available
+              if (friendData.email) {
+                await sendEventInvitation(
+                  friendData.email,
+                  title,
+                  date,
+                  `${time} - ${endTime}`,
+                  location,
+                  user!.displayName || user!.email || 'A friend'
+                );
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error sending friend notifications and invitations:', error);
+        }
+      }
+
+      // Send invitations to additional email addresses
+      if (invitedEmails.length > 0) {
+        try {
+          for (const email of invitedEmails) {
+            await sendEventInvitation(
+              email,
+              title,
+              date,
+              `${time} - ${endTime}`,
+              location,
+              user!.displayName || user!.email || 'A friend'
+            );
+          }
+        } catch (error) {
+          console.error('Error sending email invitations:', error);
+        }
+      }
 
       if (onEventUpdated) {
         onEventUpdated();
@@ -108,6 +166,47 @@ export const EditEventDialog: FC<EditEventDialogProps> = ({ open, onClose, onEve
       setError('Failed to delete event.');
       console.error('Error deleting event:', error);
     }
+  };
+
+  const handleAddEmail = async () => {
+    if (inviteEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail)) {
+      if (!invitedEmails.includes(inviteEmail)) {
+        // Check if user with this email exists
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, where('email', '==', inviteEmail));
+        const querySnapshot = await getDocs(q);
+        
+        if (!querySnapshot.empty) {
+          // User exists, create friend request
+          const targetUser = querySnapshot.docs[0];
+          try {
+            await addDoc(collection(db, `friends/${targetUser.id}/requests`), {
+              fromUserId: user!.uid,
+              toUserId: targetUser.id,
+              status: 'pending',
+              timestamp: new Date().toISOString()
+            });
+          } catch (error) {
+            console.error('Error creating friend request:', error);
+          }
+        }
+        
+        setInvitedEmails([...invitedEmails, inviteEmail]);
+        setInviteEmail('');
+      }
+    }
+  };
+
+  const handleRemoveEmail = (email: string) => {
+    setInvitedEmails(invitedEmails.filter(e => e !== email));
+  };
+
+  const handleToggleFriend = (friendId: string) => {
+    setSelectedFriends(prev => 
+      prev.includes(friendId) 
+        ? prev.filter(id => id !== friendId)
+        : [...prev, friendId]
+    );
   };
 
   if (!open) return null;
@@ -139,7 +238,7 @@ export const EditEventDialog: FC<EditEventDialogProps> = ({ open, onClose, onEve
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[60]">
-      <div ref={dialogRef} className="bg-[#1E1E1E] rounded-3xl p-8 w-full max-w-md relative">
+      <div ref={dialogRef} className="bg-[#1E1E1E] rounded-3xl p-8 w-full max-w-md relative overflow-y-auto max-h-[90vh]">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-gray-400 hover:text-white"
@@ -151,8 +250,9 @@ export const EditEventDialog: FC<EditEventDialogProps> = ({ open, onClose, onEve
         {loading ? (
           <div className="text-white text-center">Loading...</div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div>
+              <label className="block text-sm font-medium text-gray-400 mb-2">Event Title</label>
               <input
                 type="text"
                 placeholder="Event title"
@@ -164,20 +264,56 @@ export const EditEventDialog: FC<EditEventDialogProps> = ({ open, onClose, onEve
             </div>
 
             <div>
+              <label className="block text-sm font-medium text-gray-400 mb-2">Location</label>
               <select
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
                 required
               >
-                <option value="">Event location</option>
+                <option value="">Select location</option>
                 {PADEL_LOCATIONS.map((loc) => (
-                  <option key={loc} value={loc}>{loc}</option>
+                  <option key={loc.name} value={loc.name}>{loc.name}</option>
                 ))}
               </select>
             </div>
 
             <div>
+              <label className="block text-sm font-medium text-gray-400 mb-2">Date</label>
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">Start Time</label>
+                <input
+                  type="time"
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
+                  className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">End Time</label>
+                <input
+                  type="time"
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                  className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-2">Price (€)</label>
               <input
                 type="number"
                 placeholder="Price"
@@ -189,36 +325,7 @@ export const EditEventDialog: FC<EditEventDialogProps> = ({ open, onClose, onEve
             </div>
 
             <div>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
-                required
-              />
-            </div>
-
-            <div>
-              <input
-                type="time"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
-                required
-              />
-            </div>
-
-            <div>
-              <input
-                type="time"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
-                required
-              />
-            </div>
-
-            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-2">Level</label>
               <select
                 value={level}
                 onChange={(e) => setLevel(e.target.value)}
@@ -232,6 +339,7 @@ export const EditEventDialog: FC<EditEventDialogProps> = ({ open, onClose, onEve
             </div>
 
             <div>
+              <label className="block text-sm font-medium text-gray-400 mb-2">Maximum Players</label>
               <select
                 value={maxPlayers}
                 onChange={(e) => setMaxPlayers(e.target.value)}
@@ -239,9 +347,93 @@ export const EditEventDialog: FC<EditEventDialogProps> = ({ open, onClose, onEve
                 required
               >
                 <option value="4">4 players</option>
-                <option value="3">3 players</option>
-                <option value="2">2 players</option>
               </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-2">Event Privacy</label>
+              <div className="space-y-4">
+                <div className="flex items-center">
+                  <input
+                    type="radio"
+                    id="public"
+                    name="privacy"
+                    checked={!isPrivate}
+                    onChange={() => setIsPrivate(false)}
+                    className="mr-2"
+                  />
+                  <label htmlFor="public" className="text-white">Public Event</label>
+                </div>
+                <div className="flex items-center">
+                  <input
+                    type="radio"
+                    id="private"
+                    name="privacy"
+                    checked={isPrivate}
+                    onChange={() => setIsPrivate(true)}
+                    className="mr-2"
+                  />
+                  <label htmlFor="private" className="text-white">Private Event</label>
+                </div>
+                {isPrivate && (
+                  <div>
+                    <label className="block text-white mb-2">Password</label>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full bg-[#2A2A2A] text-white rounded-xl p-2 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
+                      placeholder="Enter password for private event"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-white">Invite More Friends</h3>
+              
+              <FriendSearch
+                userFriends={userFriends || []}
+                selectedFriends={selectedFriends}
+                onToggleFriend={handleToggleFriend}
+              />
+
+              <div className="space-y-4">
+                <h4 className="text-white font-medium">Invite by Email</h4>
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    placeholder="Enter email address"
+                    className="flex-1 bg-[#2A2A2A] text-white rounded-xl px-4 py-2"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddEmail}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
+                  >
+                    Add
+                  </button>
+                </div>
+                {invitedEmails.length > 0 && (
+                  <div className="space-y-2">
+                    {invitedEmails.map(email => (
+                      <div key={email} className="flex items-center justify-between bg-[#2A2A2A] rounded-xl p-2">
+                        <span className="text-white">{email}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveEmail(email)}
+                          className="text-red-500 hover:text-red-600"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             {error && (

@@ -1,25 +1,40 @@
-import { FC } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
-import Home from './pages/Home';
+import { EmailVerificationBanner } from './components/EmailVerificationBanner';
+import { Home } from './pages/Home';
 import Login from './pages/Login';
-import Register from './pages/Register';
+import { Register } from './pages/Register';
+import { VerifyEmail } from './pages/VerifyEmail';
 import EventDetails from './pages/EventDetails';
 import Profile from './pages/Profile';
-import { EmailTest } from './components/EmailTest';
+import LandingPage from './pages/LandingPage';
+import { useAuth } from './hooks/useAuth';
+import Preloader from './components/Preloader';
 
-const App: FC = () => {
+const App: React.FC = () => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <Preloader />;
+  }
+
   return (
     <div className="min-h-screen bg-[#111111]">
       <Router>
-        <Navbar />
+        {user && (
+          <>
+            <EmailVerificationBanner />
+            <Navbar />
+          </>
+        )}
         <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/event/:id" element={<EventDetails />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/test-email" element={<EmailTest />} />
+          <Route path="/" element={user ? <Home /> : <LandingPage />} />
+          <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
+          <Route path="/register" element={!user ? <Register /> : <Navigate to="/" />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/event/:id" element={user ? <EventDetails /> : <Navigate to="/login" />} />
+          <Route path="/profile" element={user ? <Profile /> : <Navigate to="/login" />} />
         </Routes>
       </Router>
     </div>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import Home from './Home';
+import { Home } from './Home';
 import { Event } from '../types';
 
 // Mock useAuth hook

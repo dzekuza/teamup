@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Event, MatchResult } from '../types';
+import { useAuth } from '../hooks/useAuth';
 
 interface MatchResultsDialogProps {
   event: Event;
@@ -19,6 +20,8 @@ export const MatchResultsDialog: React.FC<MatchResultsDialogProps> = ({
   onClose,
   onSave,
 }) => {
+  const { user } = useAuth();
+  const isEventOwner = user?.uid === event.createdBy;
   const [scores, setScores] = useState<ScoreRow[]>(() => {
     if (!event.matchResults) return [{ score: '', winner: 'Team A' }];
     
@@ -116,6 +119,7 @@ export const MatchResultsDialog: React.FC<MatchResultsDialogProps> = ({
                     placeholder="Enter result"
                     className="w-full bg-[#2A2A2A] text-white rounded-xl p-2 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
                     required
+                    disabled={!isEventOwner}
                   />
                 </div>
                 <div>
@@ -124,6 +128,7 @@ export const MatchResultsDialog: React.FC<MatchResultsDialogProps> = ({
                     onChange={(e) => handleWinnerChange(index, e.target.value as 'Team A' | 'Team B')}
                     className="w-full bg-[#2A2A2A] text-white rounded-xl p-2 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
                     required
+                    disabled={!isEventOwner}
                   >
                     <option value="Team A">Team A</option>
                     <option value="Team B">Team B</option>
@@ -132,14 +137,16 @@ export const MatchResultsDialog: React.FC<MatchResultsDialogProps> = ({
               </div>
             ))}
 
-            {/* Add row button */}
-            <button
-              type="button"
-              onClick={addRow}
-              className="text-[#C1FF2F] hover:underline text-sm"
-            >
-              Add row
-            </button>
+            {/* Add row button - Only show for event owner */}
+            {isEventOwner && (
+              <button
+                type="button"
+                onClick={addRow}
+                className="text-[#C1FF2F] hover:underline text-sm"
+              >
+                Add row
+              </button>
+            )}
           </div>
 
           <div className="flex justify-end gap-3 mt-8">
@@ -148,14 +155,16 @@ export const MatchResultsDialog: React.FC<MatchResultsDialogProps> = ({
               onClick={onClose}
               className="px-4 py-2 text-white hover:bg-[#2A2A2A] rounded-xl transition-colors"
             >
-              Cancel
+              Close
             </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-[#C1FF2F] text-black font-medium rounded-xl hover:bg-[#B1EF1F] transition-colors"
-            >
-              Save changes
-            </button>
+            {isEventOwner && (
+              <button
+                type="submit"
+                className="px-4 py-2 bg-[#C1FF2F] text-black font-medium rounded-xl hover:bg-[#B1EF1F] transition-colors"
+              >
+                Save changes
+              </button>
+            )}
           </div>
         </form>
       </div>

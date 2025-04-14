@@ -1,0 +1,6 @@
+{
+  "smtpConnectionUri": "smtp://smtp.gmail.com:587",
+  "defaultFrom": "padeliodraugas@gmail.com",
+  "mailCollection": "mail",
+  "location": "us-central1"
+} 

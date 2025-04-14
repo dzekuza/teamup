@@ -23,8 +23,11 @@ export interface Event {
   maxPlayers: number;
   createdBy: string;
   price: number;
-  status: 'open' | 'closed' | 'completed';
+  status: 'upcoming' | 'ongoing' | 'finished';
   matchResults?: MatchResult | MatchResult[];
+  isPrivate: boolean;
+  password?: string;
+  sportType: string;
 }
 
 export interface Player {

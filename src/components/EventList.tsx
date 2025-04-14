@@ -10,13 +10,21 @@ interface Filters {
   level: string;
   location: string;
   showJoinedOnly: boolean;
+  searchTerm: string;
+  sportType: string;
 }
 
 interface EventListProps {
   filters?: Filters;
+  onEventClick: (eventId: string) => void;
+  onCreateClick: () => void;
 }
 
-export const EventList: FC<EventListProps> = ({ filters = { date: '', level: '', location: '', showJoinedOnly: false } }) => {
+export const EventList: FC<EventListProps> = ({ 
+  filters = { date: '', level: '', location: '', showJoinedOnly: false, searchTerm: '', sportType: '' },
+  onEventClick,
+  onCreateClick
+}) => {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +50,10 @@ export const EventList: FC<EventListProps> = ({ filters = { date: '', level: '',
       if (filters.level) {
         eventsQuery = query(eventsQuery, where('level', '==', filters.level));
       }
+
+      if (filters.sportType) {
+        eventsQuery = query(eventsQuery, where('sportType', '==', filters.sportType));
+      }
       
       // Apply ordering last
       eventsQuery = query(
@@ -62,6 +74,41 @@ export const EventList: FC<EventListProps> = ({ filters = { date: '', level: '',
             eventsList = eventsList.filter(event => 
               event.players && event.players.some(player => player && player.id === user.uid)
             );
+          }
+
+          // Apply search filter if searchTerm is provided
+          if (filters.searchTerm) {
+            const searchTermLower = filters.searchTerm.toLowerCase();
+            eventsList = eventsList.filter(event => {
+              // Search in title
+              if (event.title && event.title.toLowerCase().includes(searchTermLower)) {
+                return true;
+              }
+              
+              // Search in location
+              if (event.location && event.location.toLowerCase().includes(searchTermLower)) {
+                return true;
+              }
+              
+              // Search in date
+              if (event.date && event.date.toLowerCase().includes(searchTermLower)) {
+                return true;
+              }
+              
+              // Search in players
+              if (event.players && event.players.some(player => 
+                player && player.name && player.name.toLowerCase().includes(searchTermLower)
+              )) {
+                return true;
+              }
+              
+              // Search in creator
+              if (event.createdBy && event.createdBy.toLowerCase().includes(searchTermLower)) {
+                return true;
+              }
+              
+              return false;
+            });
           }
 
           setEvents(eventsList);
@@ -101,8 +148,14 @@ export const EventList: FC<EventListProps> = ({ filters = { date: '', level: '',
 
   if (events.length === 0) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <p className="text-gray-500">No events found</p>
+      <div className="flex flex-col items-center justify-center h-64">
+        <p className="text-gray-500 mb-4">No events found</p>
+        <button
+          onClick={onCreateClick}
+          className="bg-[#C1FF2F] text-black rounded-lg px-6 py-3 font-medium hover:bg-[#B1EF1F] transition-colors"
+        >
+          Create Event
+        </button>
       </div>
     );
   }
@@ -110,7 +163,13 @@ export const EventList: FC<EventListProps> = ({ filters = { date: '', level: '',
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {events.map((event) => (
-        <EventCard key={event.id} event={event} />
+        <div
+          key={event.id}
+          onClick={() => onEventClick(event.id)}
+          className="cursor-pointer"
+        >
+          <EventCard event={event} />
+        </div>
       ))}
     </div>
   );

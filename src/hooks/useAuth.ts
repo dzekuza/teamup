@@ -8,10 +8,14 @@ import {
   User,
   updateProfile,
   GoogleAuthProvider,
-  signInWithPopup
+  signInWithPopup,
+  UserCredential
 } from 'firebase/auth';
 import { collection, query, where, getDocs, doc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import { addUserToWelcomeSeries } from '../services/mailerLiteService';
+import { createVerificationToken } from '../services/verificationService';
+import { sendVerificationEmail } from '../services/sendGridService';
 
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -90,7 +94,24 @@ export const useAuth = () => {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       if (userCredential.user) {
         await updateProfile(userCredential.user, { displayName });
-        // User data will be stored in Firestore by the onAuthStateChanged listener
+        
+        // Store user data in Firestore
+        await setDoc(doc(db, 'users', userCredential.user.uid), {
+          uid: userCredential.user.uid,
+          email: userCredential.user.email,
+          displayName: displayName,
+          photoURL: 'Avatar1',
+          emailVerified: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+
+        // Create and send verification email
+        const verificationToken = await createVerificationToken(userCredential.user.uid, email);
+        await sendVerificationEmail(email, displayName, verificationToken);
+
+        // Add user to welcome series
+        await addUserToWelcomeSeries(email, displayName);
       }
       return userCredential.user;
     } catch (error) {
@@ -103,6 +124,13 @@ export const useAuth = () => {
     try {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
+      // Add user to MailerLite welcome series if they're new
+      if ((result as any).additionalUserInfo?.isNewUser) {
+        await addUserToWelcomeSeries(
+          result.user.email || '',
+          result.user.displayName || undefined
+        );
+      }
       // User data will be stored in Firestore by the onAuthStateChanged listener
       return result.user;
     } catch (error) {
