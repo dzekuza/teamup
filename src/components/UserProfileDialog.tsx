@@ -3,6 +3,8 @@ import { doc, getDoc, collection, query, where, getDocs, addDoc, updateDoc, dele
 import { db } from '../firebase';
 import { Event } from '../types/index';
 import { useAuth } from '../hooks/useAuth';
+import { updateProfile } from 'firebase/auth';
+import { auth } from '../firebase';
 import Avatar1 from '../assets/avatars/Avatar1.png';
 import Avatar2 from '../assets/avatars/Avatar2.png';
 import Avatar3 from '../assets/avatars/Avatar3.png';
@@ -14,6 +16,8 @@ const avatars = {
   Avatar3,
   Avatar4,
 };
+
+const LEVELS = ['Beginner', 'Intermediate', 'Advanced'];
 
 interface UserProfileDialogProps {
   userId: string;
@@ -56,6 +60,10 @@ export const UserProfileDialog: React.FC<UserProfileDialogProps> = ({
   const [activeTab, setActiveTab] = useState<'profile' | 'friends' | 'games'>('profile');
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
   const [friends, setFriends] = useState<string[]>([]);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedProfile, setEditedProfile] = useState<UserProfile | null>(null);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -67,7 +75,9 @@ export const UserProfileDialog: React.FC<UserProfileDialogProps> = ({
         // Fetch user profile
         const userDoc = await getDoc(doc(db, 'users', userId));
         if (userDoc.exists()) {
-          setUserProfile(userDoc.data() as UserProfile);
+          const profile = userDoc.data() as UserProfile;
+          setUserProfile(profile);
+          setEditedProfile(profile);
         }
 
         // Fetch user's created events
@@ -231,6 +241,62 @@ export const UserProfileDialog: React.FC<UserProfileDialogProps> = ({
     }
   };
 
+  const handleSaveProfile = async () => {
+    if (!user || !editedProfile || userId !== user.uid) return;
+
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      // Update Firebase Auth profile
+      await updateProfile(auth.currentUser!, {
+        displayName: editedProfile.displayName,
+        photoURL: editedProfile.photoURL
+      });
+
+      // Update Firestore user document
+      await updateDoc(doc(db, 'users', user.uid), {
+        displayName: editedProfile.displayName,
+        photoURL: editedProfile.photoURL,
+        phoneNumber: editedProfile.phoneNumber,
+        level: editedProfile.level,
+        updatedAt: new Date().toISOString()
+      });
+
+      setUserProfile(editedProfile);
+      setSuccess('Profile updated successfully!');
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      setError('Failed to update profile.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditClick = () => {
+    if (userId === user?.uid) {
+      setIsEditing(true);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditedProfile(userProfile);
+    setIsEditing(false);
+    setError('');
+    setSuccess('');
+  };
+
+  const handleInputChange = (field: keyof UserProfile, value: string) => {
+    if (editedProfile) {
+      setEditedProfile({
+        ...editedProfile,
+        [field]: value
+      });
+    }
+  };
+
   if (!open) return null;
 
   return (
@@ -247,18 +313,28 @@ export const UserProfileDialog: React.FC<UserProfileDialogProps> = ({
         ) : userProfile ? (
           <>
             <div className="p-6 border-b border-[#2A2A2A]">
-              <div className="flex items-center gap-4">
-                <img
-                  src={avatars[userProfile.photoURL as keyof typeof avatars] || avatars.Avatar1}
-                  alt="Profile Avatar"
-                  className="w-16 h-16 rounded-full"
-                />
-                <div>
-                  <h2 className="text-xl font-medium text-white">
-                    {userProfile.displayName}
-                  </h2>
-                  <p className="text-gray-400 text-sm">{userProfile.email}</p>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <img
+                    src={avatars[userProfile.photoURL as keyof typeof avatars] || avatars.Avatar1}
+                    alt="Profile Avatar"
+                    className="w-16 h-16 rounded-full"
+                  />
+                  <div>
+                    <h2 className="text-xl font-medium text-white">
+                      {userProfile.displayName}
+                    </h2>
+                    <p className="text-gray-400 text-sm">{userProfile.email}</p>
+                  </div>
                 </div>
+                {userId === user?.uid && !isEditing && (
+                  <button
+                    onClick={handleEditClick}
+                    className="px-4 py-2 bg-[#2A2A2A] text-white rounded-xl hover:bg-[#3A3A3A] transition-colors"
+                  >
+                    Edit Profile
+                  </button>
+                )}
               </div>
             </div>
 
@@ -324,20 +400,82 @@ export const UserProfileDialog: React.FC<UserProfileDialogProps> = ({
                     </div>
                   )}
 
-                  <div className="space-y-4">
-                    {userProfile.level && (
+                  {isEditing ? (
+                    <div className="space-y-4">
+                      {error && (
+                        <div className="text-red-500 text-sm">
+                          {error}
+                        </div>
+                      )}
+                      {success && (
+                        <div className="text-[#C1FF2F] text-sm">
+                          {success}
+                        </div>
+                      )}
                       <div>
-                        <h3 className="text-gray-400 text-sm">Level</h3>
-                        <p className="text-white">{userProfile.level}</p>
+                        <label className="block text-gray-400 text-sm mb-2">Display Name</label>
+                        <input
+                          type="text"
+                          value={editedProfile?.displayName || ''}
+                          onChange={(e) => handleInputChange('displayName', e.target.value)}
+                          className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
+                        />
                       </div>
-                    )}
-                    {userProfile.phoneNumber && (
                       <div>
-                        <h3 className="text-gray-400 text-sm">Phone</h3>
-                        <p className="text-white">{userProfile.phoneNumber}</p>
+                        <label className="block text-gray-400 text-sm mb-2">Phone Number</label>
+                        <input
+                          type="tel"
+                          value={editedProfile?.phoneNumber || ''}
+                          onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
+                          className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
+                        />
                       </div>
-                    )}
-                  </div>
+                      <div>
+                        <label className="block text-gray-400 text-sm mb-2">Game Level</label>
+                        <select
+                          value={editedProfile?.level || ''}
+                          onChange={(e) => handleInputChange('level', e.target.value)}
+                          className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
+                        >
+                          <option value="">Select your level</option>
+                          {LEVELS.map((level) => (
+                            <option key={level} value={level}>
+                              {level}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex gap-4">
+                        <button
+                          onClick={handleSaveProfile}
+                          className="flex-1 bg-[#C1FF2F] text-black rounded-xl py-3 font-medium hover:bg-[#B1EF1F] transition-colors"
+                        >
+                          Save Changes
+                        </button>
+                        <button
+                          onClick={handleCancelEdit}
+                          className="flex-1 bg-[#2A2A2A] text-white rounded-xl py-3 font-medium hover:bg-[#3A3A3A] transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {userProfile.level && (
+                        <div>
+                          <h3 className="text-gray-400 text-sm">Level</h3>
+                          <p className="text-white">{userProfile.level}</p>
+                        </div>
+                      )}
+                      {userProfile.phoneNumber && (
+                        <div>
+                          <h3 className="text-gray-400 text-sm">Phone</h3>
+                          <p className="text-white">{userProfile.phoneNumber}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 

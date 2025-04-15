@@ -1,6 +1,5 @@
 import React from 'react';
 import { Box, Typography, Button } from '@mui/material';
-import { Link } from 'react-router-dom';
 
 interface ProfileCompletionAlertProps {
   missingFields: {
@@ -9,9 +8,10 @@ interface ProfileCompletionAlertProps {
     location?: boolean;
     sports?: boolean;
   };
+  onOpenProfile: () => void;
 }
 
-const ProfileCompletionAlert: React.FC<ProfileCompletionAlertProps> = ({ missingFields }) => {
+const ProfileCompletionAlert: React.FC<ProfileCompletionAlertProps> = ({ missingFields, onOpenProfile }) => {
   const getMissingFieldMessage = () => {
     if (missingFields.level) {
       return {
@@ -73,8 +73,7 @@ const ProfileCompletionAlert: React.FC<ProfileCompletionAlertProps> = ({ missing
           {messageData.message}
         </Typography>
         <Button
-          component={Link}
-          to="/profile"
+          onClick={onOpenProfile}
           sx={{
             backgroundColor: '#CDEA68',
             color: 'black',

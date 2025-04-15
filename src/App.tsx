@@ -7,7 +7,6 @@ import Login from './pages/Login';
 import { Register } from './pages/Register';
 import { VerifyEmail } from './pages/VerifyEmail';
 import EventDetails from './pages/EventDetails';
-import Profile from './pages/Profile';
 import LandingPage from './pages/LandingPage';
 import { useAuth } from './hooks/useAuth';
 import Preloader from './components/Preloader';
@@ -34,7 +33,6 @@ const App: React.FC = () => {
           <Route path="/register" element={!user ? <Register /> : <Navigate to="/" />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/event/:id" element={user ? <EventDetails /> : <Navigate to="/login" />} />
-          <Route path="/profile" element={user ? <Profile /> : <Navigate to="/login" />} />
         </Routes>
       </Router>
     </div>

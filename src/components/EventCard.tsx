@@ -100,11 +100,19 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
 
   // Get location image
   const locationData = PADEL_LOCATIONS.find(loc => loc.name === event.location);
-  const locationImage = locationData?.image || '';
+  const locationImage = event.sportType === 'Padel' 
+    ? (locationData?.image || '')
+    : 'https://firebasestorage.googleapis.com/v0/b/newprojecta-36c09.firebasestorage.app/o/Locations%2Fstatic%20cover.jpg?alt=media&token=4c319254-5854-4b3c-9bc7-e67cfe1a58b1';
 
   const isPastEvent = () => {
     try {
-      if (!event.date || !event.endTime) {
+      // Check if date exists and is a string
+      if (!event.date || typeof event.date !== 'string') {
+        return false;
+      }
+
+      // Check if endTime exists and is a string
+      if (!event.endTime || typeof event.endTime !== 'string') {
         return false;
       }
       

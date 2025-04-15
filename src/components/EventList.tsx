@@ -1,6 +1,6 @@
-import { FC, useEffect, useState } from 'react';
-import { collection, onSnapshot, query, orderBy, where } from 'firebase/firestore';
-import { db } from '../firebase';
+import React, { FC, useEffect, useState } from 'react';
+import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
+import { db, auth } from '../firebase';
 import { Event } from '../types/index';
 import { EventCard } from './EventCard';
 import { useAuth } from '../hooks/useAuth';
@@ -12,6 +12,7 @@ interface Filters {
   showJoinedOnly: boolean;
   searchTerm: string;
   sportType: string;
+  eventStatus: string;
 }
 
 interface EventListProps {
@@ -21,7 +22,7 @@ interface EventListProps {
 }
 
 export const EventList: FC<EventListProps> = ({ 
-  filters = { date: '', level: '', location: '', showJoinedOnly: false, searchTerm: '', sportType: '' },
+  filters = { date: '', level: '', location: '', showJoinedOnly: false, searchTerm: '', sportType: '', eventStatus: '' },
   onEventClick,
   onCreateClick
 }) => {
@@ -31,103 +32,82 @@ export const EventList: FC<EventListProps> = ({
   const { user } = useAuth();
 
   useEffect(() => {
-    setLoading(true);
-    setError(null);
+    const fetchEvents = async () => {
+      try {
+        setLoading(true);
+        let eventsQuery = query(collection(db, 'events'));
 
-    try {
-      // Start with a base query
-      let eventsQuery = query(collection(db, 'events'));
-      
-      // Apply filters first
-      if (filters.location) {
-        eventsQuery = query(eventsQuery, where('location', '==', filters.location));
-      }
-      
-      if (filters.date) {
-        eventsQuery = query(eventsQuery, where('date', '==', filters.date));
-      }
-      
-      if (filters.level) {
-        eventsQuery = query(eventsQuery, where('level', '==', filters.level));
-      }
+        // Apply filters
+        if (filters.location) {
+          // Normalize the location name for comparison
+          const normalizedLocation = filters.location.trim();
+          eventsQuery = query(eventsQuery, where('location', '==', normalizedLocation));
+        }
+        if (filters.level) {
+          eventsQuery = query(eventsQuery, where('level', '==', filters.level));
+        }
+        if (filters.sportType) {
+          eventsQuery = query(eventsQuery, where('sportType', '==', filters.sportType));
+        }
 
-      if (filters.sportType) {
-        eventsQuery = query(eventsQuery, where('sportType', '==', filters.sportType));
-      }
-      
-      // Apply ordering last
-      eventsQuery = query(
-        eventsQuery,
-        orderBy('date', 'asc'),
-        orderBy('time', 'asc')
-      );
+        // Handle event status filter
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        
+        if (filters.eventStatus === 'current') {
+          // Current events are those that haven't ended yet and aren't finished
+          eventsQuery = query(
+            eventsQuery,
+            where('status', 'in', ['upcoming', 'ongoing']),
+            where('date', '>=', today.toISOString().split('T')[0])
+          );
+        } else if (filters.eventStatus === 'past') {
+          // Past events are those that have ended or are marked as finished
+          eventsQuery = query(
+            eventsQuery,
+            where('status', '==', 'finished')
+          );
+        } else {
+          // If no status filter is selected, show all events
+          eventsQuery = query(eventsQuery, orderBy('date', 'desc'));
+        }
 
-      const unsubscribe = onSnapshot(eventsQuery, 
-        (snapshot) => {
-          let eventsList = snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          })) as Event[];
+        const querySnapshot = await getDocs(eventsQuery);
+        let eventsList = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as Event[];
 
-          // Filter for joined events if showJoinedOnly is true and user is logged in
-          if (filters.showJoinedOnly && user) {
-            eventsList = eventsList.filter(event => 
-              event.players && event.players.some(player => player && player.id === user.uid)
+        // Apply search filter
+        if (filters.searchTerm) {
+          const searchTerm = filters.searchTerm.toLowerCase();
+          eventsList = eventsList.filter(event =>
+            event.title.toLowerCase().includes(searchTerm) ||
+            event.location.toLowerCase().includes(searchTerm) ||
+            event.players.some(player => player.name.toLowerCase().includes(searchTerm))
+          );
+        }
+
+        // Apply joined filter
+        if (filters.showJoinedOnly) {
+          if (user) {
+            eventsList = eventsList.filter(event =>
+              event.players.some(player => player.id === user.uid)
             );
           }
-
-          // Apply search filter if searchTerm is provided
-          if (filters.searchTerm) {
-            const searchTermLower = filters.searchTerm.toLowerCase();
-            eventsList = eventsList.filter(event => {
-              // Search in title
-              if (event.title && event.title.toLowerCase().includes(searchTermLower)) {
-                return true;
-              }
-              
-              // Search in location
-              if (event.location && event.location.toLowerCase().includes(searchTermLower)) {
-                return true;
-              }
-              
-              // Search in date
-              if (event.date && event.date.toLowerCase().includes(searchTermLower)) {
-                return true;
-              }
-              
-              // Search in players
-              if (event.players && event.players.some(player => 
-                player && player.name && player.name.toLowerCase().includes(searchTermLower)
-              )) {
-                return true;
-              }
-              
-              // Search in creator
-              if (event.createdBy && event.createdBy.toLowerCase().includes(searchTermLower)) {
-                return true;
-              }
-              
-              return false;
-            });
-          }
-
-          setEvents(eventsList);
-          setLoading(false);
-          setError(null);
-        }, 
-        (error) => {
-          console.error("Error listening to events:", error);
-          setError("Failed to load events. Please try again later.");
-          setLoading(false);
         }
-      );
 
-      return () => unsubscribe();
-    } catch (error) {
-      console.error("Error setting up events query:", error);
-      setError("Failed to set up events query. Please try again later.");
-      setLoading(false);
-    }
+        setEvents(eventsList);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching events:', err);
+        setError('Failed to load events. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEvents();
   }, [filters, user]);
 
   if (loading) {

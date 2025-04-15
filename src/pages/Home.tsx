@@ -4,6 +4,11 @@ import { EditEventDialog } from '../components/EditEventDialog';
 import { Filters } from '../components/Filters';
 import { EventList } from '../components/EventList';
 import { FunnelIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { useAuth } from '../hooks/useAuth';
+import { useProfileCompletion } from '../hooks/useProfileCompletion';
+import { useNavigate } from 'react-router-dom';
+import ProfileCompletionAlert from '../components/ProfileCompletionAlert';
+import { UserProfileDialog } from '../components/UserProfileDialog';
 
 interface FilterOptions {
   date: string;
@@ -12,9 +17,11 @@ interface FilterOptions {
   showJoinedOnly: boolean;
   searchTerm: string;
   sportType: string;
+  eventStatus: string;
 }
 
 export const Home: FC = () => {
+  const { user } = useAuth();
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -26,7 +33,11 @@ export const Home: FC = () => {
     showJoinedOnly: false,
     searchTerm: '',
     sportType: '',
+    eventStatus: 'current',
   });
+  const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
+  const { missingFields } = useProfileCompletion();
+  const navigate = useNavigate();
 
   const handleFilterChange = (newFilters: FilterOptions) => {
     setFilters(newFilters);
@@ -34,6 +45,10 @@ export const Home: FC = () => {
 
   const handleEventClick = (eventId: string) => {
     setSelectedEventId(eventId);
+  };
+
+  const handleCreateClick = () => {
+    setShowCreateDialog(true);
   };
 
   return (
@@ -67,7 +82,7 @@ export const Home: FC = () => {
         <EventList
           filters={filters}
           onEventClick={handleEventClick}
-          onCreateClick={() => setShowCreateDialog(true)}
+          onCreateClick={handleCreateClick}
         />
       </div>
 
@@ -103,6 +118,21 @@ export const Home: FC = () => {
             setShowEditDialog(false);
             setSelectedEventId(null);
           }}
+        />
+      )}
+
+      {Object.values(missingFields).some(Boolean) && (
+        <ProfileCompletionAlert 
+          missingFields={missingFields} 
+          onOpenProfile={() => setIsProfileDialogOpen(true)} 
+        />
+      )}
+
+      {user && (
+        <UserProfileDialog
+          userId={user.uid}
+          open={isProfileDialogOpen}
+          onClose={() => setIsProfileDialogOpen(false)}
         />
       )}
     </div>

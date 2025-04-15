@@ -31,3 +31,17 @@
 2025-04-14T14:23:16.710Z: Attempting to send email to: info@weteamup.app
 2025-04-14T14:23:16.711Z: From email: info@weteamup.app
 2025-04-14T14:23:17.289Z: SendGrid response: [{"statusCode":202,"body":"","headers":{"server":"nginx","date":"Mon, 14 Apr 2025 14:23:17 GMT","content-length":"0","connection":"keep-alive","x-message-id":"oZHnMz2sQA2GEtm6ioxXQg","access-control-allow-origin":"https://sendgrid.api-docs.io","access-control-allow-methods":"POST","access-control-allow-headers":"Authorization, Content-Type, On-behalf-of, x-sg-elas-acl","access-control-max-age":"600","x-no-cors-reason":"https://sendgrid.com/docs/Classroom/Basics/API/cors.html","strict-transport-security":"max-age=31536000; includeSubDomains","content-security-policy":"frame-ancestors 'none'","cache-control":"no-cache","x-content-type-options":"no-sniff","referrer-policy":"strict-origin-when-cross-origin"}},""]
+2025-04-15T17:55:19.307Z: Loading .env file from: /Users/gvozdovic/webpadel/.env
+2025-04-15T17:55:19.314Z: Environment variables loaded successfully
+2025-04-15T17:55:19.314Z: Environment variables after loading:
+2025-04-15T17:55:19.314Z: REACT_APP_SENDGRID_API_KEY: set (length: 69)
+2025-04-15T17:55:19.314Z: REACT_APP_SENDER_EMAIL: info@weteamup.app
+2025-04-15T17:55:19.314Z: SendGrid API Key found: true
+2025-04-15T17:55:19.314Z: SendGrid API Key prefix: SG.ZexSfmL
+2025-04-15T17:55:19.318Z: Server is running on port 3001
+2025-04-15T17:56:02.646Z: Attempting to send email to: dzekuza@gmail.com
+2025-04-15T17:56:02.647Z: From email: info@weteamup.app
+2025-04-15T17:56:03.311Z: SendGrid response: [{"statusCode":202,"body":"","headers":{"server":"nginx","date":"Tue, 15 Apr 2025 17:56:03 GMT","content-length":"0","connection":"keep-alive","x-message-id":"6ePIm1ivRfGaDIY6WtDeCg","access-control-allow-origin":"https://sendgrid.api-docs.io","access-control-allow-methods":"POST","access-control-allow-headers":"Authorization, Content-Type, On-behalf-of, x-sg-elas-acl","access-control-max-age":"600","x-no-cors-reason":"https://sendgrid.com/docs/Classroom/Basics/API/cors.html","strict-transport-security":"max-age=31536000; includeSubDomains","content-security-policy":"frame-ancestors 'none'","cache-control":"no-cache","x-content-type-options":"no-sniff","referrer-policy":"strict-origin-when-cross-origin"}},""]
+2025-04-15T17:57:05.853Z: Attempting to send email to: info@weteamup.app
+2025-04-15T17:57:05.853Z: From email: info@weteamup.app
+2025-04-15T17:57:06.160Z: SendGrid response: [{"statusCode":202,"body":"","headers":{"server":"nginx","date":"Tue, 15 Apr 2025 17:57:06 GMT","content-length":"0","connection":"keep-alive","x-message-id":"5CqiGZeeTx2wO3YukDGd3g","access-control-allow-origin":"https://sendgrid.api-docs.io","access-control-allow-methods":"POST","access-control-allow-headers":"Authorization, Content-Type, On-behalf-of, x-sg-elas-acl","access-control-max-age":"600","x-no-cors-reason":"https://sendgrid.com/docs/Classroom/Basics/API/cors.html","strict-transport-security":"max-age=31536000; includeSubDomains","content-security-policy":"frame-ancestors 'none'","cache-control":"no-cache","x-content-type-options":"no-sniff","referrer-policy":"strict-origin-when-cross-origin"}},""]

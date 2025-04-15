@@ -20,6 +20,7 @@ export interface FilterOptions {
   showJoinedOnly: boolean;
   searchTerm: string;
   sportType: string;
+  eventStatus: string;
 }
 
 export interface FiltersProps {
@@ -39,7 +40,7 @@ const FilterContent: React.FC<FiltersProps> = ({ onFilterChange, currentFilters 
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-8 gap-4">
       {/* Search field */}
       <div className="md:col-span-2">
         <div className="relative">
@@ -55,6 +56,19 @@ const FilterContent: React.FC<FiltersProps> = ({ onFilterChange, currentFilters 
             className="w-full bg-[#1A1A1A] text-white border border-gray-800 rounded-lg pl-10 p-2 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F] focus:border-transparent"
           />
         </div>
+      </div>
+
+      <div>
+        <select
+          id="eventStatus"
+          value={currentFilters.eventStatus}
+          onChange={(e) => handleFilterChange('eventStatus', e.target.value)}
+          className="w-full bg-[#1A1A1A] text-white border border-gray-800 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F] focus:border-transparent"
+        >
+          <option value="">All events</option>
+          <option value="current">Current events</option>
+          <option value="past">Past events</option>
+        </select>
       </div>
 
       <div>

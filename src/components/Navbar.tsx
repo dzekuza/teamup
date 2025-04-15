@@ -12,6 +12,7 @@ import Avatar2 from '../assets/avatars/Avatar2.png';
 import Avatar3 from '../assets/avatars/Avatar3.png';
 import Avatar4 from '../assets/avatars/Avatar4.png';
 import LogoWhite from '../assets/images/logo-white.svg';
+import { UserProfileDialog } from './UserProfileDialog';
 
 const avatars = {
   Avatar1,
@@ -24,6 +25,7 @@ export const Navbar: FC = () => {
   const { user, signOut } = useAuth();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [userAvatar, setUserAvatar] = useState<string>('Avatar1');
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
@@ -99,13 +101,15 @@ export const Navbar: FC = () => {
                 <div className="absolute right-0 mt-2 w-48 bg-[#1E1E1E] rounded-xl shadow-lg py-2 border border-[#2A2A2A]">
                   {user ? (
                     <>
-                      <Link 
-                        to="/profile" 
-                        className="block px-4 py-2 text-sm text-gray-300 hover:bg-[#2A2A2A] hover:text-white"
-                        onClick={closeProfileMenu}
+                      <button 
+                        onClick={() => {
+                          setIsProfileDialogOpen(true);
+                          closeProfileMenu();
+                        }}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-[#2A2A2A] hover:text-white"
                       >
                         Profile
-                      </Link>
+                      </button>
                       <button
                         onClick={() => {
                           signOut();
@@ -146,6 +150,14 @@ export const Navbar: FC = () => {
         onClose={() => setIsCreateDialogOpen(false)}
         onEventCreated={handleEventCreated}
       />
+
+      {user && (
+        <UserProfileDialog
+          userId={user.uid}
+          open={isProfileDialogOpen}
+          onClose={() => setIsProfileDialogOpen(false)}
+        />
+      )}
     </nav>
   );
 }; 

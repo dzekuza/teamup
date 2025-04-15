@@ -180,8 +180,11 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
     e.preventDefault();
     if (!user || !canProceedToNextStep()) return;
 
-    const selectedLocation = PADEL_LOCATIONS.find((loc: Location) => loc.name === location);
-    if (!selectedLocation) return;
+    // Only validate Padel location for Padel events
+    if (sportType === 'Padel') {
+      const selectedLocation = PADEL_LOCATIONS.find((loc: Location) => loc.name === location);
+      if (!selectedLocation) return;
+    }
 
     setIsLoading(true);
     setError('');
