@@ -70,14 +70,17 @@ app.post('/api/send-email', async (req, res) => {
 
     const msg = {
       to,
-      from: process.env.REACT_APP_SENDER_EMAIL || 'info@weteamup.app',
+      from: {
+        email: process.env.REACT_APP_SENDER_EMAIL || 'info@weteamup.app',
+        name: 'We Team Up'
+      },
       subject,
       text,
       html
     };
 
     log(`Attempting to send email to: ${to}`);
-    log(`From email: ${msg.from}`);
+    log(`From email: ${msg.from.email}`);
     const result = await sgMail.send(msg);
     log(`SendGrid response: ${JSON.stringify(result)}`);
     res.status(200).json({ message: 'Email sent successfully' });

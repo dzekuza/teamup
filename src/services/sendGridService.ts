@@ -3,10 +3,12 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 const emailWrapper = (content: string) => `
   <div style="background-color: #1E1E1E; color: white; padding: 20px; font-family: Arial, sans-serif;">
     <div style="max-width: 600px; margin: 0 auto;">
-      <img src="https://weteamup.app/logo.png" alt="WeTeamUp" style="height: 40px; width: auto; margin-bottom: 20px;" />
+      <div style="text-align: center; margin-bottom: 20px;">
+        <img src="https://firebasestorage.googleapis.com/v0/b/newprojecta-36c09.firebasestorage.app/o/whitepadel.png?alt=media&token=0b125f07-4d49-44a1-a255-2d77744b29d8" alt="We Team Up" style="height: 40px; width: auto;" />
+      </div>
       ${content}
       <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #333; color: #666; font-size: 12px;">
-        © ${new Date().getFullYear()} WeTeamUp. All rights reserved.
+        © ${new Date().getFullYear()} We Team Up. All rights reserved.
       </div>
     </div>
   </div>
