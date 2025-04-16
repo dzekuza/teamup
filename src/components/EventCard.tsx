@@ -760,7 +760,7 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
         {/* Participation Info */}
         <div className="mb-4 text-sm text-gray-400">
           <span>{event.players ? event.players.filter(Boolean).length : 0} Joined</span>
-          {interestedCount > 0 && <span> • {interestedCount} Interested</span>}
+          <span> · {interestedCount} Saved</span>
         </div>
 
         {/* Time and Level Info in Grid */}
