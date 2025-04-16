@@ -217,12 +217,23 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
   }, [event.players, event.createdBy]);
 
   const handleJoinEvent = async () => {
-    if (!user || !event) return;
+    if (!user || !event) {
+      console.error('User or event not available for joining');
+      return;
+    }
+
+    console.log('Attempting to join event:', event.id);
+    console.log('Current user:', user.uid);
+    console.log('Current event players:', event.players);
+    console.log('Event max players:', event.maxPlayers);
 
     if (event.isPrivate) {
       setShowJoinDialog(true);
       return;
     }
+
+    setIsLoading(true);
+    setError(null);
 
     try {
       const eventRef = doc(db, 'events', event.id);
@@ -230,14 +241,25 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
       
       if (!eventDoc.exists()) {
         console.error('Event not found');
+        setError('Event not found');
+        setIsLoading(false);
         return;
       }
 
       const eventData = eventDoc.data() as Event;
-      const currentPlayers = eventData.players || [];
+      console.log('Event data from DB:', eventData);
       
-      if (currentPlayers.length >= eventData.maxPlayers) {
+      const currentPlayers = eventData.players || [];
+      console.log('Current players from DB:', currentPlayers);
+      
+      // Count actual players (non-null entries)
+      const actualPlayerCount = currentPlayers.filter(player => player != null).length;
+      console.log('Actual player count:', actualPlayerCount);
+      
+      if (actualPlayerCount >= eventData.maxPlayers) {
+        console.error('Event is full');
         setError('Event is full');
+        setIsLoading(false);
         return;
       }
 
@@ -246,10 +268,45 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
         name: user.displayName || 'Unknown Player',
         photoURL: user.photoURL || undefined
       };
+      console.log('New player to add:', newPlayer);
 
+      // First try to find an empty slot in the players array
+      let updatedPlayers: (Player | null)[] = [...(currentPlayers || [])];
+      let foundEmptySlot = false;
+      
+      if (Array.isArray(updatedPlayers)) {
+        for (let i = 0; i < updatedPlayers.length; i++) {
+          if (!updatedPlayers[i]) {
+            console.log('Found empty slot at index:', i);
+            updatedPlayers[i] = newPlayer;
+            foundEmptySlot = true;
+            break;
+          }
+        }
+        
+        // If no empty slots found, and array isn't full yet, add to end
+        if (!foundEmptySlot && updatedPlayers.length < eventData.maxPlayers) {
+          console.log('No empty slot found, adding to end');
+          updatedPlayers.push(newPlayer);
+        }
+        
+        // If array is too short, pad with null values to match maxPlayers
+        while (updatedPlayers.length < eventData.maxPlayers) {
+          updatedPlayers.push(null);
+        }
+      } else {
+        // If players is not an array or is undefined
+        console.log('Players is not an array, creating new array');
+        updatedPlayers = Array(eventData.maxPlayers).fill(null);
+        updatedPlayers[0] = newPlayer;
+      }
+      
+      console.log('Updated players array:', updatedPlayers);
+      
       await updateDoc(eventRef, {
-        players: arrayUnion(newPlayer)
+        players: updatedPlayers
       });
+      console.log('Successfully updated players in database');
 
       try {
         // Create notification for event creator
@@ -262,6 +319,7 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
           read: false,
           userId: event.createdBy
         });
+        console.log('Notification created for event creator');
 
         // Try to send email notification, but don't block if it fails
         const creatorDoc = await getDoc(doc(db, 'users', event.createdBy));
@@ -277,6 +335,7 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
                 event.location,
                 user.displayName || user.email || 'A new participant'
               );
+              console.log('Email notification sent to creator');
             } catch (emailError) {
               console.warn('Failed to send email notification:', emailError);
               // Continue execution even if email fails
@@ -289,11 +348,15 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
       }
 
       if (onEventUpdated) {
+        console.log('Calling onEventUpdated to refresh UI');
         onEventUpdated();
       }
+      console.log('Join event process completed successfully');
     } catch (error) {
       console.error('Error joining event:', error);
       setError('Failed to join event');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -313,12 +376,17 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
   const handleLeaveEvent = async () => {
     if (!user || isLoading) return;
     setIsLoading(true);
+    setError(null);
+    
+    console.log('Attempting to leave event:', event.id);
+    console.log('Current user:', user.uid);
+    console.log('Current event players:', event.players);
 
     try {
       const eventRef = doc(db, 'events', event.id);
       
       // Create a new array with the same length as maxPlayers, filled with null values
-      const newPlayers = Array(event.maxPlayers).fill(null);
+      const newPlayers: (Player | null)[] = Array(event.maxPlayers).fill(null);
       
       // Filter out the current user and copy remaining players to their positions
       let position = 0;
@@ -331,9 +399,12 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
         });
       }
       
+      console.log('Updated players array after leaving:', newPlayers);
+      
       await updateDoc(eventRef, {
         players: newPlayers
       });
+      console.log('Successfully updated players in database after leaving');
       
       // Send email notification to event creator
       if (event.createdBy && event.createdBy !== user.uid) {
@@ -345,6 +416,7 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
               event.title,
               `${user.displayName || user.email || 'A player'} has left the event.`
             );
+            console.log('Email notification sent to creator about player leaving');
           }
         } catch (emailError) {
           console.error('Error sending leave notification email:', emailError);
@@ -352,10 +424,13 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
       }
       
       if (onEventUpdated) {
+        console.log('Calling onEventUpdated to refresh UI after leaving');
         onEventUpdated();
       }
+      console.log('Leave event process completed successfully');
     } catch (error) {
       console.error('Error leaving event:', error);
+      setError('Failed to leave event');
     } finally {
       setIsLoading(false);
     }
@@ -393,11 +468,18 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
         <button
           onClick={handleJoinEvent}
           disabled={isLoading}
-          className="w-10 h-10 rounded-full bg-[#2A2A2A] flex items-center justify-center hover:bg-[#3A3A3A] transition-colors"
+          className="w-10 h-10 rounded-full bg-[#2A2A2A] flex items-center justify-center hover:bg-[#3A3A3A] transition-colors disabled:opacity-50"
         >
-          <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-          </svg>
+          {isLoading ? (
+            <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          ) : (
+            <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+          )}
         </button>
       );
     }
@@ -539,11 +621,18 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
           <button
             onClick={handleLeaveEvent}
             disabled={isLoading}
-            className="mt-6 w-full bg-red-600 text-white rounded-xl p-4 font-medium hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+            className="mt-6 w-full bg-red-600 text-white rounded-xl p-4 font-medium hover:bg-red-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
+            {isLoading ? (
+              <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+            )}
             Leave Game
           </button>
         )}

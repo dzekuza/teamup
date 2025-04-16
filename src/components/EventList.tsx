@@ -30,6 +30,12 @@ export const EventList: FC<EventListProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const handleEventUpdated = () => {
+    // Force a refresh of the events list
+    setRefreshKey(prevKey => prevKey + 1);
+  };
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -108,7 +114,7 @@ export const EventList: FC<EventListProps> = ({
     };
 
     fetchEvents();
-  }, [filters, user]);
+  }, [filters, user, refreshKey]);
 
   if (loading) {
     return (
@@ -148,7 +154,7 @@ export const EventList: FC<EventListProps> = ({
           onClick={() => onEventClick(event.id)}
           className="cursor-pointer"
         >
-          <EventCard event={event} />
+          <EventCard event={event} onEventUpdated={handleEventUpdated} />
         </div>
       ))}
     </div>

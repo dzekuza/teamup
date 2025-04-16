@@ -1,27 +1,72 @@
-import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import crypto from 'crypto';
 
-// Generate a secure random token
-const generateVerificationToken = () => {
-  return crypto.randomBytes(32).toString('hex');
+// Generate a simple random token without using crypto
+const generateVerificationToken = (): string => {
+  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+  for (let i = 0; i < 32; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
 };
 
 // Store verification token in Firestore
-export const createVerificationToken = async (userId: string, email: string) => {
-  const token = generateVerificationToken();
-  const expiresAt = new Date();
-  expiresAt.setHours(expiresAt.getHours() + 24); // Token expires in 24 hours
+export const createVerificationToken = async (userId: string, email: string): Promise<string> => {
+  try {
+    // Create a random token
+    const token = generateVerificationToken();
+    
+    // Store the token in Firestore with an expiry time (15 minutes)
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 15);
+    
+    await setDoc(doc(db, 'verificationTokens', token), {
+      userId,
+      email,
+      expiresAt: expiresAt.toISOString(),
+      used: false
+    });
+    
+    return token;
+  } catch (error) {
+    console.error('Error creating verification token:', error);
+    throw error;
+  }
+};
 
-  await setDoc(doc(db, 'emailVerifications', token), {
-    userId,
-    email,
-    createdAt: new Date().toISOString(),
-    expiresAt: expiresAt.toISOString(),
-    used: false
-  });
-
-  return token;
+// Verify token and mark user as verified
+export const verifyToken = async (token: string): Promise<{ valid: boolean; userId?: string; email?: string }> => {
+  try {
+    const tokenDoc = await getDoc(doc(db, 'verificationTokens', token));
+    
+    if (!tokenDoc.exists()) {
+      return { valid: false };
+    }
+    
+    const tokenData = tokenDoc.data();
+    const expiresAt = new Date(tokenData.expiresAt);
+    const now = new Date();
+    
+    if (expiresAt < now || tokenData.used) {
+      return { valid: false };
+    }
+    
+    // Mark token as used
+    await setDoc(doc(db, 'verificationTokens', token), {
+      ...tokenData,
+      used: true
+    }, { merge: true });
+    
+    return {
+      valid: true,
+      userId: tokenData.userId,
+      email: tokenData.email
+    };
+  } catch (error) {
+    console.error('Error verifying token:', error);
+    return { valid: false };
+  }
 };
 
 // Verify token and mark user as verified
