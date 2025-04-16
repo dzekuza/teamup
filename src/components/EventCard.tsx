@@ -638,7 +638,7 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
   return (
     <div className="bg-[#1E1E1E] rounded-xl overflow-hidden border border-gray-800 hover:border-[#C1FF2F] transition-colors">
       {/* Location image and event details section */}
-      <div className="relative h-48">
+      <div className="relative" style={{ height: "15rem" }}>
         <img
           src={locationImage}
           alt={event.location}
@@ -661,37 +661,7 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
           </div>
         </div>
         
-        <div className="absolute top-4 left-4 flex items-center gap-2">
-          {/* Players joined indicator */}
-          <div className="bg-[#C1FF2F] text-black px-3 py-1 rounded-full text-sm font-medium">
-            {event.players?.filter(Boolean).length || 0}/{event.maxPlayers || 4} joined
-          </div>
-          {/* Event status indicator */}
-          {isPastEvent() ? (
-            <div className="bg-red-600 text-white px-3 py-1 rounded-full text-sm font-medium">
-              Event Finished
-            </div>
-          ) : timeLeft.days === 0 && timeLeft.hours < 24 ? (
-            <div className="bg-[#C1FF2F] text-black px-3 py-1 rounded-full text-sm font-medium">
-              Active Event
-            </div>
-          ) : null}
-          {/* Public/Private indicator */}
-          {event.isPrivate ? (
-            <div className="bg-gray-800 text-white px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-              Private
-            </div>
-          ) : (
-            <div className="bg-gray-800 text-white px-3 py-1 rounded-full text-sm font-medium">
-              Public
-            </div>
-          )}
-        </div>
-
-        {/* Add the save button here */}
+        {/* Add the save button */}
         <div className="absolute top-2 right-2 z-10">
           <button
             onClick={handleSaveEvent}
@@ -706,17 +676,40 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
           </button>
         </div>
 
-        {/* Add the interested count after player count */}
-        <div className="absolute top-2 left-2 z-10 flex flex-col gap-2">
+        {/* Status indicators */}
+        <div className="absolute top-2 left-2 right-14 z-10 flex flex-row flex-wrap" style={{ gap: "0.4rem" }}>
+          {/* Joined indicator */}
           <div className="bg-[#C1FF2F] text-black px-3 py-1 rounded-full text-sm font-semibold">
             {event.players ? event.players.filter(Boolean).length : 0}/{event.maxPlayers} joined
           </div>
           
+          {/* Interested indicator - only show if there are interested people */}
           {interestedCount > 0 && (
             <div className="bg-black/50 text-white px-3 py-1 rounded-full text-sm font-semibold">
               {interestedCount} interested
             </div>
           )}
+          
+          {/* Event status indicator */}
+          {isPastEvent() ? (
+            <div className="bg-red-600 text-white px-3 py-1 rounded-full text-sm font-semibold">
+              Event Finished
+            </div>
+          ) : timeLeft.days === 0 && timeLeft.hours < 24 ? (
+            <div className="bg-[#C1FF2F]/80 text-black px-3 py-1 rounded-full text-sm font-semibold">
+              Active Event
+            </div>
+          ) : null}
+          
+          {/* Public/Private indicator */}
+          <div className={`${event.isPrivate ? 'flex items-center gap-1' : ''} bg-gray-800 text-white px-3 py-1 rounded-full text-sm font-semibold`}>
+            {event.isPrivate && (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            )}
+            {event.isPrivate ? 'Private' : 'Public'}
+          </div>
         </div>
       </div>
 
