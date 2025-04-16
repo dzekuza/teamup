@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import ProfileCompletionAlert from '../components/ProfileCompletionAlert';
 import { UserProfileDialog } from '../components/UserProfileDialog';
 import { NotificationsPage } from '../components/NotificationsPage';
+import { SportTypeFilter } from '../components/SportTypeFilter';
 
 interface FilterOptions {
   date: string;
@@ -69,6 +70,13 @@ export const Home: FC<HomeProps> = ({ myEventsOnly = false, notificationsOnly = 
     setShowCreateDialog(true);
   };
 
+  const handleSportTypeChange = (sportType: string) => {
+    setFilters(prev => ({ 
+      ...prev, 
+      sportType 
+    }));
+  };
+
   // Determine page title based on props
   const getPageTitle = () => {
     if (myEventsOnly) return "My Events";
@@ -96,6 +104,16 @@ export const Home: FC<HomeProps> = ({ myEventsOnly = false, notificationsOnly = 
           )}
         </div>
 
+        {/* Sport Type Filter - Show on all screen sizes, hide on notifications page */}
+        {!notificationsOnly && (
+          <div className="mb-6">
+            <SportTypeFilter
+              selectedSportType={filters.sportType}
+              onChange={handleSportTypeChange}
+            />
+          </div>
+        )}
+
         {/* Desktop filters - Hide on notifications page */}
         {!notificationsOnly && (
           <div className="hidden md:block mb-6">
@@ -104,6 +122,7 @@ export const Home: FC<HomeProps> = ({ myEventsOnly = false, notificationsOnly = 
               currentFilters={filters}
               showMobileFilters={showMobileFilters}
               onCloseMobileFilters={() => setShowMobileFilters(false)}
+              hideSportTypeFilter={true}
             />
           </div>
         )}
@@ -128,6 +147,7 @@ export const Home: FC<HomeProps> = ({ myEventsOnly = false, notificationsOnly = 
           showMobileFilters={showMobileFilters}
           onCloseMobileFilters={() => setShowMobileFilters(false)}
           isMobile
+          hideSportTypeFilter={true}
         />
       )}
 

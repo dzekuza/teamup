@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { XMarkIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, MagnifyingGlassIcon, AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
 import { PADEL_LOCATIONS } from '../constants/locations';
 // Remove the BottomSheet import
 // import { BottomSheet } from 'react-spring-bottom-sheet';
@@ -34,9 +34,10 @@ export interface FiltersProps {
   onCloseMobileFilters: () => void;
   currentFilters: FilterOptions;
   isMobile?: boolean;
+  hideSportTypeFilter?: boolean;
 }
 
-const FilterContent: React.FC<FiltersProps> = ({ onFilterChange, currentFilters }) => {
+const FilterContent: React.FC<FiltersProps> = ({ onFilterChange, currentFilters, showMobileFilters, onCloseMobileFilters, hideSportTypeFilter }) => {
   const handleFilterChange = (key: keyof FilterOptions, value: string | boolean) => {
     onFilterChange({
       ...currentFilters,
@@ -75,21 +76,24 @@ const FilterContent: React.FC<FiltersProps> = ({ onFilterChange, currentFilters 
         </select>
       </div>
 
-      <div>
-        <select
-          id="sportType"
-          value={currentFilters.sportType}
-          onChange={(e) => handleFilterChange('sportType', e.target.value)}
-          className="w-full bg-[#1A1A1A] text-white border border-gray-800 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F] focus:border-transparent"
-        >
-          <option value="">All sports</option>
-          {SPORTS.map((sport) => (
-            <option key={sport.id} value={sport.id}>
-              {sport.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      {/* Sport Type Filter - only show if not hidden */}
+      {!hideSportTypeFilter && (
+        <div>
+          <select
+            id="sportType"
+            value={currentFilters.sportType}
+            onChange={(e) => handleFilterChange('sportType', e.target.value)}
+            className="w-full bg-[#1A1A1A] text-white border border-gray-800 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F] focus:border-transparent"
+          >
+            <option value="">All sports</option>
+            {SPORTS.map((sport) => (
+              <option key={sport.id} value={sport.id}>
+                {sport.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div>
         <select
@@ -162,6 +166,7 @@ export const Filters: React.FC<FiltersProps> = ({
   onCloseMobileFilters,
   currentFilters,
   isMobile = false,
+  hideSportTypeFilter,
 }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -209,53 +214,86 @@ export const Filters: React.FC<FiltersProps> = ({
   };
 
   if (!isMobile) {
-    return <FilterContent onFilterChange={onFilterChange} currentFilters={currentFilters} showMobileFilters={showMobileFilters} onCloseMobileFilters={onCloseMobileFilters} />;
+    return <FilterContent 
+      onFilterChange={onFilterChange} 
+      currentFilters={currentFilters} 
+      showMobileFilters={showMobileFilters} 
+      onCloseMobileFilters={onCloseMobileFilters}
+      hideSportTypeFilter={hideSportTypeFilter} 
+    />;
   }
 
   return (
-    <div 
-      className={`fixed inset-0 z-[100] md:hidden ${isVisible ? 'block' : 'hidden'}`}
-      style={{ 
-        backgroundColor: 'rgba(0, 0, 0, 0.5)', 
-        transition: 'background-color 0.3s ease, opacity 0.3s ease',
-        opacity: showMobileFilters ? 1 : 0
-      }}
-      onClick={onCloseMobileFilters}
-    >
-      <div 
-        className={`fixed inset-x-0 bottom-0 z-[100] bg-[#121212] rounded-t-xl max-h-[90vh] overflow-auto transform transition-transform duration-300 ease-out ${showMobileFilters ? 'translate-y-0' : 'translate-y-full'}`}
-        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-        onClick={(e) => e.stopPropagation()}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
+    <div className="md:hidden">
+      <button
+        onClick={onCloseMobileFilters}
+        className="flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-white bg-[#1A1A1A] rounded-lg border border-gray-800 focus:outline-none"
       >
-        <div className="w-full flex justify-center py-2">
-          <div className="w-10 h-1 bg-gray-500 rounded-full"></div>
-        </div>
-        <div className="px-4 pt-2 pb-6">
-          <div className="flex items-center justify-between pb-4 border-b border-gray-800">
-            <h2 className="text-lg font-medium text-white">Filters</h2>
-            <button
-              type="button"
-              className="text-gray-400 hover:text-white"
-              onClick={onCloseMobileFilters}
-            >
-              <span className="sr-only">Close menu</span>
-              <XMarkIcon className="h-6 w-6" />
-            </button>
-          </div>
+        <AdjustmentsHorizontalIcon className="h-5 w-5 mr-2" />
+        Filters
+      </button>
 
-          <div className="py-4">
-            <FilterContent
-              onFilterChange={onFilterChange}
-              currentFilters={currentFilters}
-              showMobileFilters={showMobileFilters}
-              onCloseMobileFilters={onCloseMobileFilters}
-            />
+      <Transition show={isVisible}>
+        <Dialog
+          open={isVisible}
+          onClose={onCloseMobileFilters}
+          className="fixed inset-0 z-50 overflow-y-auto"
+        >
+          <div className="min-h-screen px-4 text-center">
+            <Transition.Child
+              as="div"
+              enter="ease-out duration-300"
+              enterFrom="opacity-0"
+              enterTo="opacity-100"
+              leave="ease-in duration-200"
+              leaveFrom="opacity-100"
+              leaveTo="opacity-0"
+            >
+              <div className="fixed inset-0 bg-black opacity-30" />
+            </Transition.Child>
+
+            {/* Bottom Sheet */}
+            <Transition.Child
+              as="div"
+              enter="ease-out duration-300"
+              enterFrom="opacity-0 translate-y-full"
+              enterTo="opacity-100 translate-y-0"
+              leave="ease-in duration-200"
+              leaveFrom="opacity-100 translate-y-0"
+              leaveTo="opacity-0 translate-y-full"
+              className="fixed bottom-0 inset-x-0 transform transition-all"
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+            >
+              <div className="bg-neutral-900 rounded-t-2xl shadow-xl p-6 w-full max-w-lg mx-auto">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-medium text-white">Filters</h3>
+                  <button
+                    onClick={onCloseMobileFilters}
+                    className="text-gray-400 hover:text-white focus:outline-none"
+                  >
+                    <XMarkIcon className="h-6 w-6" />
+                  </button>
+                </div>
+                
+                {/* Drag handle */}
+                <div className="absolute top-3 left-0 right-0 flex justify-center">
+                  <div className="w-12 h-1 bg-gray-600 rounded-full"></div>
+                </div>
+                
+                <FilterContent 
+                  onFilterChange={onFilterChange} 
+                  currentFilters={currentFilters}
+                  showMobileFilters={showMobileFilters}
+                  onCloseMobileFilters={onCloseMobileFilters}
+                  hideSportTypeFilter={hideSportTypeFilter}
+                />
+              </div>
+            </Transition.Child>
           </div>
-        </div>
-      </div>
+        </Dialog>
+      </Transition>
     </div>
   );
 }; 

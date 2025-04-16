@@ -21,7 +21,7 @@ import {
   Avatar,
   CircularProgress,
 } from '@mui/material';
-import { Close as CloseIcon } from '@mui/icons-material';
+import { Close as CloseIcon, Add as AddIcon, Remove as RemoveIcon } from '@mui/icons-material';
 import StyledRadio from './StyledRadio';
 import { addToAppleWallet } from '../utils/appleWallet';
 import { LocationSearch } from './LocationSearch';
@@ -62,6 +62,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
+  const [isPaid, setIsPaid] = useState(false);
   const [price, setPrice] = useState<string>('0');
   const [level, setLevel] = useState<Event['level']>('Beginner');
   const [maxPlayers, setMaxPlayers] = useState<string>('4');
@@ -87,6 +88,13 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
   const [isVisible, setIsVisible] = useState(false);
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [activeTimeField, setActiveTimeField] = useState<'start' | 'end'>('start');
+  const [selectedHour, setSelectedHour] = useState(1);
+  const [selectedMinute, setSelectedMinute] = useState(0);
+  const [selectedSecond, setSelectedSecond] = useState(0);
+  const [selectedAmPm, setSelectedAmPm] = useState<'AM' | 'PM'>('PM');
+  const timePickerRef = useRef<HTMLDivElement>(null);
 
   // Detect mobile screen size
   useEffect(() => {
@@ -231,6 +239,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
     setDate('');
     setStartTime('');
     setEndTime('');
+    setIsPaid(false);
     setPrice('0');
     setLevel('Beginner');
     setMaxPlayers('4');
@@ -348,7 +357,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
         players,
         maxPlayers: parseInt(maxPlayers),
         createdBy: user.uid,
-        price: parseFloat(price),
+        price: isPaid ? parseFloat(price) : 0,
         status: 'active',
         isPrivate,
         sportType,
@@ -522,6 +531,129 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
     setCustomLocationCoordinates(selectedLocation.coordinates);
   };
 
+  // Close time picker when clicking outside
+  useClickOutside(timePickerRef, () => {
+    if (showTimePicker) {
+      setShowTimePicker(false);
+    }
+  });
+
+  // Generate arrays for hour, minute, and second options
+  const hours = Array.from({ length: 12 }, (_, i) => i + 1);
+  const minutes = Array.from({ length: 60 }, (_, i) => i);
+  const seconds = Array.from({ length: 60 }, (_, i) => i);
+
+  // Handle opening the time picker
+  const handleOpenTimePicker = (field: 'start' | 'end') => {
+    setActiveTimeField(field);
+    
+    // Parse current time from startTime or endTime
+    const timeValue = field === 'start' ? startTime : endTime;
+    if (timeValue) {
+      const [hourStr, minuteStr] = timeValue.split(':');
+      let hour = parseInt(hourStr, 10);
+      const minute = parseInt(minuteStr, 10);
+      
+      // Convert from 24-hour to 12-hour format
+      const amPm = hour >= 12 ? 'PM' : 'AM';
+      hour = hour % 12 || 12; // Convert 0 to 12
+      
+      setSelectedHour(hour);
+      setSelectedMinute(minute);
+      setSelectedSecond(0);
+      setSelectedAmPm(amPm);
+    } else {
+      // Default to 1:30 PM if no time is set
+      setSelectedHour(1);
+      setSelectedMinute(30);
+      setSelectedSecond(0);
+      setSelectedAmPm('PM');
+    }
+    
+    setShowTimePicker(true);
+  };
+
+  // Handle time selection
+  const handleTimeConfirm = () => {
+    // Convert from 12-hour to 24-hour format
+    let hour24 = selectedHour;
+    if (selectedAmPm === 'PM' && selectedHour < 12) {
+      hour24 += 12;
+    } else if (selectedAmPm === 'AM' && selectedHour === 12) {
+      hour24 = 0;
+    }
+    
+    // Format time as HH:MM
+    const formattedTime = `${hour24.toString().padStart(2, '0')}:${selectedMinute.toString().padStart(2, '0')}`;
+    
+    // Update the appropriate time field
+    if (activeTimeField === 'start') {
+      setStartTime(formattedTime);
+      
+      // Update end time if necessary
+      if (!endTime || endTime <= formattedTime) {
+        // Set end time to start time + 1 hour
+        let endHour = hour24 + 1;
+        if (endHour >= 24) endHour -= 24;
+        const endFormattedTime = `${endHour.toString().padStart(2, '0')}:${selectedMinute.toString().padStart(2, '0')}`;
+        setEndTime(endFormattedTime);
+      }
+    } else {
+      setEndTime(formattedTime);
+    }
+    
+    setShowTimePicker(false);
+  };
+
+  const handleCancelTimePicker = () => {
+    setShowTimePicker(false);
+  };
+
+  // Format 24h time to 12h format for display
+  const formatTimeFor12hDisplay = (time24h: string) => {
+    if (!time24h) return '';
+    
+    const [hourStr, minuteStr] = time24h.split(':');
+    let hour = parseInt(hourStr, 10);
+    const minute = parseInt(minuteStr, 10);
+    
+    const amPm = hour >= 12 ? 'PM' : 'AM';
+    hour = hour % 12 || 12; // Convert 0 to 12
+    
+    return `${hour}:${minute.toString().padStart(2, '0')} ${amPm}`;
+  };
+
+  // Progress bar rendering function
+  const renderProgressBar = () => {
+    const totalSteps = 6;
+    const stepPercent = (currentStep / totalSteps) * 100;
+    
+    return (
+      <div className="mb-6">
+        <div className="flex justify-between text-xs text-gray-500 mb-1">
+          <span>Step {currentStep} of {totalSteps}</span>
+          <span>{Math.round(stepPercent)}% Complete</span>
+        </div>
+        <div className="w-full bg-[#2A2A2A] h-2 rounded-full overflow-hidden">
+          <div 
+            className="bg-[#C1FF2F] h-full rounded-full transition-all duration-300 ease-out"
+            style={{ width: `${stepPercent}%` }}
+          ></div>
+        </div>
+      </div>
+    );
+  };
+
+  // Handle increment/decrement of player count
+  const handlePlayerCountChange = (increment: boolean) => {
+    const currentCount = parseInt(maxPlayers);
+    if (increment && currentCount < 100) {
+      setMaxPlayers((currentCount + 1).toString());
+    } else if (!increment && currentCount > 1) {
+      setMaxPlayers((currentCount - 1).toString());
+    }
+  };
+
   if (showSuccess && eventId) {
     const timeRange = `${startTime} - ${endTime}`;
     return (
@@ -619,39 +751,147 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-400">Start Time</label>
-                <input
-                  type="time"
-                  value={startTime}
-                  onChange={handleStartTimeChange}
-                  className="mt-1 block w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
-                  required
-                />
+                <button
+                  type="button"
+                  onClick={() => handleOpenTimePicker('start')}
+                  className="mt-1 block w-full bg-[#2A2A2A] text-white text-left rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
+                >
+                  {startTime ? formatTimeFor12hDisplay(startTime) : 'Select time'}
+                </button>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-400">End Time</label>
+                <button
+                  type="button"
+                  onClick={() => handleOpenTimePicker('end')}
+                  className="mt-1 block w-full bg-[#2A2A2A] text-white text-left rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
+                >
+                  {endTime ? formatTimeFor12hDisplay(endTime) : 'Select time'}
+                </button>
+              </div>
+            </div>
+
+            {/* Time picker */}
+            {showTimePicker && (
+              <div 
+                className="absolute z-50 bg-[#1E1E1E] rounded-xl shadow-lg overflow-hidden w-[calc(100%-2rem)]"
+                ref={timePickerRef}
+                style={{ 
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  maxWidth: isMobile ? '100%' : '320px'
+                }}
+              >
+                <div className="p-4 flex items-center justify-between bg-[#121212] border-b border-gray-800">
+                  <button 
+                    type="button" 
+                    className="text-gray-400 hover:text-gray-200" 
+                    onClick={handleCancelTimePicker}
+                  >
+                    CANCEL
+                  </button>
+                  <div className="text-lg font-medium text-white">
+                    {`${selectedHour}:${selectedMinute.toString().padStart(2, '0')} ${selectedAmPm}`}
+                  </div>
+                  <button 
+                    type="button" 
+                    className="text-[#C1FF2F] hover:text-[#a4e620] font-medium" 
+                    onClick={handleTimeConfirm}
+                  >
+                    OK
+                  </button>
+                </div>
+                
+                <div className="flex text-center h-40 overflow-hidden">
+                  {/* Hours */}
+                  <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700">
+                    {hours.map((hour) => (
+                      <div 
+                        key={`hour-${hour}`}
+                        className={`py-3 cursor-pointer hover:bg-[#2A2A2A] ${
+                          selectedHour === hour 
+                            ? 'bg-[#2A2A2A] text-[#C1FF2F] font-bold' 
+                            : 'text-gray-300'
+                        }`}
+                        onClick={() => setSelectedHour(hour)}
+                      >
+                        {hour}
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {/* Minutes */}
+                  <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700">
+                    {minutes.map((minute) => (
+                      <div 
+                        key={`minute-${minute}`}
+                        className={`py-3 cursor-pointer hover:bg-[#2A2A2A] ${
+                          selectedMinute === minute 
+                            ? 'bg-[#2A2A2A] text-[#C1FF2F] font-bold' 
+                            : 'text-gray-300'
+                        }`}
+                        onClick={() => setSelectedMinute(minute)}
+                      >
+                        {minute.toString().padStart(2, '0')}
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {/* AM/PM */}
+                  <div className="flex-1 flex flex-col justify-center">
+                    <div 
+                      className={`py-3 cursor-pointer hover:bg-[#2A2A2A] ${
+                        selectedAmPm === 'AM' 
+                          ? 'bg-[#2A2A2A] text-[#C1FF2F] font-bold' 
+                          : 'text-gray-300'
+                      }`}
+                      onClick={() => setSelectedAmPm('AM')}
+                    >
+                      AM
+                    </div>
+                    <div 
+                      className={`py-3 cursor-pointer hover:bg-[#2A2A2A] ${
+                        selectedAmPm === 'PM' 
+                          ? 'bg-[#2A2A2A] text-[#C1FF2F] font-bold' 
+                          : 'text-gray-300'
+                      }`}
+                      onClick={() => setSelectedAmPm('PM')}
+                    >
+                      PM
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="isPaid"
+                checked={isPaid}
+                onChange={(e) => setIsPaid(e.target.checked)}
+                className="w-4 h-4 text-[#C1FF2F] bg-[#2A2A2A] border-gray-600 rounded focus:ring-[#C1FF2F] focus:ring-opacity-25"
+              />
+              <label htmlFor="isPaid" className="ml-2 text-sm font-medium text-white">
+                This is a paid event
+              </label>
+            </div>
+
+            {isPaid && (
+              <div>
+                <label className="block text-sm font-medium text-gray-400">Price (€)</label>
                 <input
-                  type="time"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  min={startTime}
+                  type="number"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  min="0"
+                  step="0.01"
                   className="mt-1 block w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
                   required
                 />
               </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-400">Price (€)</label>
-              <input
-                type="number"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                min="0"
-                step="0.01"
-                className="mt-1 block w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
-                required
-              />
-            </div>
+            )}
           </div>
         );
       case 3:
@@ -691,12 +931,29 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
               <div>
                 <LocationSearch 
                   onLocationSelect={handleLocationSelect}
-                  placeholder="Search for event location"
+                  placeholder="Search for places, venues or addresses"
                 />
                 {location && (
-                  <div className="mt-2 p-3 bg-[#353535] rounded-lg">
-                    <p className="text-sm text-white">Selected location: <span className="text-gray-300">{location}</span></p>
+                  <div className="mt-3 p-4 bg-[#2A2A2A] rounded-xl border border-[#3A3A3A]">
+                    <div className="flex items-start gap-3">
+                      <div className="bg-[#353535] p-2 rounded-lg">
+                        📍
+                      </div>
+                      <div>
+                        <p className="text-white font-medium">{location}</p>
+                        {customLocationCoordinates && (
+                          <p className="text-xs text-gray-400 mt-1">
+                            GPS: {customLocationCoordinates.lat.toFixed(6)}, {customLocationCoordinates.lng.toFixed(6)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
                   </div>
+                )}
+                {!location && (
+                  <p className="mt-2 text-gray-400 text-sm">
+                    Search for a specific place, sports venue, or address for your event
+                  </p>
                 )}
               </div>
             )}
@@ -742,15 +999,31 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-400">Maximum Players</label>
-              <select
-                value={maxPlayers}
-                onChange={(e) => setMaxPlayers(e.target.value)}
-                className="mt-1 block w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
-                required
-              >
-                <option value="4">4 players</option>
-              </select>
+              <label className="block text-sm font-medium text-gray-400">Number of people for event</label>
+              <div className="mt-1 flex items-center">
+                <button
+                  type="button"
+                  onClick={() => handlePlayerCountChange(false)}
+                  className="bg-[#2A2A2A] text-white p-2 rounded-l-xl hover:bg-[#3A3A3A] focus:outline-none focus:ring-1 focus:ring-[#C1FF2F]"
+                >
+                  <RemoveIcon fontSize="small" />
+                </button>
+                <div className="bg-[#2A2A2A] text-white py-2 px-4 text-center min-w-[60px]">
+                  {maxPlayers}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handlePlayerCountChange(true)}
+                  className="bg-[#2A2A2A] text-white p-2 rounded-r-xl hover:bg-[#3A3A3A] focus:outline-none focus:ring-1 focus:ring-[#C1FF2F]"
+                >
+                  <AddIcon fontSize="small" />
+                </button>
+              </div>
+              {sportType === 'Padel' && (
+                <p className="text-xs text-gray-400 mt-1">
+                  Recommended: 4 players for Padel
+                </p>
+              )}
             </div>
           </div>
         );
@@ -818,14 +1091,14 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
               ) : friendsList.length === 0 ? (
                 <p className="text-gray-400">You don't have any friends yet. Add friends from your profile or invite people by email.</p>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
                   {friendsList.map(friend => (
                     <button
                       key={friend.id}
                       onClick={() => handleToggleFriend(friend.id)}
-                      className={`p-4 rounded-xl transition-colors flex items-center gap-3 ${
+                      className={`w-full p-4 rounded-xl transition-colors flex items-center gap-3 ${
                         selectedFriends.includes(friend.id)
-                          ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                          ? 'bg-[#C1FF2F] hover:bg-[#b1ef1f] text-black'
                           : 'bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white'
                       }`}
                     >
@@ -836,10 +1109,10 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
                         alt={friend.displayName}
                         sx={{ width: 40, height: 40 }}
                       />
-                      <div className="text-left">
-                        <p className="font-medium">{friend.displayName}</p>
+                      <div className="text-left overflow-hidden">
+                        <p className="font-medium truncate">{friend.displayName}</p>
                         {friend.email && (
-                          <p className="text-sm text-gray-400">{friend.email}</p>
+                          <p className={`text-sm truncate ${selectedFriends.includes(friend.id) ? 'text-black/70' : 'text-gray-400'}`}>{friend.email}</p>
                         )}
                       </div>
                     </button>
@@ -861,7 +1134,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
                 />
                 <button
                   onClick={handleAddEmail}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
+                  className="px-4 py-2 bg-[#C1FF2F] text-black rounded-xl hover:bg-[#b1ef1f] transition-colors"
                 >
                   Add
                 </button>
@@ -869,11 +1142,11 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
               {invitedEmails.length > 0 && (
                 <div className="space-y-2">
                   {invitedEmails.map(email => (
-                    <div key={email} className="flex items-center justify-between bg-[#2A2A2A] rounded-xl p-2">
-                      <span className="text-white">{email}</span>
+                    <div key={email} className="flex items-center justify-between bg-[#2A2A2A] rounded-xl p-3">
+                      <span className="text-white truncate max-w-[70%]">{email}</span>
                       <button
                         onClick={() => handleRemoveEmail(email)}
-                        className="text-red-500 hover:text-red-600"
+                        className="text-red-500 hover:text-red-600 ml-2"
                       >
                         Remove
                       </button>
@@ -920,6 +1193,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
             <div className="w-10 h-1 bg-gray-500 rounded-full"></div>
           </div>
           <div className="p-4">
+            {renderProgressBar()}
             {renderStepContent()}
             
             {error && <p className="text-red-500 mt-4">{error}</p>}
@@ -996,6 +1270,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
               </button>
             </div>
             
+            {renderProgressBar()}
             {renderStepContent()}
             
             {error && <p className="text-red-500 mt-4">{error}</p>}

@@ -13,6 +13,7 @@ import Avatar3 from '../assets/avatars/Avatar3.png';
 import Avatar4 from '../assets/avatars/Avatar4.png';
 import LogoWhite from '../assets/images/logo-white.svg';
 import { UserProfileDialog } from './UserProfileDialog';
+import { Bookmark as BookmarkIcon } from '@mui/icons-material';
 
 const avatars = {
   Avatar1,
@@ -66,6 +67,13 @@ export const Navbar: FC = () => {
               <>
                 <FriendRequestsMenu />
                 <NotificationsDropdown />
+                <Link 
+                  to="/saved-events" 
+                  className="text-gray-300 hover:text-[#C1FF2F] transition-colors"
+                  title="Saved Events"
+                >
+                  <BookmarkIcon />
+                </Link>
                 <button
                   onClick={() => setIsCreateDialogOpen(true)}
                   className="px-6 py-2.5 bg-[#C1FF2F] text-black rounded-xl font-medium hover:bg-[#B1EF1F] transition-colors flex items-center gap-2"

@@ -9,6 +9,7 @@ import Avatar2 from '../assets/avatars/Avatar2.png';
 import Avatar3 from '../assets/avatars/Avatar3.png';
 import Avatar4 from '../assets/avatars/Avatar4.png';
 import { UserProfileDialog } from './UserProfileDialog';
+import { Bookmark } from '@mui/icons-material';
 
 const avatars = {
   Avatar1,
@@ -120,6 +121,14 @@ export const MobileNavigation: React.FC = () => {
               )}
             </div>
             <span className={`text-xs ${location.pathname === '/notifications' ? 'text-[#C1FF2F]' : 'text-gray-400'}`}>Notifications</span>
+          </Link>
+
+          {/* Saved Events - New Item */}
+          <Link to="/saved-events" className="flex flex-col items-center space-y-1">
+            <div className={`p-1 rounded-full ${location.pathname === '/saved-events' ? 'text-[#C1FF2F]' : 'text-gray-400'}`}>
+              <Bookmark className="h-6 w-6" />
+            </div>
+            <span className={`text-xs ${location.pathname === '/saved-events' ? 'text-[#C1FF2F]' : 'text-gray-400'}`}>Saved</span>
           </Link>
 
           {/* Profile */}

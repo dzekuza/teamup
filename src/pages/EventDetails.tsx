@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, Timestamp, deleteDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { useAuth } from '../hooks/useAuth';
 import { Event, Player, User } from '../types';
@@ -15,6 +15,13 @@ import Map, { Marker } from 'react-map-gl/maplibre';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { toast } from 'react-hot-toast';
+import { 
+  ArrowLeft as ArrowLeftIcon, 
+  Share as ShareIcon, 
+  Edit as EditIcon,
+  Bookmark as BookmarkIcon,
+  BookmarkBorder as BookmarkBorderIcon
+} from '@mui/icons-material';
 // Don't use React Icons for now - using SVG directly
 // import { FaShareAlt } from 'react-icons/fa/index.js';
 // import { FaEdit } from 'react-icons/fa/index.js';
@@ -101,6 +108,9 @@ const EventDetails: React.FC = () => {
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [resultsDialogOpen, setResultsDialogOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isSaved, setIsSaved] = useState(false);
+  const [savingEvent, setSavingEvent] = useState(false);
+  const [interestedCount, setInterestedCount] = useState(0);
   // Check if user is admin or creator of the event
   const isUserCreator = user?.uid === event?.createdBy;
   
@@ -215,6 +225,30 @@ const EventDetails: React.FC = () => {
     fetchCurrentUser();
   }, []);
 
+  useEffect(() => {
+    const checkSavedStatus = async () => {
+      if (!user || !event) return;
+      
+      try {
+        // Check if event is saved by the current user
+        const savedDoc = await getDoc(doc(db, 'savedEvents', `${user.uid}_${event.id}`));
+        setIsSaved(savedDoc.exists());
+        
+        // Get total count of people who saved this event
+        const savedQuery = query(
+          collection(db, 'savedEvents'),
+          where('eventId', '==', event.id)
+        );
+        const querySnapshot = await getDocs(savedQuery);
+        setInterestedCount(querySnapshot.size);
+      } catch (error) {
+        console.error('Error checking saved status:', error);
+      }
+    };
+    
+    checkSavedStatus();
+  }, [user, event]);
+
   const handleJoinEvent = async () => {
     if (!user || !event) return;
     
@@ -309,6 +343,43 @@ const EventDetails: React.FC = () => {
   // Make sure handleEditEvent is defined
   const handleEditEvent = () => {
     setProfileDialogOpen(true);
+  };
+
+  const handleSaveEvent = async () => {
+    if (!user || !event) return;
+    
+    setSavingEvent(true);
+    
+    try {
+      const savedEventRef = doc(db, 'savedEvents', `${user.uid}_${event.id}`);
+      
+      if (isSaved) {
+        // Remove from saved events
+        await deleteDoc(savedEventRef);
+        setIsSaved(false);
+        setInterestedCount(prev => Math.max(0, prev - 1));
+        toast.success('Event removed from saved');
+      } else {
+        // Add to saved events
+        await setDoc(savedEventRef, {
+          userId: user.uid,
+          eventId: event.id,
+          savedAt: new Date().toISOString(),
+          eventTitle: event.title,
+          eventDate: event.date,
+          eventLocation: event.location,
+          sportType: event.sportType
+        });
+        setIsSaved(true);
+        setInterestedCount(prev => prev + 1);
+        toast.success('Event saved');
+      }
+    } catch (error) {
+      console.error('Error saving/unsaving event:', error);
+      toast.error('Failed to save event');
+    } finally {
+      setSavingEvent(false);
+    }
   };
 
   if (loading) {
@@ -418,6 +489,7 @@ const EventDetails: React.FC = () => {
             )}
             <div className="absolute inset-0 bg-gradient-to-t from-[rgb(18_18_18/var(--tw-bg-opacity))] to-transparent md:rounded-lg"></div>
             <div className="absolute bottom-0 left-0 p-4 md:p-6">
+              <div className="text-[#C1FF2F] font-medium text-sm md:text-base mb-1">{event.sportType || 'Padel'}</div>
               <h1 className="text-2xl md:text-3xl font-bold mb-2 text-white">{event.title}</h1>
               <p className="text-gray-300">
                 {formatDateForDisplay(event.date)} at {event.time}
@@ -458,6 +530,17 @@ const EventDetails: React.FC = () => {
                   <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z" />
                 </svg>
                 <span>Share</span>
+              </button>
+              <button
+                onClick={handleSaveEvent}
+                disabled={savingEvent}
+                className="p-2 rounded-full bg-[#2A2A2A] text-white"
+              >
+                {isSaved ? (
+                  <BookmarkIcon style={{ color: '#C1FF2F' }} />
+                ) : (
+                  <BookmarkBorderIcon />
+                )}
               </button>
               {(isUserCreator || currentUser?.isAdmin) && (
                 <button
@@ -747,6 +830,24 @@ const EventDetails: React.FC = () => {
           </div>
         </div>
       )}
+
+      <div className="flex flex-col gap-2 mt-4">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-green-500"></div>
+          <p className="text-white text-sm">
+            {event.players.length}/{event.maxPlayers} joined
+          </p>
+        </div>
+        
+        {interestedCount > 0 && (
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+            <p className="text-white text-sm">
+              {interestedCount} interested
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

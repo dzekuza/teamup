@@ -7,6 +7,7 @@ interface LocationSuggestion {
     lat: number;
     lng: number;
   };
+  type?: string;
 }
 
 interface LocationSearchProps {
@@ -34,8 +35,9 @@ export const LocationSearch: React.FC<LocationSearchProps> = ({ onLocationSelect
 
       setIsLoading(true);
       try {
+        // Include types parameter to search for places, addresses and POIs
         const response = await fetch(
-          `https://api.maptiler.com/geocoding/${encodeURIComponent(query)}.json?key=${MAP_TILER_API_KEY}&limit=5`
+          `https://api.maptiler.com/geocoding/${encodeURIComponent(query)}.json?key=${MAP_TILER_API_KEY}&limit=8&types=address,place,poi`
         );
         
         if (!response.ok) {
@@ -49,7 +51,8 @@ export const LocationSearch: React.FC<LocationSearchProps> = ({ onLocationSelect
           coordinates: {
             lng: feature.center[0],
             lat: feature.center[1]
-          }
+          },
+          type: feature.place_type?.[0] || ''
         }));
         
         setSuggestions(formattedSuggestions);
@@ -94,6 +97,20 @@ export const LocationSearch: React.FC<LocationSearchProps> = ({ onLocationSelect
     setShowSuggestions(false);
   };
 
+  // Get icon based on location type
+  const getLocationIcon = (type: string) => {
+    switch(type) {
+      case 'poi':
+        return '📍';
+      case 'place':
+        return '🏙️';
+      case 'address':
+        return '🏠';
+      default:
+        return '📌';
+    }
+  };
+
   return (
     <div ref={searchContainerRef} className="relative w-full">
       <input
@@ -120,10 +137,15 @@ export const LocationSearch: React.FC<LocationSearchProps> = ({ onLocationSelect
             <li
               key={index}
               onClick={() => handleSuggestionClick(suggestion)}
-              className="px-4 py-2 hover:bg-[#3A3A3A] cursor-pointer text-white"
+              className="px-4 py-3 hover:bg-[#3A3A3A] cursor-pointer text-white border-b border-[#3A3A3A] last:border-b-0"
             >
-              <div className="font-medium">{suggestion.name}</div>
-              <div className="text-sm text-gray-400">{suggestion.address}</div>
+              <div className="flex items-center gap-2">
+                <span>{getLocationIcon(suggestion.type || '')}</span>
+                <div>
+                  <div className="font-medium">{suggestion.name}</div>
+                  <div className="text-sm text-gray-400">{suggestion.address}</div>
+                </div>
+              </div>
             </li>
           ))}
         </ul>

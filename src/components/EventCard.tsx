@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Event, Player, MatchResult } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { EditEventDialog } from './EditEventDialog';
-import { doc, updateDoc, getDoc, arrayUnion } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, arrayUnion, collection, query, where, getDocs, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import Avatar1 from '../assets/avatars/Avatar1.png';
 import Avatar2 from '../assets/avatars/Avatar2.png';
@@ -18,6 +18,7 @@ import { addEventParticipant } from '../services/mailerLiteService';
 import { Transition } from '@headlessui/react';
 import { createNotification } from '../services/notificationService';
 import { sendEventInvitation } from '../services/sendGridService';
+import { Bookmark, BookmarkBorder } from '@mui/icons-material';
 
 const avatars = {
   Avatar1,
@@ -75,6 +76,23 @@ const PlayerTooltip: React.FC<{ children: React.ReactNode; content: string }> = 
   );
 };
 
+// Add a helper function to extract city from address
+const extractCity = (location: string): string => {
+  // Try to extract city from location string
+  // Common patterns: "Venue Name, City", "Address, City, Country", etc.
+  if (!location) return '';
+  
+  // Split by commas and take the second part if it exists (typically the city)
+  const parts = location.split(',');
+  if (parts.length >= 2) {
+    return parts[1].trim();
+  }
+  
+  // If no comma found or city is not at index 1, 
+  // just return the location string as is or truncate it
+  return location.length > 20 ? location.substring(0, 20) + '...' : location;
+};
+
 export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -97,6 +115,11 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
     photoURL: string;
     emailVerified: boolean;
   } | null>(null);
+  
+  // New state for saved events
+  const [isSaved, setIsSaved] = useState(false);
+  const [interestedCount, setInterestedCount] = useState(0);
+  const [savingEvent, setSavingEvent] = useState(false);
 
   // Get location image
   const locationData = PADEL_LOCATIONS.find(loc => loc.name === event.location);
@@ -235,6 +258,30 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
     fetchPlayerInfos();
     fetchCreatorInfo();
   }, [event.players, event.createdBy]);
+
+  useEffect(() => {
+    const checkSavedStatus = async () => {
+      if (!user) return;
+      
+      try {
+        // Check if event is saved by the current user
+        const savedDoc = await getDoc(doc(db, 'savedEvents', `${user.uid}_${event.id}`));
+        setIsSaved(savedDoc.exists());
+        
+        // Get total count of people who saved this event
+        const savedQuery = query(
+          collection(db, 'savedEvents'),
+          where('eventId', '==', event.id)
+        );
+        const querySnapshot = await getDocs(savedQuery);
+        setInterestedCount(querySnapshot.size);
+      } catch (error) {
+        console.error('Error checking saved status:', error);
+      }
+    };
+    
+    checkSavedStatus();
+  }, [user, event.id]);
 
   const handleJoinEvent = async () => {
     if (!user || !event) {
@@ -489,6 +536,46 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
     }
   };
 
+  const handleSaveEvent = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent event propagation to parent elements
+    
+    if (!user) {
+      // Handle not logged in
+      navigate('/login');
+      return;
+    }
+    
+    setSavingEvent(true);
+    
+    try {
+      const savedEventRef = doc(db, 'savedEvents', `${user.uid}_${event.id}`);
+      
+      if (isSaved) {
+        // Remove from saved events
+        await deleteDoc(savedEventRef);
+        setIsSaved(false);
+        setInterestedCount(prev => Math.max(0, prev - 1));
+      } else {
+        // Add to saved events
+        await setDoc(savedEventRef, {
+          userId: user.uid,
+          eventId: event.id,
+          savedAt: new Date().toISOString(),
+          eventTitle: event.title,
+          eventDate: event.date,
+          eventLocation: event.location,
+          sportType: event.sportType
+        });
+        setIsSaved(true);
+        setInterestedCount(prev => prev + 1);
+      }
+    } catch (error) {
+      console.error('Error saving/unsaving event:', error);
+    } finally {
+      setSavingEvent(false);
+    }
+  };
+
   const renderPlayerSlot = (index: number) => {
     const playerInfo = playerInfos[index];
     const isAvailable = !playerInfo;
@@ -562,9 +649,16 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
         
         {/* Event title and date on image */}
         <div className="absolute bottom-4 left-4 right-4">
+          <div className="text-[#C1FF2F] font-medium text-sm mb-1">{event.sportType || 'Padel'}</div>
           <h3 className="text-xl font-bold text-white mb-1">{event.title}</h3>
           <p className="text-gray-200">{event.date} at {event.time}</p>
-          <p className="text-gray-300 mt-1">{event.location}</p>
+          <div className="flex items-center mb-2">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span className="text-gray-300 text-sm">{extractCity(event.location)}</span>
+          </div>
         </div>
         
         <div className="absolute top-4 left-4 flex items-center gap-2">
@@ -593,6 +687,34 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
           ) : (
             <div className="bg-gray-800 text-white px-3 py-1 rounded-full text-sm font-medium">
               Public
+            </div>
+          )}
+        </div>
+
+        {/* Add the save button here */}
+        <div className="absolute top-2 right-2 z-10">
+          <button
+            onClick={handleSaveEvent}
+            disabled={savingEvent}
+            className="bg-black/50 hover:bg-black/70 rounded-full p-1 transition-colors"
+          >
+            {isSaved ? (
+              <Bookmark className="text-[#C1FF2F]" />
+            ) : (
+              <BookmarkBorder className="text-white" />
+            )}
+          </button>
+        </div>
+
+        {/* Add the interested count after player count */}
+        <div className="absolute top-2 left-2 z-10 flex flex-col gap-2">
+          <div className="bg-[#C1FF2F] text-black px-3 py-1 rounded-full text-sm font-semibold">
+            {event.players ? event.players.filter(Boolean).length : 0}/{event.maxPlayers} joined
+          </div>
+          
+          {interestedCount > 0 && (
+            <div className="bg-black/50 text-white px-3 py-1 rounded-full text-sm font-semibold">
+              {interestedCount} interested
             </div>
           )}
         </div>
