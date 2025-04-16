@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { doc, getDoc, collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, arrayUnion } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, arrayUnion, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Event } from '../types/index';
 import { useAuth } from '../hooks/useAuth';
@@ -65,6 +65,10 @@ export const UserProfileDialog: React.FC<UserProfileDialogProps> = ({
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const dialogRef = useRef<HTMLDivElement>(null);
+  const [friendDetails, setFriendDetails] = useState<Record<string, {
+    displayName: string;
+    photoURL: string;
+  }>>({});
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -93,7 +97,7 @@ export const UserProfileDialog: React.FC<UserProfileDialogProps> = ({
         
         setUserEvents(events);
 
-        // Check friend status
+        // Fetch friend status
         const friendsDoc = await getDoc(doc(db, 'friends', user.uid));
         if (friendsDoc.exists()) {
           const friendsData = friendsDoc.data();
@@ -116,7 +120,7 @@ export const UserProfileDialog: React.FC<UserProfileDialogProps> = ({
         if (userId === user.uid) {
           // Fetch friend requests
           const incomingRequestsQuery = query(
-            collection(db, `friends/${user.uid}/requests`),
+            collection(db, `friends/${userId}/requests`),
             where('status', '==', 'pending')
           );
           const incomingRequestsSnapshot = await getDocs(incomingRequestsQuery);
@@ -145,7 +149,31 @@ export const UserProfileDialog: React.FC<UserProfileDialogProps> = ({
         const profileFriendsDoc = await getDoc(doc(db, 'friends', userId));
         if (profileFriendsDoc.exists()) {
           const friendsData = profileFriendsDoc.data();
-          setFriends(friendsData.friends || []);
+          const friendsList = friendsData.friends || [];
+          setFriends(friendsList);
+          
+          // Fetch details for each friend
+          const friendDetailsMap: Record<string, {
+            displayName: string;
+            photoURL: string;
+          }> = {};
+          
+          for (const friendId of friendsList) {
+            try {
+              const friendDoc = await getDoc(doc(db, 'users', friendId));
+              if (friendDoc.exists()) {
+                const friendData = friendDoc.data();
+                friendDetailsMap[friendId] = {
+                  displayName: friendData.displayName || 'Unknown User',
+                  photoURL: friendData.photoURL || 'Avatar1'
+                };
+              }
+            } catch (err) {
+              console.error(`Error fetching friend ${friendId} details:`, err);
+            }
+          }
+          
+          setFriendDetails(friendDetailsMap);
         }
       } catch (error) {
         console.error('Error fetching user data:', error);
@@ -161,15 +189,31 @@ export const UserProfileDialog: React.FC<UserProfileDialogProps> = ({
     if (!user || !userProfile) return;
 
     try {
+      // Create the friends document if it doesn't exist for the target user
+      const targetFriendsRef = doc(db, 'friends', userId);
+      const targetFriendsDoc = await getDoc(targetFriendsRef);
+      
+      if (!targetFriendsDoc.exists()) {
+        await setDoc(targetFriendsRef, { friends: [] });
+      }
+      
+      // Add the friend request to the target user's requests collection
       await addDoc(collection(db, `friends/${userId}/requests`), {
         fromUserId: user.uid,
         toUserId: userId,
         status: 'pending',
         timestamp: new Date().toISOString()
       });
+      
       setFriendStatus('pending');
+      setSuccess('Friend request sent!');
+      
+      // Alert the user
+      setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
       console.error('Error sending friend request:', error);
+      setError('Failed to send friend request.');
+      setTimeout(() => setError(''), 3000);
     }
   };
 
@@ -190,7 +234,7 @@ export const UserProfileDialog: React.FC<UserProfileDialogProps> = ({
       // First check if the friends document exists, if not create it
       const userFriendsDoc = await getDoc(userFriendsRef);
       if (!userFriendsDoc.exists()) {
-        await updateDoc(userFriendsRef, {
+        await setDoc(userFriendsRef, {
           friends: [fromUserId]
         });
       } else {
@@ -202,7 +246,7 @@ export const UserProfileDialog: React.FC<UserProfileDialogProps> = ({
       // Check if the other user's friends document exists
       const targetFriendsDoc = await getDoc(targetFriendsRef);
       if (!targetFriendsDoc.exists()) {
-        await updateDoc(targetFriendsRef, {
+        await setDoc(targetFriendsRef, {
           friends: [user.uid]
         });
       } else {
@@ -217,8 +261,13 @@ export const UserProfileDialog: React.FC<UserProfileDialogProps> = ({
       // Update local state
       setFriendRequests(prev => prev.filter(req => req.id !== requestId));
       setFriends(prev => [...prev, fromUserId]);
+      
+      setSuccess('Friend request accepted!');
+      setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
       console.error('Error accepting friend request:', error);
+      setError('Failed to accept friend request.');
+      setTimeout(() => setError(''), 3000);
     }
   };
 
@@ -531,8 +580,12 @@ export const UserProfileDialog: React.FC<UserProfileDialogProps> = ({
                       <div className="grid grid-cols-2 gap-3">
                         {friends.map(friendId => (
                           <div key={friendId} className="bg-[#2A2A2A] rounded-xl p-3 flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-[#3A3A3A]"></div>
-                            <p className="text-white">Friend {friendId.substring(0, 5)}...</p>
+                            <img
+                              src={avatars[friendDetails[friendId]?.photoURL as keyof typeof avatars] || avatars.Avatar1}
+                              alt="Friend Avatar"
+                              className="w-10 h-10 rounded-full"
+                            />
+                            <p className="text-white">{friendDetails[friendId]?.displayName || `Friend ${friendId.substring(0, 5)}...`}</p>
                           </div>
                         ))}
                       </div>

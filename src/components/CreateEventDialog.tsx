@@ -22,7 +22,7 @@ import {
 import { Close as CloseIcon } from '@mui/icons-material';
 import StyledRadio from './StyledRadio';
 import { addToAppleWallet } from '../utils/appleWallet';
-import LocationSearch from './LocationSearch';
+import { LocationSearch } from './LocationSearch';
 
 interface CreateEventDialogProps {
   open: boolean;

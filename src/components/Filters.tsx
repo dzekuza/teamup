@@ -65,9 +65,8 @@ const FilterContent: React.FC<FiltersProps> = ({ onFilterChange, currentFilters 
           onChange={(e) => handleFilterChange('eventStatus', e.target.value)}
           className="w-full bg-[#1A1A1A] text-white border border-gray-800 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F] focus:border-transparent"
         >
-          <option value="">All events</option>
-          <option value="current">Current events</option>
-          <option value="past">Past events</option>
+          <option value="active">Active Events</option>
+          <option value="completed">Completed Events</option>
         </select>
       </div>
 

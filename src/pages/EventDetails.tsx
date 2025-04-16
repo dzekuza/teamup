@@ -33,7 +33,7 @@ const DEFAULT_COORDINATES = {
 };
 
 // Fallback cover image
-const DEFAULT_COVER_IMAGE = "https://firebasestorage.googleapis.com/v0/b/newprojecta-36c09.appspot.com/o/Locations%2Fpokalbiai%20poilsis.jpg?alt=media&token=123456";
+const DEFAULT_COVER_IMAGE = "https://firebasestorage.googleapis.com/v0/b/newprojecta-36c09.firebasestorage.app/o/Locations%2Fstatic%20cover.jpg?alt=media&token=4c319254-5854-4b3c-9bc7-e67cfe1a58b1";
 
 interface ViewState {
   longitude: number;
@@ -75,7 +75,7 @@ const calculateEndTime = (startTime: string): string => {
 
 // Player data types helper
 const isPlayerObject = (player: any): player is Player => {
-  return typeof player === 'object' && player !== null && 'id' in player;
+  return player !== null && typeof player === 'object' && 'id' in player;
 };
 
 const EventDetails: React.FC = () => {
@@ -137,7 +137,7 @@ const EventDetails: React.FC = () => {
           
           // Check if user is in the event
           if (user && eventData.players) {
-            const isPlayerInEvent = eventData.players.some(p => 
+            const isPlayerInEvent = eventData.players.filter(Boolean).some(p => 
               isPlayerObject(p) ? p.id === user.uid : p === user.uid
             );
             setIsPlayerInEvent(isPlayerInEvent);
@@ -217,6 +217,16 @@ const EventDetails: React.FC = () => {
 
   const handleJoinEvent = async () => {
     if (!user || !event) return;
+    
+    // Check if the user is already in the event
+    const isAlreadyJoined = event.players.filter(Boolean).some(player => 
+      isPlayerObject(player) ? player.id === user.uid : player === user.uid
+    );
+    
+    if (isAlreadyJoined) {
+      toast.error('You have already joined this event');
+      return;
+    }
 
     try {
       setActionInProgress(true);
@@ -317,8 +327,10 @@ const EventDetails: React.FC = () => {
     );
   }
 
-  const isJoined = user ? event.players.some(player => player.id === user.uid) : false;
-  const canJoin = user && !isJoined && event.players.length < event.maxPlayers;
+  const isJoined = user ? event.players.filter(Boolean).some(player => 
+    isPlayerObject(player) ? player.id === user.uid : player === user.uid
+  ) : false;
+  const canJoin = user && !isJoined && event.players.length < event.maxPlayers && event.status !== 'completed';
   
   // Use locationData coordinates or fallback to default
   const coordinates = locationData?.coordinates || DEFAULT_COORDINATES;

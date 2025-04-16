@@ -58,24 +58,21 @@ export const EventList: FC<EventListProps> = ({
 
         // Handle event status filter
         const now = new Date();
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const today = now.toISOString().split('T')[0];
         
-        if (filters.eventStatus === 'current') {
-          // Current events are those that haven't ended yet and aren't finished
+        if (filters.eventStatus === 'active' || filters.eventStatus === '') {
+          // Active events are those that haven't ended yet
           eventsQuery = query(
             eventsQuery,
-            where('status', 'in', ['upcoming', 'ongoing']),
-            where('date', '>=', today.toISOString().split('T')[0])
+            where('status', '==', 'active'),
+            where('date', '>=', today)
           );
-        } else if (filters.eventStatus === 'past') {
-          // Past events are those that have ended or are marked as finished
+        } else if (filters.eventStatus === 'completed') {
+          // Completed events are those that are marked as completed
           eventsQuery = query(
             eventsQuery,
-            where('status', '==', 'finished')
+            where('status', '==', 'completed')
           );
-        } else {
-          // If no status filter is selected, show all events
-          eventsQuery = query(eventsQuery, orderBy('date', 'desc'));
         }
 
         const querySnapshot = await getDocs(eventsQuery);

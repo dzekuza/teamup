@@ -78,7 +78,7 @@ const PlayerTooltip: React.FC<{ children: React.ReactNode; content: string }> = 
 export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const isJoined = user && event.players && event.players.some(player => player && player.id === user.uid);
+  const isJoined = user && event.players && event.players.filter(Boolean).some(player => player && player.id === user.uid);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [playerInfos, setPlayerInfos] = useState<(PlayerInfo | null)[]>([]);
@@ -106,6 +106,11 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
 
   const isPastEvent = () => {
     try {
+      // Check if event is marked as completed
+      if (event.status === 'completed') {
+        return true;
+      }
+      
       // Check if date exists and is a string
       if (!event.date || typeof event.date !== 'string') {
         return false;
@@ -126,7 +131,7 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
     }
   };
 
-  // Calculate time left
+  // Calculate time left and update event status if needed
   useEffect(() => {
     const calculateTimeLeft = () => {
       try {
@@ -146,6 +151,21 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
         } else {
           // Event has passed
           setTimeLeft({ days: 0, hours: 0, minutes: 0 });
+          
+          // Automatically update event status to completed if it's in the past
+          if (event.status !== 'completed' && isPastEvent()) {
+            const eventRef = doc(db, 'events', event.id);
+            updateDoc(eventRef, { status: 'completed' })
+              .then(() => {
+                console.log('Event automatically marked as completed:', event.id);
+                if (onEventUpdated) {
+                  onEventUpdated();
+                }
+              })
+              .catch(error => {
+                console.error('Error updating event status:', error);
+              });
+          }
         }
       } catch (error) {
         console.error('Error calculating time left:', error);
@@ -157,7 +177,7 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
     const timer = setInterval(calculateTimeLeft, 60000); // Update every minute
 
     return () => clearInterval(timer);
-  }, [event.date, event.time]);
+  }, [event.date, event.time, event.id, event.status, onEventUpdated]);
 
   useEffect(() => {
     const fetchPlayerInfos = async () => {
@@ -219,6 +239,20 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
   const handleJoinEvent = async () => {
     if (!user || !event) {
       console.error('User or event not available for joining');
+      return;
+    }
+
+    // Check if the user is already in the event
+    if (isJoined) {
+      console.log('User already joined this event');
+      setError('You have already joined this event');
+      return;
+    }
+
+    // Check if the event is completed or in the past
+    if (isPastEvent() || event.status === 'completed') {
+      console.error('Cannot join completed event');
+      setError('This event has already completed');
       return;
     }
 
@@ -462,8 +496,21 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
       ? `${playerInfo.name || 'Unknown Player'}${playerInfo.email ? ` (${playerInfo.email})` : ''}`
       : '';
     const isCurrentUser = playerInfo?.id === user?.uid;
+    const eventFinished = isPastEvent() || event.status === 'completed';
 
     if (isAvailable) {
+      // For finished events, just show empty slot
+      if (eventFinished) {
+        return (
+          <div className="w-10 h-10 rounded-full bg-[#2A2A2A] flex items-center justify-center opacity-50">
+            <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+        );
+      }
+      
       return (
         <button
           onClick={handleJoinEvent}
@@ -489,7 +536,8 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
         <img
           src={avatars[playerInfo.photoURL as keyof typeof avatars] || avatars.Avatar1}
           alt={playerInfo.name || 'Player'}
-          className={`w-10 h-10 rounded-full ${isCurrentUser ? 'border-2 border-[#C1FF2F]' : ''}`}
+          className={`w-10 h-10 rounded-full ${isCurrentUser ? 'border-2 border-[#C1FF2F]' : ''} cursor-pointer hover:opacity-90`}
+          onClick={() => setSelectedPlayerId(playerInfo.id)}
         />
         {tooltipContent && (
           <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-sm rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
@@ -556,7 +604,8 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
             <img
               src={avatars[creatorInfo?.photoURL as keyof typeof avatars] || avatars.Avatar1}
               alt={creatorInfo?.displayName || 'Unknown User'}
-              className="w-8 h-8 rounded-full"
+              className="w-8 h-8 rounded-full cursor-pointer hover:opacity-90"
+              onClick={() => setSelectedPlayerId(event.createdBy)}
             />
             <div className="flex items-center space-x-1">
               <span className="text-white font-medium">
@@ -609,8 +658,11 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
           {[0, 1, 2, 3].map((index) => (
             <div key={index} className="flex flex-col items-center">
               {renderPlayerSlot(index)}
-              {!isPastEvent() && !playerInfos[index] && (
+              {!isPastEvent() && !playerInfos[index] && event.status !== 'completed' && (
                 <span className="mt-2 text-sm text-gray-400">Available</span>
+              )}
+              {isPastEvent() && !playerInfos[index] && (
+                <span className="mt-2 text-sm text-gray-500">Empty</span>
               )}
             </div>
           ))}

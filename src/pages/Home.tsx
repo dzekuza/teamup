@@ -33,7 +33,7 @@ export const Home: FC = () => {
     showJoinedOnly: false,
     searchTerm: '',
     sportType: '',
-    eventStatus: 'current',
+    eventStatus: 'active',
   });
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const { missingFields } = useProfileCompletion();
@@ -44,7 +44,7 @@ export const Home: FC = () => {
   };
 
   const handleEventClick = (eventId: string) => {
-    setSelectedEventId(eventId);
+    navigate(`/event/${eventId}`);
   };
 
   const handleCreateClick = () => {

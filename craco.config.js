@@ -3,16 +3,17 @@ module.exports = {
     configure: {
       resolve: {
         fallback: {
-          crypto: false,
+          crypto: require.resolve('crypto-browserify'),
+          stream: require.resolve('stream-browserify'),
+          path: require.resolve('path-browserify'),
           fs: false,
-          stream: false,
-          buffer: false,
-          path: false
+          buffer: false
         }
-      }
-    }
+      },
+    },
+    plugins: []
   },
   devServer: {
-    hot: false // Disable Hot Module Replacement
+    hot: false
   }
 }; 
