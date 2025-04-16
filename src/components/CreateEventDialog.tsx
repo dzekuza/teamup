@@ -56,6 +56,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
   const [currentStep, setCurrentStep] = useState<Step>(1);
   const [sportType, setSportType] = useState('');
   const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [location, setLocation] = useState('');
   const [customLocationCoordinates, setCustomLocationCoordinates] = useState<{lat: number; lng: number} | null>(null);
   const [date, setDate] = useState('');
@@ -233,7 +234,9 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
   const presetDates = getPresetDates();
 
   const resetForm = () => {
+    setSportType('');
     setTitle('');
+    setDescription('');
     setLocation('');
     setCustomLocationCoordinates(null);
     setDate('');
@@ -249,7 +252,6 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
     setPassword('');
     setSelectedFriends([]);
     setInvitedEmails([]);
-    setSportType('');
   };
 
   const handleStartTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -361,6 +363,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
         status: 'active',
         isPrivate,
         sportType,
+        description,
         ...(isPrivate && { password }),
         ...(customLocationCoordinates && { customLocationCoordinates })
       };
@@ -680,7 +683,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
             <h3 className="text-xl font-semibold text-white">Select Sport Type</h3>
             <p className="text-gray-400">Choose the type of sport for your event</p>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4 mb-6">
               {SPORTS.map((sport) => (
                 <button
                   key={sport.id}
@@ -696,6 +699,18 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
                 </button>
               ))}
             </div>
+            
+            {sportType && (
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">Event Description</label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Describe your event, provide additional details..."
+                  className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F] min-h-[100px] resize-y"
+                />
+              </div>
+            )}
           </div>
         );
       case 2:
