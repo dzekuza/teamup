@@ -121,6 +121,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
     setPassword('');
     setSelectedFriends([]);
     setInvitedEmails([]);
+    setSportType('');
   };
 
   const handleStartTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -226,7 +227,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
         maxPlayers: parseInt(maxPlayers),
         createdBy: user.uid,
         price: parseFloat(price),
-        status: 'upcoming',
+        status: 'active',
         isPrivate,
         sportType,
         ...(isPrivate && { password }),
@@ -379,6 +380,19 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
     }
   };
 
+  // Update sport type and reset relevant fields based on sport selection
+  const handleSportTypeChange = (type: string) => {
+    setSportType(type);
+    // Set default level based on sport type
+    if (type === 'Padel') {
+      setLevel('C');
+    } else {
+      setLevel('Beginner');
+    }
+    // Reset location when changing sport type
+    setLocation('');
+  };
+
   if (showSuccess && eventId) {
     const timeRange = `${startTime} - ${endTime}`;
     return (
@@ -409,7 +423,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
               {SPORTS.map((sport) => (
                 <button
                   key={sport.id}
-                  onClick={() => setSportType(sport.id)}
+                  onClick={() => handleSportTypeChange(sport.id)}
                   className={`p-4 rounded-xl transition-colors ${
                     sportType === sport.id
                       ? 'bg-[#C1FF2F] text-black'
@@ -563,16 +577,38 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-400">Level</label>
-              <select
-                value={level}
-                onChange={(e) => setLevel(e.target.value as Event['level'])}
-                className="mt-1 block w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
-                required
-              >
-                <option value="Beginner">Beginner</option>
-                <option value="Intermediate">Intermediate</option>
-                <option value="Advanced">Advanced</option>
-              </select>
+              {sportType === 'Padel' ? (
+                <select
+                  value={level}
+                  onChange={(e) => setLevel(e.target.value as Event['level'])}
+                  className="mt-1 block w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
+                  required
+                >
+                  <option value="D-">D-</option>
+                  <option value="D">D</option>
+                  <option value="D+">D+</option>
+                  <option value="C-">C-</option>
+                  <option value="C">C</option>
+                  <option value="C+">C+</option>
+                  <option value="B-">B-</option>
+                  <option value="B">B</option>
+                  <option value="B+">B+</option>
+                  <option value="A-">A-</option>
+                  <option value="A">A</option>
+                  <option value="A+">A+</option>
+                </select>
+              ) : (
+                <select
+                  value={level}
+                  onChange={(e) => setLevel(e.target.value as Event['level'])}
+                  className="mt-1 block w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
+                  required
+                >
+                  <option value="Beginner">Beginner</option>
+                  <option value="Intermediate">Intermediate</option>
+                  <option value="Advanced">Advanced</option>
+                </select>
+              )}
             </div>
 
             <div>
