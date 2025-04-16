@@ -51,7 +51,7 @@ const SPORTS = [
 ];
 
 export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, onEventCreated }) => {
-  const { user, userFriends } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState<Step>(1);
   const [sportType, setSportType] = useState('');
@@ -129,13 +129,28 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
   // Fetch friends info when dialog opens and user has friends
   useEffect(() => {
     const fetchFriendsInfo = async () => {
-      if (!open || !user || !userFriends || userFriends.length === 0) return;
+      if (!open || !user) return;
       
       setLoadingFriends(true);
       try {
+        // Get the user's friends directly from Firestore
+        const friendsDoc = await getDoc(doc(db, 'friends', user.uid));
+        let friendIds: string[] = [];
+        
+        if (friendsDoc.exists()) {
+          const friendsData = friendsDoc.data();
+          friendIds = friendsData.friends || [];
+        }
+        
+        if (friendIds.length === 0) {
+          setFriendsList([]);
+          setLoadingFriends(false);
+          return;
+        }
+        
         const friendsData: FriendInfo[] = [];
         
-        for (const friendId of userFriends) {
+        for (const friendId of friendIds) {
           const friendDoc = await getDoc(doc(db, 'users', friendId));
           if (friendDoc.exists()) {
             const data = friendDoc.data();
@@ -157,7 +172,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
     };
     
     fetchFriendsInfo();
-  }, [open, user, userFriends]);
+  }, [open, user]);
 
   // Mobile touch event handlers - moved outside conditional rendering
   const handleTouchStart = (e: React.TouchEvent) => {
