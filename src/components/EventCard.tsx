@@ -678,11 +678,6 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
 
         {/* Status indicators */}
         <div className="absolute top-2 left-2 right-14 z-10 flex flex-row flex-wrap" style={{ gap: "0.4rem" }}>
-          {/* Joined indicator */}
-          <div className="bg-[#C1FF2F] text-black px-3 py-1 rounded-full text-sm font-semibold">
-            {event.players ? event.players.filter(Boolean).length : 0}/{event.maxPlayers} joined
-          </div>
-          
           {/* Interested indicator - only show if there are interested people */}
           {interestedCount > 0 && (
             <div className="bg-black/50 text-white px-3 py-1 rounded-full text-sm font-semibold">
