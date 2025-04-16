@@ -15,6 +15,7 @@ export interface User {
   createdAt: Timestamp;
   emailVerified: boolean;
   bio: string;
+  description?: string;
   firstName: string;
   lastName: string;
   isAdmin?: boolean;

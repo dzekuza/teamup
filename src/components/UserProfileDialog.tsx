@@ -31,6 +31,7 @@ interface UserProfile {
   email: string;
   phoneNumber?: string;
   level?: string;
+  description?: string;
 }
 
 type FriendStatus = 'none' | 'pending' | 'friends';
@@ -366,6 +367,7 @@ export const UserProfileDialog: React.FC<UserProfileDialogProps> = ({
         photoURL: editedProfile.photoURL,
         phoneNumber: editedProfile.phoneNumber,
         level: editedProfile.level,
+        description: editedProfile.description,
         updatedAt: new Date().toISOString()
       });
 
@@ -576,7 +578,7 @@ export const UserProfileDialog: React.FC<UserProfileDialogProps> = ({
                         className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
                       />
                     </div>
-                    <div>
+                    <div className="mb-4">
                       <label className="block text-gray-400 text-sm mb-2">Game Level</label>
                       <select
                         value={editedProfile?.level || ''}
@@ -590,6 +592,15 @@ export const UserProfileDialog: React.FC<UserProfileDialogProps> = ({
                           </option>
                         ))}
                       </select>
+                    </div>
+                    <div className="mb-4">
+                      <label className="block text-gray-400 text-sm mb-2">About Me</label>
+                      <textarea
+                        value={editedProfile?.description || ''}
+                        onChange={(e) => handleInputChange('description', e.target.value)}
+                        placeholder="Tell others about yourself..."
+                        className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F] min-h-[100px] resize-y"
+                      />
                     </div>
                     <div className="flex gap-4">
                       <button
@@ -618,6 +629,12 @@ export const UserProfileDialog: React.FC<UserProfileDialogProps> = ({
                       <div>
                         <h3 className="text-gray-400 text-sm">Phone</h3>
                         <p className="text-white">{userProfile.phoneNumber}</p>
+                      </div>
+                    )}
+                    {userProfile.description && (
+                      <div>
+                        <h3 className="text-gray-400 text-sm">About Me</h3>
+                        <p className="text-white whitespace-pre-wrap">{userProfile.description}</p>
                       </div>
                     )}
                   </div>
