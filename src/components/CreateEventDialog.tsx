@@ -18,6 +18,8 @@ import {
   RadioGroup,
   IconButton,
   Button,
+  Avatar,
+  CircularProgress,
 } from '@mui/material';
 import { Close as CloseIcon } from '@mui/icons-material';
 import StyledRadio from './StyledRadio';
@@ -31,6 +33,13 @@ interface CreateEventDialogProps {
 }
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6;
+
+interface FriendInfo {
+  id: string;
+  displayName: string;
+  photoURL?: string;
+  email?: string;
+}
 
 const SPORTS = [
   { id: 'Padel', name: 'Padel', icon: '🎾' },
@@ -70,6 +79,24 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
   const [showSuccessOptions, setShowSuccessOptions] = useState(false);
   const [eventDetails, setEventDetails] = useState<any>(null);
   const [shouldNavigate, setShouldNavigate] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [friendsList, setFriendsList] = useState<FriendInfo[]>([]);
+  const [loadingFriends, setLoadingFriends] = useState(false);
+  
+  // Mobile-specific state - moved outside conditional rendering
+  const [isVisible, setIsVisible] = useState(false);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+
+  // Detect mobile screen size
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useClickOutside(dialogRef, () => {
     if (!showSuccess) {
@@ -83,6 +110,80 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
       setShouldNavigate(false);
     }
   }, [shouldNavigate, eventId, navigate]);
+
+  // Mobile animation visibility effect - moved outside conditional rendering
+  useEffect(() => {
+    if (isMobile) {
+      if (open) {
+        setIsVisible(true);
+      } else {
+        // Add a delay to allow the animation to complete before hiding
+        const timer = setTimeout(() => {
+          setIsVisible(false);
+        }, 300);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [open, isMobile]);
+
+  // Fetch friends info when dialog opens and user has friends
+  useEffect(() => {
+    const fetchFriendsInfo = async () => {
+      if (!open || !user || !userFriends || userFriends.length === 0) return;
+      
+      setLoadingFriends(true);
+      try {
+        const friendsData: FriendInfo[] = [];
+        
+        for (const friendId of userFriends) {
+          const friendDoc = await getDoc(doc(db, 'users', friendId));
+          if (friendDoc.exists()) {
+            const data = friendDoc.data();
+            friendsData.push({
+              id: friendId,
+              displayName: data.displayName || 'Unknown User',
+              photoURL: data.photoURL,
+              email: data.email
+            });
+          }
+        }
+        
+        setFriendsList(friendsData);
+      } catch (error) {
+        console.error('Error fetching friends info:', error);
+      } finally {
+        setLoadingFriends(false);
+      }
+    };
+    
+    fetchFriendsInfo();
+  }, [open, user, userFriends]);
+
+  // Mobile touch event handlers - moved outside conditional rendering
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.targetTouches[0].clientY);
+    setTouchEnd(null);
+  };
+  
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientY);
+  };
+  
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    
+    // Determine distance of swipe
+    const distance = touchEnd - touchStart;
+    
+    // If distance is greater than 100px, consider it a swipe down
+    if (distance > 100) {
+      onClose();
+    }
+    
+    // Reset touch values
+    setTouchStart(null);
+    setTouchEnd(null);
+  };
 
   // Generate preset dates
   const getPresetDates = () => {
@@ -694,22 +795,42 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
             {/* Friend selection */}
             <div className="space-y-4">
               <h4 className="text-white font-medium">Select Friends</h4>
-              <div className="grid grid-cols-2 gap-4">
-                {userFriends?.map(friendId => (
-                  <button
-                    key={friendId}
-                    onClick={() => handleToggleFriend(friendId)}
-                    className={`p-4 rounded-xl transition-colors ${
-                      selectedFriends.includes(friendId)
-                        ? 'bg-blue-600 hover:bg-blue-700'
-                        : 'bg-[#2A2A2A] hover:bg-[#3A3A3A]'
-                    }`}
-                  >
-                    {/* Friend name will be displayed here */}
-                    {friendId}
-                  </button>
-                ))}
-              </div>
+              
+              {loadingFriends ? (
+                <div className="flex justify-center p-4">
+                  <CircularProgress size={24} style={{ color: '#C1FF2F' }} />
+                </div>
+              ) : friendsList.length === 0 ? (
+                <p className="text-gray-400">You don't have any friends yet. Add friends from your profile or invite people by email.</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {friendsList.map(friend => (
+                    <button
+                      key={friend.id}
+                      onClick={() => handleToggleFriend(friend.id)}
+                      className={`p-4 rounded-xl transition-colors flex items-center gap-3 ${
+                        selectedFriends.includes(friend.id)
+                          ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                          : 'bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white'
+                      }`}
+                    >
+                      <Avatar 
+                        src={typeof friend.photoURL === 'string' && friend.photoURL.startsWith('http') 
+                          ? friend.photoURL 
+                          : `/avatars/${friend.photoURL || 'Avatar1'}.png`} 
+                        alt={friend.displayName}
+                        sx={{ width: 40, height: 40 }}
+                      />
+                      <div className="text-left">
+                        <p className="font-medium">{friend.displayName}</p>
+                        {friend.email && (
+                          <p className="text-sm text-gray-400">{friend.email}</p>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Email invitations */}
@@ -760,89 +881,148 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
     }
   };
 
+  // Replace the conditional rendering for mobile with this:
+  if (isMobile) {
+    return (
+      <div 
+        className={`fixed inset-0 z-50 ${isVisible ? 'block' : 'hidden'}`}
+        style={{ 
+          backgroundColor: 'rgba(0, 0, 0, 0.5)', 
+          transition: 'background-color 0.3s ease, opacity 0.3s ease',
+          opacity: open ? 1 : 0
+        }}
+        onClick={onClose}
+      >
+        <div 
+          className={`fixed inset-x-0 bottom-0 z-50 bg-[#1E1E1E] rounded-t-xl max-h-[90vh] overflow-auto transform transition-transform duration-300 ease-out ${open ? 'translate-y-0' : 'translate-y-full'}`}
+          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+          onClick={(e) => e.stopPropagation()}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          <div className="w-full flex justify-center py-2">
+            <div className="w-10 h-1 bg-gray-500 rounded-full"></div>
+          </div>
+          <div className="p-4">
+            {renderStepContent()}
+            
+            {error && <p className="text-red-500 mt-4">{error}</p>}
+            
+            <div className="flex justify-between mt-6">
+              {currentStep > 1 && (
+                <button
+                  type="button"
+                  onClick={handleBack}
+                  className="px-4 py-2 bg-[#2A2A2A] text-white rounded-lg"
+                >
+                  Back
+                </button>
+              )}
+              
+              {currentStep < 6 ? (
+                <button
+                  type="button"
+                  onClick={handleNext}
+                  disabled={!canProceedToNextStep()}
+                  className={`px-4 py-2 rounded-lg ml-auto ${
+                    canProceedToNextStep()
+                      ? 'bg-[#C1FF2F] text-black'
+                      : 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  Next
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={isLoading || !canProceedToNextStep()}
+                  className={`px-4 py-2 rounded-lg ml-auto ${
+                    !isLoading && canProceedToNextStep()
+                      ? 'bg-[#C1FF2F] text-black'
+                      : 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  {isLoading ? 'Creating...' : 'Create Event'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Regular desktop dialog
   return (
-    <Dialog open={open} onClose={onClose} className="relative z-[60]">
-      <div className="fixed inset-0 bg-black bg-opacity-50" aria-hidden="true" />
+    <Dialog 
+      open={open} 
+      onClose={onClose}
+      className="relative z-50"
+    >
+      <div className="fixed inset-0 bg-black/70" aria-hidden="true" />
       
       <div className="fixed inset-0 flex items-center justify-center p-4">
         <Dialog.Panel 
+          className="bg-[#121212] rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto"
           ref={dialogRef}
-          className="bg-[#1E1E1E] rounded-3xl w-full max-w-md max-h-[80vh] flex flex-col relative"
         >
-          <div className="p-8">
-            <button
-              onClick={onClose}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white"
-            >
-              ✕
-            </button>
-            
-            <Dialog.Title className="text-2xl font-medium text-white mb-6">
-              Create New Event
-            </Dialog.Title>
-
-            {/* Progress indicator */}
-            <div className="flex justify-between mb-8">
-              {[1, 2, 3, 4, 5, 6].map((step) => (
-                <div
-                  key={step}
-                  className={`w-1/6 h-1 rounded-full mx-1 ${
-                    step <= currentStep ? 'bg-[#C1FF2F]' : 'bg-[#2A2A2A]'
-                  }`}
-                />
-              ))}
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-4">
+              <Dialog.Title className="text-xl font-semibold text-white">
+                Create Event
+              </Dialog.Title>
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-white"
+              >
+                <CloseIcon />
+              </button>
             </div>
-          </div>
-
-          <div className="px-8 pb-8 overflow-y-auto flex-1">
-            <div className="space-y-4">
-              {renderStepContent()}
-
-              {error && (
-                <p className="text-red-500 text-sm mt-2">{error}</p>
+            
+            {renderStepContent()}
+            
+            {error && <p className="text-red-500 mt-4">{error}</p>}
+            
+            <div className="flex justify-between mt-6">
+              {currentStep > 1 && (
+                <button
+                  type="button"
+                  onClick={handleBack}
+                  className="px-4 py-2 bg-[#2A2A2A] text-white rounded-lg"
+                >
+                  Back
+                </button>
               )}
-
-              <div className="flex justify-between mt-8">
-                {currentStep > 1 && (
-                  <button
-                    type="button"
-                    onClick={handleBack}
-                    className="px-4 py-2 text-white hover:bg-[#2A2A2A] rounded-xl transition-colors"
-                  >
-                    Back
-                  </button>
-                )}
-                
-                <div className="ml-auto">
-                  {currentStep < 6 ? (
-                    <button
-                      type="button"
-                      onClick={handleNext}
-                      disabled={!canProceedToNextStep()}
-                      className={`px-4 py-2 rounded-xl transition-colors ${
-                        canProceedToNextStep()
-                          ? 'bg-[#C1FF2F] text-black hover:bg-[#B1EF1F]'
-                          : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                      }`}
-                    >
-                      Next
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleSubmit}
-                      disabled={isLoading || !canProceedToNextStep()}
-                      className={`px-4 py-2 rounded-xl transition-colors ${
-                        !isLoading && canProceedToNextStep()
-                          ? 'bg-[#C1FF2F] text-black hover:bg-[#B1EF1F]'
-                          : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                      }`}
-                    >
-                      {isLoading ? 'Creating...' : 'Create Event'}
-                    </button>
-                  )}
-                </div>
-              </div>
+              
+              {currentStep < 6 ? (
+                <button
+                  type="button"
+                  onClick={handleNext}
+                  disabled={!canProceedToNextStep()}
+                  className={`px-4 py-2 rounded-lg ml-auto ${
+                    canProceedToNextStep()
+                      ? 'bg-[#C1FF2F] text-black'
+                      : 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  Next
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={isLoading || !canProceedToNextStep()}
+                  className={`px-4 py-2 rounded-lg ml-auto ${
+                    !isLoading && canProceedToNextStep()
+                      ? 'bg-[#C1FF2F] text-black'
+                      : 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  {isLoading ? 'Creating...' : 'Create Event'}
+                </button>
+              )}
             </div>
           </div>
         </Dialog.Panel>

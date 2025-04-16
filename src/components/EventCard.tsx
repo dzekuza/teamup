@@ -721,6 +721,7 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
         open={isMatchResultsOpen}
         onClose={() => setIsMatchResultsOpen(false)}
         event={event}
+        user={user}
         onSave={handleSaveResults}
       />
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { collection, query, getDocs, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, query, getDocs, orderBy, Timestamp, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Event } from '../types/index';
+import { Event, MatchResult } from '../types/index';
 
 export const useEvents = () => {
   const [events, setEvents] = useState<Event[]>([]);
@@ -39,4 +39,30 @@ export const useEvents = () => {
   }, []);
 
   return { events, loading, error };
+};
+
+export const useUpdateMatchResult = () => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const updateMatchResult = async (eventId: string, results: MatchResult[]) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const eventRef = doc(db, 'events', eventId);
+      await updateDoc(eventRef, {
+        matchResults: results,
+        status: 'completed'
+      });
+      return true;
+    } catch (err) {
+      console.error('Error updating match results:', err);
+      setError('Failed to update match results');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { updateMatchResult, loading, error };
 }; 

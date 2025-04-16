@@ -346,9 +346,9 @@ const EventDetails: React.FC = () => {
     
     return (
       <div className="mt-6">
-        <h3 className="text-xl font-semibold mb-4">Players ({event.players.length}/{event.maxPlayers})</h3>
+        <h3 className="text-xl font-semibold mb-4 text-white">Players ({event.players.length}/{event.maxPlayers})</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {event.players.map((player, index) => {
+          {event.players.filter(Boolean).map((player, index) => {
             // Determine if player is an object or string
             const playerId = isPlayerObject(player) ? player.id : player;
             const playerName = isPlayerObject(player) ? (player.displayName || player.name) : 'Unknown';
@@ -368,8 +368,11 @@ const EventDetails: React.FC = () => {
             }
             
             return (
-              <div key={playerId} className="flex items-center space-x-2 my-2 p-3 bg-[#252736] rounded-lg hover:bg-[#2A2C3B] cursor-pointer"
-                   onClick={() => handleViewProfile(playerId)}>
+              <div 
+                key={`player-${index}-${playerId || 'unknown'}`} 
+                className="flex items-center space-x-2 my-2 p-3 bg-[rgb(35_35_35/var(--tw-bg-opacity))] rounded-lg hover:bg-[rgb(40_40_40/var(--tw-bg-opacity))] cursor-pointer"
+                onClick={() => handleViewProfile(playerId)}
+              >
                 <img 
                   src={avatarSrc}
                   alt={`Player ${index + 1}`} 
@@ -377,7 +380,7 @@ const EventDetails: React.FC = () => {
                   onError={(e) => { e.currentTarget.src = '/images/default-avatar.png' }}
                 />
                 <div>
-                  <p className="font-medium">{playerName}</p>
+                  <p className="font-medium text-white">{playerName}</p>
                   {playerLevel && (
                     <p className="text-xs text-gray-400">Level: {playerLevel}</p>
                   )}
@@ -391,14 +394,18 @@ const EventDetails: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[rgb(18_18_18/var(--tw-bg-opacity))] text-white pb-10">
+    <div className="min-h-screen bg-[#121212] pb-24 md:pb-8 text-white">
       {loading ? (
         <div className="flex items-center justify-center min-h-screen">
           <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[#C1FF2F]"></div>
         </div>
+      ) : error ? (
+        <div className="flex justify-center items-center h-screen bg-[#161723]">
+          <p className="text-center text-gray-500">{error}</p>
+        </div>
       ) : (
         <>
-          <div className="relative max-w-4xl mx-auto mt-6">
+          <div className="relative max-w-4xl mx-auto mt-0 md:mt-6">
             {locationData && (
               <img
                 src={locationData.image || '/default-location.jpg'}
@@ -473,41 +480,41 @@ const EventDetails: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <div className="bg-[rgb(30_30_30/var(--tw-bg-opacity))] rounded-lg p-4 mb-6">
-                  <h2 className="text-lg font-semibold mb-4">Time</h2>
+                  <h2 className="text-lg font-semibold mb-4 text-white">Time</h2>
                   <div className="flex items-center mb-4">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
-                    <span>{formatDateForDisplay(event.date)}</span>
+                    <span className="text-white">{formatDateForDisplay(event.date)}</span>
                   </div>
                   <div className="flex items-center mb-4">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <span>Start: {event.time}</span>
+                    <span className="text-white">Start: {event.time}</span>
                   </div>
                   <div className="flex items-center">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <span>End: {calculateEndTime(event.time)}</span>
+                    <span className="text-white">End: {calculateEndTime(event.time)}</span>
                   </div>
                 </div>
 
                 <div className="bg-[rgb(30_30_30/var(--tw-bg-opacity))] rounded-lg p-4 mb-6">
-                  <h2 className="text-lg font-semibold mb-4">Event Details</h2>
+                  <h2 className="text-lg font-semibold mb-4 text-white">Event Details</h2>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <h3 className="text-gray-400 text-sm">Level</h3>
-                      <p>{event.level}</p>
+                      <p className="text-white">{event.level}</p>
                     </div>
                     <div>
                       <h3 className="text-gray-400 text-sm">Price</h3>
-                      <p>{event.price} €</p>
+                      <p className="text-white">{event.price} €</p>
                     </div>
                     <div>
                       <h3 className="text-gray-400 text-sm">Sport</h3>
-                      <p>{event.sportType || 'Padel'}</p>
+                      <p className="text-white">{event.sportType || 'Padel'}</p>
                     </div>
                     <div>
                       <h3 className="text-gray-400 text-sm">Status</h3>
@@ -519,9 +526,9 @@ const EventDetails: React.FC = () => {
                 </div>
 
                 <div className="bg-[rgb(30_30_30/var(--tw-bg-opacity))] rounded-lg p-4 mb-6">
-                  <h3 className="text-xl font-semibold mb-4">Players ({event.players.length}/{event.maxPlayers})</h3>
+                  <h3 className="text-xl font-semibold mb-4 text-white">Players ({event.players.length}/{event.maxPlayers})</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {event.players.map((player, index) => {
+                    {event.players.filter(Boolean).map((player, index) => {
                       // Determine if player is an object or string
                       const playerId = isPlayerObject(player) ? player.id : player;
                       const playerName = isPlayerObject(player) ? (player.displayName || player.name) : 'Unknown';
@@ -541,8 +548,11 @@ const EventDetails: React.FC = () => {
                       }
                       
                       return (
-                        <div key={playerId} className="flex items-center space-x-2 my-2 p-3 bg-[rgb(35_35_35/var(--tw-bg-opacity))] rounded-lg hover:bg-[rgb(40_40_40/var(--tw-bg-opacity))] cursor-pointer"
-                            onClick={() => handleViewProfile(playerId)}>
+                        <div 
+                          key={`player-${index}-${playerId || 'unknown'}`} 
+                          className="flex items-center space-x-2 my-2 p-3 bg-[rgb(35_35_35/var(--tw-bg-opacity))] rounded-lg hover:bg-[rgb(40_40_40/var(--tw-bg-opacity))] cursor-pointer"
+                          onClick={() => handleViewProfile(playerId)}
+                        >
                           <img 
                             src={avatarSrc}
                             alt={`Player ${index + 1}`} 
@@ -550,7 +560,7 @@ const EventDetails: React.FC = () => {
                             onError={(e) => { e.currentTarget.src = '/images/default-avatar.png' }}
                           />
                           <div>
-                            <p className="font-medium">{playerName}</p>
+                            <p className="font-medium text-white">{playerName}</p>
                             {playerLevel && (
                               <p className="text-xs text-gray-400">Level: {playerLevel}</p>
                             )}
@@ -604,13 +614,13 @@ const EventDetails: React.FC = () => {
 
               <div>
                 <div className="bg-[rgb(30_30_30/var(--tw-bg-opacity))] rounded-lg p-4 mb-6">
-                  <h2 className="text-lg font-semibold mb-4">Location</h2>
+                  <h2 className="text-lg font-semibold mb-4 text-white">Location</h2>
                   <div className="flex items-center mb-4">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
-                    <span>{locationData ? locationData.name : 'Loading...'}</span>
+                    <span className="text-white">{locationData ? locationData.name : 'Loading...'}</span>
                   </div>
                   <p className="text-gray-400 mb-4">{locationData ? locationData.address : 'Loading address...'}</p>
                   
@@ -642,7 +652,7 @@ const EventDetails: React.FC = () => {
                 </div>
 
                 <div className="bg-[rgb(30_30_30/var(--tw-bg-opacity))] rounded-lg p-4">
-                  <h2 className="text-lg font-semibold mb-4">Created By</h2>
+                  <h2 className="text-lg font-semibold mb-4 text-white">Created By</h2>
                   {creatorInfo && (
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
@@ -662,7 +672,7 @@ const EventDetails: React.FC = () => {
                         />
                         <div>
                           <div className="flex items-center">
-                            <p className="font-medium">{creatorInfo.displayName}</p>
+                            <p className="font-medium text-white">{creatorInfo.displayName}</p>
                           </div>
                         </div>
                       </div>
@@ -693,7 +703,7 @@ const EventDetails: React.FC = () => {
       {profileDialogOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-[rgb(30_30_30/var(--tw-bg-opacity))] rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-xl font-bold mb-4">Edit Event</h2>
+            <h2 className="text-xl font-bold mb-4 text-white">Edit Event</h2>
             <p className="text-gray-300 mb-4">This feature is coming soon. You will be able to edit event details here.</p>
             <div className="flex justify-end">
               <button
@@ -711,10 +721,10 @@ const EventDetails: React.FC = () => {
       {shareDialogOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-[rgb(30_30_30/var(--tw-bg-opacity))] rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-xl font-bold mb-4">Share Event</h2>
+            <h2 className="text-xl font-bold mb-4 text-white">Share Event</h2>
             <p className="text-gray-300 mb-4">Share this event with friends:</p>
             <div className="bg-[rgb(40_40_40/var(--tw-bg-opacity))] p-4 rounded-lg mb-4 break-all">
-              <p className="text-sm">{window.location.href}</p>
+              <p className="text-sm text-white">{window.location.href}</p>
             </div>
             <div className="flex justify-end">
               <button

@@ -1,7 +1,12 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { PADEL_LOCATIONS } from '../constants/locations';
+// Remove the BottomSheet import
+// import { BottomSheet } from 'react-spring-bottom-sheet';
+// Remove the import styles comment
+// Import the styles for the bottom sheet
+// import 'react-spring-bottom-sheet/dist/style.css';
 
 const LEVELS = ['Beginner', 'Intermediate', 'Advanced'];
 const SPORTS = [
@@ -158,62 +163,99 @@ export const Filters: React.FC<FiltersProps> = ({
   currentFilters,
   isMobile = false,
 }) => {
+  const [isVisible, setIsVisible] = useState(false);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+
+  // Show/hide animation logic
+  useEffect(() => {
+    if (showMobileFilters) {
+      setIsVisible(true);
+    } else {
+      // Add a delay to allow the animation to complete before hiding
+      const timer = setTimeout(() => {
+        setIsVisible(false);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [showMobileFilters]);
+
+  // Handle touch start event
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.targetTouches[0].clientY);
+    setTouchEnd(null);
+  };
+  
+  // Handle touch move event
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientY);
+  };
+  
+  // Handle touch end event to determine swipe direction
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    
+    // Determine distance of swipe
+    const distance = touchEnd - touchStart;
+    
+    // If distance is greater than 100px, consider it a swipe down
+    if (distance > 100) {
+      onCloseMobileFilters();
+    }
+    
+    // Reset touch values
+    setTouchStart(null);
+    setTouchEnd(null);
+  };
+
   if (!isMobile) {
     return <FilterContent onFilterChange={onFilterChange} currentFilters={currentFilters} showMobileFilters={showMobileFilters} onCloseMobileFilters={onCloseMobileFilters} />;
   }
 
   return (
-    <Transition.Root show={showMobileFilters} as={React.Fragment}>
-      <Dialog as="div" className="fixed inset-0 z-[100] md:hidden" onClose={onCloseMobileFilters}>
-        <div className="fixed inset-0 flex">
-          {/* Overlay */}
-          <Transition.Child
-            as={React.Fragment}
-            enter="transition-opacity ease-linear duration-300"
-            enterFrom="opacity-0"
-            enterTo="opacity-100"
-            leave="transition-opacity ease-linear duration-300"
-            leaveFrom="opacity-100"
-            leaveTo="opacity-0"
-          >
-            <div className="fixed inset-0 bg-black bg-opacity-50" />
-          </Transition.Child>
-
-          {/* Sliding panel */}
-          <Transition.Child
-            as={React.Fragment}
-            enter="transition ease-in-out duration-300 transform"
-            enterFrom="translate-x-full"
-            enterTo="translate-x-0"
-            leave="transition ease-in-out duration-300 transform"
-            leaveFrom="translate-x-0"
-            leaveTo="translate-x-full"
-          >
-            <Dialog.Panel className="fixed right-0 top-0 bottom-0 w-full max-w-xs flex flex-col overflow-y-auto bg-[#121212] py-4 pb-6 shadow-xl">
-              <div className="flex items-center justify-between px-4 pb-4 border-b border-gray-800">
-                <h2 className="text-lg font-medium text-white">Filters</h2>
-                <button
-                  type="button"
-                  className="text-gray-400 hover:text-white"
-                  onClick={onCloseMobileFilters}
-                >
-                  <span className="sr-only">Close menu</span>
-                  <XMarkIcon className="h-6 w-6" />
-                </button>
-              </div>
-
-              <div className="p-4">
-                <FilterContent
-                  onFilterChange={onFilterChange}
-                  currentFilters={currentFilters}
-                  showMobileFilters={showMobileFilters}
-                  onCloseMobileFilters={onCloseMobileFilters}
-                />
-              </div>
-            </Dialog.Panel>
-          </Transition.Child>
+    <div 
+      className={`fixed inset-0 z-[100] md:hidden ${isVisible ? 'block' : 'hidden'}`}
+      style={{ 
+        backgroundColor: 'rgba(0, 0, 0, 0.5)', 
+        transition: 'background-color 0.3s ease, opacity 0.3s ease',
+        opacity: showMobileFilters ? 1 : 0
+      }}
+      onClick={onCloseMobileFilters}
+    >
+      <div 
+        className={`fixed inset-x-0 bottom-0 z-[100] bg-[#121212] rounded-t-xl max-h-[90vh] overflow-auto transform transition-transform duration-300 ease-out ${showMobileFilters ? 'translate-y-0' : 'translate-y-full'}`}
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+        onClick={(e) => e.stopPropagation()}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        <div className="w-full flex justify-center py-2">
+          <div className="w-10 h-1 bg-gray-500 rounded-full"></div>
         </div>
-      </Dialog>
-    </Transition.Root>
+        <div className="px-4 pt-2 pb-6">
+          <div className="flex items-center justify-between pb-4 border-b border-gray-800">
+            <h2 className="text-lg font-medium text-white">Filters</h2>
+            <button
+              type="button"
+              className="text-gray-400 hover:text-white"
+              onClick={onCloseMobileFilters}
+            >
+              <span className="sr-only">Close menu</span>
+              <XMarkIcon className="h-6 w-6" />
+            </button>
+          </div>
+
+          <div className="py-4">
+            <FilterContent
+              onFilterChange={onFilterChange}
+              currentFilters={currentFilters}
+              showMobileFilters={showMobileFilters}
+              onCloseMobileFilters={onCloseMobileFilters}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }; 

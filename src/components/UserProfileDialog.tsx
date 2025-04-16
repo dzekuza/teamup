@@ -69,6 +69,62 @@ export const UserProfileDialog: React.FC<UserProfileDialogProps> = ({
     displayName: string;
     photoURL: string;
   }>>({});
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [isVisible, setIsVisible] = useState(false);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+
+  // Show/hide animation logic
+  useEffect(() => {
+    console.log("UserProfileDialog effect - open state:", open);
+    if (open) {
+      setIsVisible(true);
+    } else {
+      // Add a delay to allow the animation to complete before hiding
+      const timer = setTimeout(() => {
+        setIsVisible(false);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [open]);
+
+  // Handle touch start event
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.targetTouches[0].clientY);
+    setTouchEnd(null);
+  };
+  
+  // Handle touch move event
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientY);
+  };
+  
+  // Handle touch end event to determine swipe direction
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    
+    // Determine distance of swipe
+    const distance = touchEnd - touchStart;
+    
+    // If distance is greater than 100px, consider it a swipe down
+    if (distance > 100) {
+      onClose();
+    }
+    
+    // Reset touch values
+    setTouchStart(null);
+    setTouchEnd(null);
+  };
+
+  // Detect mobile screen size
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -346,8 +402,334 @@ export const UserProfileDialog: React.FC<UserProfileDialogProps> = ({
     }
   };
 
-  if (!open) return null;
+  // Profile content that will be rendered in both mobile and desktop views
+  const renderProfileContent = () => {
+    if (loading) {
+      return <div className="text-white text-center p-8">Loading...</div>;
+    }
+    
+    if (!userProfile) {
+      return <div className="text-white text-center p-8">User not found</div>;
+    }
+    
+    return (
+      <>
+        <div className="p-6 border-b border-[#2A2A2A]">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <img
+                src={avatars[userProfile.photoURL as keyof typeof avatars] || avatars.Avatar1}
+                alt="Profile Avatar"
+                className="w-16 h-16 rounded-full"
+              />
+              <div>
+                <h2 className="text-xl font-medium text-white">
+                  {userProfile.displayName}
+                </h2>
+                <p className="text-gray-400 text-sm">{userProfile.email}</p>
+              </div>
+            </div>
+            {userId === user?.uid && !isEditing && (
+              <button
+                onClick={handleEditClick}
+                className="px-4 py-2 bg-[#2A2A2A] text-white rounded-xl hover:bg-[#3A3A3A] transition-colors"
+              >
+                Edit Profile
+              </button>
+            )}
+          </div>
+        </div>
 
+        {/* Tabs */}
+        <div className="flex border-b border-[#2A2A2A]">
+          <button
+            className={`flex-1 py-3 text-center font-medium transition-colors ${
+              activeTab === 'profile' 
+                ? 'text-[#C1FF2F] border-b-2 border-[#C1FF2F]' 
+                : 'text-gray-400 hover:text-white'
+            }`}
+            onClick={() => setActiveTab('profile')}
+          >
+            Profile
+          </button>
+          <button
+            className={`flex-1 py-3 text-center font-medium transition-colors ${
+              activeTab === 'friends' 
+                ? 'text-[#C1FF2F] border-b-2 border-[#C1FF2F]' 
+                : 'text-gray-400 hover:text-white'
+            }`}
+            onClick={() => setActiveTab('friends')}
+          >
+            Friends
+          </button>
+          <button
+            className={`flex-1 py-3 text-center font-medium transition-colors ${
+              activeTab === 'games' 
+                ? 'text-[#C1FF2F] border-b-2 border-[#C1FF2F]' 
+                : 'text-gray-400 hover:text-white'
+            }`}
+            onClick={() => setActiveTab('games')}
+          >
+            Games
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6">
+          {/* Profile Tab */}
+          {activeTab === 'profile' && (
+            <div className="space-y-6">
+              {/* Friend Status and Actions */}
+              {user && user.uid !== userId && (
+                <div className="mb-6">
+                  {friendStatus === 'none' && (
+                    <button
+                      onClick={handleSendFriendRequest}
+                      className="w-full bg-[#C1FF2F] text-black rounded-xl py-2 font-medium hover:bg-[#B1EF1F] transition-colors"
+                    >
+                      Add Friend
+                    </button>
+                  )}
+                  {friendStatus === 'pending' && (
+                    <div className="text-[#C1FF2F] text-center py-2">
+                      Friend Request Sent
+                    </div>
+                  )}
+                  {friendStatus === 'friends' && (
+                    <div className="text-[#C1FF2F] text-center py-2">
+                      Friends
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {isEditing ? (
+                <div className="space-y-4">
+                  {error && (
+                    <div className="text-red-500 text-sm">
+                      {error}
+                    </div>
+                  )}
+                  {success && (
+                    <div className="text-[#C1FF2F] text-sm">
+                      {success}
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-2">Display Name</label>
+                    <input
+                      type="text"
+                      value={editedProfile?.displayName || ''}
+                      onChange={(e) => handleInputChange('displayName', e.target.value)}
+                      className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-2">Phone Number</label>
+                    <input
+                      type="tel"
+                      value={editedProfile?.phoneNumber || ''}
+                      onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
+                      className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-2">Game Level</label>
+                    <select
+                      value={editedProfile?.level || ''}
+                      onChange={(e) => handleInputChange('level', e.target.value)}
+                      className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
+                    >
+                      <option value="">Select your level</option>
+                      {LEVELS.map((level) => (
+                        <option key={level} value={level}>
+                          {level}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex gap-4">
+                    <button
+                      onClick={handleSaveProfile}
+                      className="flex-1 bg-[#C1FF2F] text-black rounded-xl py-3 font-medium hover:bg-[#B1EF1F] transition-colors"
+                    >
+                      Save Changes
+                    </button>
+                    <button
+                      onClick={handleCancelEdit}
+                      className="flex-1 bg-[#2A2A2A] text-white rounded-xl py-3 font-medium hover:bg-[#3A3A3A] transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {userProfile.level && (
+                    <div>
+                      <h3 className="text-gray-400 text-sm">Level</h3>
+                      <p className="text-white">{userProfile.level}</p>
+                    </div>
+                  )}
+                  {userProfile.phoneNumber && (
+                    <div>
+                      <h3 className="text-gray-400 text-sm">Phone</h3>
+                      <p className="text-white">{userProfile.phoneNumber}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Friends Tab */}
+          {activeTab === 'friends' && (
+            <div className="space-y-6">
+              {/* Friend Requests */}
+              <div>
+                <h3 className="text-white font-medium mb-4">Friend Requests</h3>
+                {friendRequests.length > 0 ? (
+                  <div className="space-y-3">
+                    {friendRequests.map(request => (
+                      <div key={request.id} className="bg-[#2A2A2A] rounded-xl p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={avatars[request.fromUser?.photoURL as keyof typeof avatars] || avatars.Avatar1}
+                            alt="Avatar"
+                            className="w-10 h-10 rounded-full"
+                          />
+                          <div>
+                            <p className="text-white font-medium">{request.fromUser?.displayName}</p>
+                            <p className="text-gray-400 text-sm">
+                              {new Date(request.timestamp).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleAcceptFriendRequest(request.id, request.fromUserId)}
+                            className="px-4 py-1.5 bg-[#C1FF2F] text-black rounded-lg font-medium hover:bg-[#B1EF1F] transition-colors"
+                          >
+                            Accept
+                          </button>
+                          <button
+                            onClick={() => handleRejectFriendRequest(request.id)}
+                            className="px-4 py-1.5 bg-[#2A2A2A] text-white rounded-lg font-medium hover:bg-[#3A3A3A] transition-colors"
+                          >
+                            Decline
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-400">No pending friend requests</p>
+                )}
+              </div>
+
+              {/* Friends List */}
+              <div>
+                <h3 className="text-white font-medium mb-4">Friends</h3>
+                {friends.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {friends.map(friendId => (
+                      <div key={friendId} className="bg-[#2A2A2A] rounded-xl p-3 flex items-center gap-3">
+                        <img
+                          src={avatars[friendDetails[friendId]?.photoURL as keyof typeof avatars] || avatars.Avatar1}
+                          alt="Friend Avatar"
+                          className="w-10 h-10 rounded-full"
+                        />
+                        <p className="text-white">{friendDetails[friendId]?.displayName || `Friend ${friendId.substring(0, 5)}...`}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-400">No friends yet</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Games Tab */}
+          {activeTab === 'games' && (
+            <div>
+              <h3 className="text-white font-medium mb-4">Created Events</h3>
+              {userEvents.length > 0 ? (
+                <div className="space-y-4">
+                  {userEvents.map(event => (
+                    <div
+                      key={event.id}
+                      className="bg-[#2A2A2A] rounded-xl p-4"
+                    >
+                      <h4 className="text-white font-medium">{event.title}</h4>
+                      <p className="text-gray-400 text-sm">
+                        {new Date(event.date).toLocaleDateString()} at {event.time}
+                      </p>
+                      <p className="text-gray-400 text-sm">
+                        {event.location} • {event.level}
+                      </p>
+                      <div className="mt-2 text-[#C1FF2F]">
+                        {event.players.length}/{event.maxPlayers} players
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-400">No events created yet</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="p-4 border-t border-[#2A2A2A] flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-[#2A2A2A] text-white rounded-xl hover:bg-[#3A3A3A] transition-colors"
+          >
+            Close
+          </button>
+        </div>
+      </>
+    );
+  };
+
+  if (!open) {
+    console.log("UserProfileDialog not rendering - open is false");
+    return null;
+  }
+
+  // Render bottom sheet for mobile view
+  if (isMobile) {
+    console.log("UserProfileDialog rendering mobile view");
+    return (
+      <div 
+        className={`fixed inset-0 z-50 ${isVisible ? 'block' : 'hidden'}`}
+        style={{ 
+          backgroundColor: 'rgba(0, 0, 0, 0.5)', 
+          transition: 'background-color 0.3s ease, opacity 0.3s ease',
+          opacity: open ? 1 : 0
+        }}
+        onClick={onClose}
+      >
+        <div 
+          className={`fixed inset-x-0 bottom-0 z-50 bg-[#1E1E1E] rounded-t-xl max-h-[90vh] overflow-auto transform transition-transform duration-300 ease-out ${open ? 'translate-y-0' : 'translate-y-full'}`}
+          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+          onClick={(e) => e.stopPropagation()}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          <div className="w-full flex justify-center py-2">
+            <div className="w-10 h-1 bg-gray-500 rounded-full"></div>
+          </div>
+          <div className="flex flex-col h-full max-h-[85vh]">
+            {renderProfileContent()}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Render dialog for desktop view
   return (
     <div 
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
@@ -357,288 +739,7 @@ export const UserProfileDialog: React.FC<UserProfileDialogProps> = ({
         ref={dialogRef}
         className="bg-[#1E1E1E] rounded-3xl w-full max-w-4xl max-h-[80vh] flex flex-col relative"
       >
-        {loading ? (
-          <div className="text-white text-center p-8">Loading...</div>
-        ) : userProfile ? (
-          <>
-            <div className="p-6 border-b border-[#2A2A2A]">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <img
-                    src={avatars[userProfile.photoURL as keyof typeof avatars] || avatars.Avatar1}
-                    alt="Profile Avatar"
-                    className="w-16 h-16 rounded-full"
-                  />
-                  <div>
-                    <h2 className="text-xl font-medium text-white">
-                      {userProfile.displayName}
-                    </h2>
-                    <p className="text-gray-400 text-sm">{userProfile.email}</p>
-                  </div>
-                </div>
-                {userId === user?.uid && !isEditing && (
-                  <button
-                    onClick={handleEditClick}
-                    className="px-4 py-2 bg-[#2A2A2A] text-white rounded-xl hover:bg-[#3A3A3A] transition-colors"
-                  >
-                    Edit Profile
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Tabs */}
-            <div className="flex border-b border-[#2A2A2A]">
-              <button
-                className={`flex-1 py-3 text-center font-medium transition-colors ${
-                  activeTab === 'profile' 
-                    ? 'text-[#C1FF2F] border-b-2 border-[#C1FF2F]' 
-                    : 'text-gray-400 hover:text-white'
-                }`}
-                onClick={() => setActiveTab('profile')}
-              >
-                Profile
-              </button>
-              <button
-                className={`flex-1 py-3 text-center font-medium transition-colors ${
-                  activeTab === 'friends' 
-                    ? 'text-[#C1FF2F] border-b-2 border-[#C1FF2F]' 
-                    : 'text-gray-400 hover:text-white'
-                }`}
-                onClick={() => setActiveTab('friends')}
-              >
-                Friends
-              </button>
-              <button
-                className={`flex-1 py-3 text-center font-medium transition-colors ${
-                  activeTab === 'games' 
-                    ? 'text-[#C1FF2F] border-b-2 border-[#C1FF2F]' 
-                    : 'text-gray-400 hover:text-white'
-                }`}
-                onClick={() => setActiveTab('games')}
-              >
-                Games
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-6">
-              {/* Profile Tab */}
-              {activeTab === 'profile' && (
-                <div className="space-y-6">
-                  {/* Friend Status and Actions */}
-                  {user && user.uid !== userId && (
-                    <div className="mb-6">
-                      {friendStatus === 'none' && (
-                        <button
-                          onClick={handleSendFriendRequest}
-                          className="w-full bg-[#C1FF2F] text-black rounded-xl py-2 font-medium hover:bg-[#B1EF1F] transition-colors"
-                        >
-                          Add Friend
-                        </button>
-                      )}
-                      {friendStatus === 'pending' && (
-                        <div className="text-[#C1FF2F] text-center py-2">
-                          Friend Request Sent
-                        </div>
-                      )}
-                      {friendStatus === 'friends' && (
-                        <div className="text-[#C1FF2F] text-center py-2">
-                          Friends
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {isEditing ? (
-                    <div className="space-y-4">
-                      {error && (
-                        <div className="text-red-500 text-sm">
-                          {error}
-                        </div>
-                      )}
-                      {success && (
-                        <div className="text-[#C1FF2F] text-sm">
-                          {success}
-                        </div>
-                      )}
-                      <div>
-                        <label className="block text-gray-400 text-sm mb-2">Display Name</label>
-                        <input
-                          type="text"
-                          value={editedProfile?.displayName || ''}
-                          onChange={(e) => handleInputChange('displayName', e.target.value)}
-                          className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-gray-400 text-sm mb-2">Phone Number</label>
-                        <input
-                          type="tel"
-                          value={editedProfile?.phoneNumber || ''}
-                          onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
-                          className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-gray-400 text-sm mb-2">Game Level</label>
-                        <select
-                          value={editedProfile?.level || ''}
-                          onChange={(e) => handleInputChange('level', e.target.value)}
-                          className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
-                        >
-                          <option value="">Select your level</option>
-                          {LEVELS.map((level) => (
-                            <option key={level} value={level}>
-                              {level}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="flex gap-4">
-                        <button
-                          onClick={handleSaveProfile}
-                          className="flex-1 bg-[#C1FF2F] text-black rounded-xl py-3 font-medium hover:bg-[#B1EF1F] transition-colors"
-                        >
-                          Save Changes
-                        </button>
-                        <button
-                          onClick={handleCancelEdit}
-                          className="flex-1 bg-[#2A2A2A] text-white rounded-xl py-3 font-medium hover:bg-[#3A3A3A] transition-colors"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {userProfile.level && (
-                        <div>
-                          <h3 className="text-gray-400 text-sm">Level</h3>
-                          <p className="text-white">{userProfile.level}</p>
-                        </div>
-                      )}
-                      {userProfile.phoneNumber && (
-                        <div>
-                          <h3 className="text-gray-400 text-sm">Phone</h3>
-                          <p className="text-white">{userProfile.phoneNumber}</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Friends Tab */}
-              {activeTab === 'friends' && (
-                <div className="space-y-6">
-                  {/* Friend Requests */}
-                  <div>
-                    <h3 className="text-white font-medium mb-4">Friend Requests</h3>
-                    {friendRequests.length > 0 ? (
-                      <div className="space-y-3">
-                        {friendRequests.map(request => (
-                          <div key={request.id} className="bg-[#2A2A2A] rounded-xl p-4 flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <img
-                                src={avatars[request.fromUser?.photoURL as keyof typeof avatars] || avatars.Avatar1}
-                                alt="Avatar"
-                                className="w-10 h-10 rounded-full"
-                              />
-                              <div>
-                                <p className="text-white font-medium">{request.fromUser?.displayName}</p>
-                                <p className="text-gray-400 text-sm">
-                                  {new Date(request.timestamp).toLocaleDateString()}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleAcceptFriendRequest(request.id, request.fromUserId)}
-                                className="px-4 py-1.5 bg-[#C1FF2F] text-black rounded-lg font-medium hover:bg-[#B1EF1F] transition-colors"
-                              >
-                                Accept
-                              </button>
-                              <button
-                                onClick={() => handleRejectFriendRequest(request.id)}
-                                className="px-4 py-1.5 bg-[#2A2A2A] text-white rounded-lg font-medium hover:bg-[#3A3A3A] transition-colors"
-                              >
-                                Decline
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-gray-400">No pending friend requests</p>
-                    )}
-                  </div>
-
-                  {/* Friends List */}
-                  <div>
-                    <h3 className="text-white font-medium mb-4">Friends</h3>
-                    {friends.length > 0 ? (
-                      <div className="grid grid-cols-2 gap-3">
-                        {friends.map(friendId => (
-                          <div key={friendId} className="bg-[#2A2A2A] rounded-xl p-3 flex items-center gap-3">
-                            <img
-                              src={avatars[friendDetails[friendId]?.photoURL as keyof typeof avatars] || avatars.Avatar1}
-                              alt="Friend Avatar"
-                              className="w-10 h-10 rounded-full"
-                            />
-                            <p className="text-white">{friendDetails[friendId]?.displayName || `Friend ${friendId.substring(0, 5)}...`}</p>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-gray-400">No friends yet</p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Games Tab */}
-              {activeTab === 'games' && (
-                <div>
-                  <h3 className="text-white font-medium mb-4">Created Events</h3>
-                  {userEvents.length > 0 ? (
-                    <div className="space-y-4">
-                      {userEvents.map(event => (
-                        <div
-                          key={event.id}
-                          className="bg-[#2A2A2A] rounded-xl p-4"
-                        >
-                          <h4 className="text-white font-medium">{event.title}</h4>
-                          <p className="text-gray-400 text-sm">
-                            {new Date(event.date).toLocaleDateString()} at {event.time}
-                          </p>
-                          <p className="text-gray-400 text-sm">
-                            {event.location} • {event.level}
-                          </p>
-                          <div className="mt-2 text-[#C1FF2F]">
-                            {event.players.length}/{event.maxPlayers} players
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-gray-400">No events created yet</p>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="p-4 border-t border-[#2A2A2A] flex justify-end">
-              <button
-                onClick={onClose}
-                className="px-4 py-2 bg-[#2A2A2A] text-white rounded-xl hover:bg-[#3A3A3A] transition-colors"
-              >
-                Close
-              </button>
-            </div>
-          </>
-        ) : (
-          <div className="text-white text-center p-8">User not found</div>
-        )}
+        {renderProfileContent()}
       </div>
     </div>
   );
