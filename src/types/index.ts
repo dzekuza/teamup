@@ -1,8 +1,23 @@
+import { Timestamp } from 'firebase/firestore';
+import { Location } from '../constants/locations';
+
 export interface User {
   id: string;
   email: string;
   displayName: string;
-  photoURL?: string;
+  photoURL: string;
+  phoneNumber: string;
+  level: string;
+  location: string;
+  sports: string[];
+  friends: string[];
+  friendRequests: string[];
+  createdAt: Timestamp;
+  emailVerified: boolean;
+  bio: string;
+  firstName: string;
+  lastName: string;
+  isAdmin?: boolean;
 }
 
 export interface MatchResult {
@@ -23,17 +38,24 @@ export interface Event {
   maxPlayers: number;
   createdBy: string;
   price: number;
-  status: 'upcoming' | 'ongoing' | 'finished';
+  status: 'active' | 'completed';
   matchResults?: MatchResult | MatchResult[];
   isPrivate: boolean;
   password?: string;
   sportType: string;
+  customLocationCoordinates?: {
+    lat: number;
+    lng: number;
+  };
 }
 
 export interface Player {
   id: string;
   name: string;
   photoURL?: string;
+  displayName?: string;
+  level?: string;
+  uid?: string;
 }
 
 export interface Notification {

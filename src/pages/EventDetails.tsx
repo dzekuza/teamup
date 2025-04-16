@@ -143,10 +143,30 @@ const EventDetails: React.FC = () => {
             setIsPlayerInEvent(isPlayerInEvent);
           }
           
-          const locationObj = PADEL_LOCATIONS.find(loc => loc.name === eventData.location);
-          setLocationData(locationObj || null);
+          // For Padel events, use predefined locations, for other events use custom coordinates
+          if (eventData.sportType === 'Padel') {
+            const locationObj = PADEL_LOCATIONS.find(loc => loc.name === eventData.location);
+            setLocationData(locationObj || null);
+          } else if (eventData.customLocationCoordinates) {
+            // For non-Padel events with custom coordinates, create a location object
+            setLocationData({
+              name: eventData.location,
+              address: eventData.location,
+              coordinates: eventData.customLocationCoordinates,
+              image: DEFAULT_COVER_IMAGE
+            });
+          } else {
+            // Fallback to default coordinates if no custom coordinates
+            setLocationData({
+              name: eventData.location,
+              address: eventData.location,
+              coordinates: DEFAULT_COORDINATES,
+              image: DEFAULT_COVER_IMAGE
+            });
+          }
+          
           // Log to debug
-          console.log("Location data:", locationObj);
+          console.log("Location data:", locationData);
           console.log("Event data:", eventData);
           
           // Extract and set players

@@ -22,6 +22,7 @@ import {
 import { Close as CloseIcon } from '@mui/icons-material';
 import StyledRadio from './StyledRadio';
 import { addToAppleWallet } from '../utils/appleWallet';
+import LocationSearch from './LocationSearch';
 
 interface CreateEventDialogProps {
   open: boolean;
@@ -47,6 +48,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
   const [sportType, setSportType] = useState('');
   const [title, setTitle] = useState('');
   const [location, setLocation] = useState('');
+  const [customLocationCoordinates, setCustomLocationCoordinates] = useState<{lat: number; lng: number} | null>(null);
   const [date, setDate] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [startTime, setStartTime] = useState('');
@@ -109,6 +111,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
   const resetForm = () => {
     setTitle('');
     setLocation('');
+    setCustomLocationCoordinates(null);
     setDate('');
     setStartTime('');
     setEndTime('');
@@ -185,6 +188,9 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
     if (sportType === 'Padel') {
       const selectedLocation = PADEL_LOCATIONS.find((loc: Location) => loc.name === location);
       if (!selectedLocation) return;
+    } else if (!location) {
+      setError('Please enter a location');
+      return;
     }
 
     setIsLoading(true);
@@ -231,6 +237,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
         isPrivate,
         sportType,
         ...(isPrivate && { password }),
+        ...(customLocationCoordinates && { customLocationCoordinates })
       };
 
       const docRef = await addDoc(collection(db, 'events'), eventData);
@@ -391,6 +398,12 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
     }
     // Reset location when changing sport type
     setLocation('');
+  };
+
+  // Handle location selection for non-Padel events
+  const handleLocationSelect = (selectedLocation: { name: string; address: string; coordinates: { lat: number; lng: number } }) => {
+    setLocation(selectedLocation.address);
+    setCustomLocationCoordinates(selectedLocation.coordinates);
   };
 
   if (showSuccess && eventId) {
@@ -560,14 +573,15 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
               </div>
             ) : (
               <div>
-                <input
-                  type="text"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  placeholder="Enter event location"
-                  className="mt-1 block w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
-                  required
+                <LocationSearch 
+                  onLocationSelect={handleLocationSelect}
+                  placeholder="Search for event location"
                 />
+                {location && (
+                  <div className="mt-2 p-3 bg-[#353535] rounded-lg">
+                    <p className="text-sm text-white">Selected location: <span className="text-gray-300">{location}</span></p>
+                  </div>
+                )}
               </div>
             )}
           </div>
