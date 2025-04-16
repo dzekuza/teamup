@@ -44,6 +44,7 @@ export interface Event {
   isPrivate: boolean;
   password?: string;
   sportType: string;
+  description?: string;
   customLocationCoordinates?: {
     lat: number;
     lng: number;
