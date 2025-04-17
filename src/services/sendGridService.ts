@@ -4,24 +4,24 @@ const emailWrapper = (content: string) => `
   <div style="background-color: #1E1E1E; color: white; padding: 20px; font-family: Arial, sans-serif;">
     <div style="max-width: 600px; margin: 0 auto;">
       <div style="text-align: center; margin-bottom: 20px;">
-        <img src="https://firebasestorage.googleapis.com/v0/b/newprojecta-36c09.firebasestorage.app/o/whitepadel.png?alt=media&token=0b125f07-4d49-44a1-a255-2d77744b29d8" alt="We Team Up" style="height: 40px; width: auto;" />
+        <img src="https://firebasestorage.googleapis.com/v0/b/newprojecta-36c09.firebasestorage.app/o/teamup%20lgoo.svg?alt=media&token=fd5b715d-7682-4193-8683-24fd65433d89" alt="TeamUp" style="height: 60px; width: auto;" />
       </div>
       ${content}
       <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #333; color: #666; font-size: 12px;">
-        © ${new Date().getFullYear()} We Team Up. All rights reserved.
+        © ${new Date().getFullYear()} TeamUp. All rights reserved.
       </div>
     </div>
   </div>
 `;
 
 export const sendWelcomeEmail = async (to: string, name: string) => {
-  const subject = 'Welcome to WeTeamUp!';
-  const text = `Welcome to WeTeamUp, ${name}! We're excited to have you join our community.`;
+  const subject = 'Welcome to teamup!';
+  const text = `Welcome to teamup, ${name}! We're excited to have you join our community.`;
   const html = emailWrapper(`
-    <h1 style="color: #C1FF2F;">Welcome to WeTeamUp!</h1>
+    <h1 style="color: #C1FF2F;">Welcome to teamup!</h1>
     <p>Hi ${name},</p>
     <p>We're excited to have you join our community!</p>
-    <a href="https://weteamup.app" style="background-color: #C1FF2F; color: black; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 20px;">Get Started</a>
+    <a href="https://teamup.lt" style="background-color: #C1FF2F; color: black; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 20px;">Get Started</a>
   `);
 
   try {
@@ -52,8 +52,8 @@ export const sendEventInvitation = async (
   location: string,
   playerName: string
 ) => {
-  const subject = 'New Player Joined Your Event on WeTeamUp';
-  const text = `${playerName} has joined your event "${eventTitle}" on WeTeamUp.`;
+  const subject = 'New Player Joined Your Event on TeamUp';
+  const text = `${playerName} has joined your event "${eventTitle}" on TeamUp.`;
   const html = emailWrapper(`
     <h1 style="color: #C1FF2F;">New Player Joined</h1>
     <p>${playerName} has joined your event:</p>
@@ -63,7 +63,7 @@ export const sendEventInvitation = async (
       <p><strong>Time:</strong> ${time}</p>
       <p><strong>Location:</strong> ${location}</p>
     </div>
-    <a href="https://weteamup.app" style="background-color: #C1FF2F; color: black; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 20px;">View Event</a>
+    <a href="https://teamup.lt" style="background-color: #C1FF2F; color: black; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 20px;">View Event</a>
   `);
 
   try {
@@ -95,7 +95,7 @@ export const sendEventUpdate = async (to: string, eventTitle: string, message: s
     <div style="background-color: #2A2A2A; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
       <p>${message}</p>
     </div>
-    <a href="https://weteamup.app" style="display: inline-block; background-color: #C1FF2F; color: black; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">View Event</a>
+    <a href="https://teamup.lt" style="display: inline-block; background-color: #C1FF2F; color: black; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">View Event</a>
   `);
 
   try {
@@ -119,14 +119,14 @@ export const sendEventUpdate = async (to: string, eventTitle: string, message: s
 };
 
 export const sendVerificationEmail = async (to: string, name: string, verificationToken: string) => {
-  const verificationUrl = `https://weteamup.app/verify-email?token=${verificationToken}`;
+  const verificationUrl = `https://teamup.lt/verify-email?token=${verificationToken}`;
   
-  const subject = 'Verify your WeTeamUp email address';
+  const subject = 'Verify your TeamUp email address';
   const text = `Hi ${name}, please verify your email address by clicking this link: ${verificationUrl}`;
   const html = emailWrapper(`
     <h1 style="color: #C1FF2F; font-size: 24px; margin-bottom: 20px;">Verify Your Email</h1>
     <p style="margin-bottom: 20px;">Hi ${name},</p>
-    <p style="margin-bottom: 20px;">Thanks for signing up for WeTeamUp! Please verify your email address to access all features.</p>
+    <p style="margin-bottom: 20px;">Thanks for signing up for TeamUp! Please verify your email address to access all features.</p>
     <div style="text-align: center;">
       <a href="${verificationUrl}" 
          style="display: inline-block; background-color: #C1FF2F; color: black; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 20px 0;">
@@ -134,7 +134,7 @@ export const sendVerificationEmail = async (to: string, name: string, verificati
       </a>
     </div>
     <p style="margin-top: 20px; font-size: 14px; color: #666;">
-      If you didn't create an account with WeTeamUp, you can safely ignore this email.
+      If you didn't create an account with TeamUp, you can safely ignore this email.
     </p>
   `);
 
@@ -170,8 +170,8 @@ export const sendEventCreationEmail = async (
     id: string;
   }
 ) => {
-  const subject = 'New Event Created on WeTeamUp';
-  const text = `A new event "${event.title}" has been created on WeTeamUp.`;
+  const subject = 'New Event Created on TeamUp';
+  const text = `A new event "${event.title}" has been created on TeamUp.`;
   const html = emailWrapper(`
     <h1 style="color: #C1FF2F;">New Event Created</h1>
     <p>The following event has been created:</p>
@@ -181,7 +181,7 @@ export const sendEventCreationEmail = async (
       <p><strong>Time:</strong> ${event.time}</p>
       <p><strong>Location:</strong> ${event.location}</p>
     </div>
-    <a href="https://weteamup.app" style="background-color: #C1FF2F; color: black; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 20px;">View Event</a>
+    <a href="https://teamup.lt" style="background-color: #C1FF2F; color: black; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 20px;">View Event</a>
   `);
 
   try {

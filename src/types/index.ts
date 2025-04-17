@@ -46,6 +46,7 @@ export interface Event {
   sportType: string;
   description?: string;
   coverImageURL?: string;
+  createdAt?: string;
   customLocationCoordinates?: {
     lat: number;
     lng: number;

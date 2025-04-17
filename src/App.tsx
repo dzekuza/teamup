@@ -9,11 +9,13 @@ import Login from './pages/Login';
 import { Register } from './pages/Register';
 import { VerifyEmail } from './pages/VerifyEmail';
 import EventDetails from './pages/EventDetails';
+import SingleLocation from './pages/SingleLocation';
 import LandingPage from './pages/LandingPage';
 import { useAuth } from './hooks/useAuth';
 import Preloader from './components/Preloader';
 import { SavedEvents } from './pages/SavedEvents';
 import { Community } from './pages/Community';
+import Locations from './pages/Locations';
 import { useCookieContext } from './contexts/CookieContext';
 
 // Add global styles for mobile navigation padding
@@ -68,6 +70,8 @@ const App: React.FC = () => {
           <Route path="/notifications" element={user ? <Home notificationsOnly={true} /> : <Navigate to="/login" />} />
           <Route path="/community" element={user ? <Community /> : <Navigate to="/login" />} />
           <Route path="/saved-events" element={user ? <SavedEvents /> : <Navigate to="/login" />} />
+          <Route path="/locations" element={user ? <Locations /> : <Navigate to="/login" />} />
+          <Route path="/location/:locationId" element={user ? <SingleLocation /> : <Navigate to="/login" />} />
         </Routes>
         {user && isMobile && <MobileNavigation />}
         

@@ -20,19 +20,19 @@ export const SportTypeFilter: React.FC<SportTypeFilterProps> = ({
   onChange,
 }) => {
   return (
-    <div className="w-full overflow-x-auto pb-4">
+    <div className="w-full overflow-x-auto pb-0 pt-2">
       <div className="flex space-x-6 px-4">
         {SPORTS.map((sport) => (
           <button
             key={sport.id}
             onClick={() => onChange(sport.id)}
-            className={`flex min-w-[64px] flex-col items-center justify-center rounded-lg p-2 shadow-lg transition-all duration-200 hover:scale-105`}
+            className={`flex min-w-[64px] flex-col items-center justify-center rounded-lg shadow-lg transition-all duration-200 hover:scale-105`}
           >
             <div 
               className={`mb-2 flex h-12 w-12 items-center justify-center rounded-full text-2xl transition-all duration-200 ${
                 selectedSportType === sport.id
                   ? 'bg-[#C1FF2F] text-black scale-110 shadow-[0_0_10px_rgba(193,255,47,0.3)]'
-                  : 'bg-[#1E1E1E] text-white hover:bg-[#2A2A2A]'
+                  : 'text-white'
               }`}
             >
               {sport.icon}

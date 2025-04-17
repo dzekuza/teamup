@@ -916,6 +916,21 @@ const EventDetails: React.FC = () => {
                       </svg>
                       <span className="text-white">{locationData ? locationData.name : 'Loading...'}</span>
                     </div>
+                    
+                    {/* Only show "Learn More" button for Padel locations */}
+                    {event && event.sportType === 'Padel' && locationData && (
+                      <div className="mt-3">
+                        <button 
+                          onClick={() => navigate(`/location/${encodeURIComponent(locationData.name)}`)}
+                          className="bg-[#1E1E1E] hover:bg-[#2A2A2A] text-[#C1FF2F] text-sm py-2 px-4 rounded-lg border border-[#3A3A3A] flex items-center transition-colors"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Learn more about this location
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
 

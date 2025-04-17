@@ -13,7 +13,7 @@ import Avatar3 from '../assets/avatars/Avatar3.png';
 import Avatar4 from '../assets/avatars/Avatar4.png';
 import LogoWhite from '../assets/images/logo-white.svg';
 import { UserProfileDialog } from './UserProfileDialog';
-import { Bookmark as BookmarkIcon, People as PeopleIcon } from '@mui/icons-material';
+import { Bookmark as BookmarkIcon, People as PeopleIcon, LocationOn as LocationIcon } from '@mui/icons-material';
 
 const avatars = {
   Avatar1,
@@ -73,6 +73,13 @@ export const Navbar: FC = () => {
                   title="Community Memories"
                 >
                   <PeopleIcon />
+                </Link>
+                <Link 
+                  to="/locations" 
+                  className="text-gray-300 hover:text-[#C1FF2F] transition-colors"
+                  title="Padel Venues"
+                >
+                  <LocationIcon />
                 </Link>
                 <Link 
                   to="/saved-events" 

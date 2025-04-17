@@ -1,6 +1,6 @@
 import React from 'react';
-import logoDark from '../assets/images/logo.svg';
-import logoLight from '../assets/images/logo-white.svg';
+import logoDark from '../assets/images/teamup-logo.svg';
+import logoLight from '../assets/images/teamup-logo.svg';
 
 interface LogoProps {
   className?: string;
@@ -11,8 +11,8 @@ interface LogoProps {
 
 export const Logo: React.FC<LogoProps> = ({ 
   className = '', 
-  width = 224, 
-  height = 246,
+  width = 117, 
+  height = 120,
   variant = 'dark'
 }) => {
   const logo = variant === 'dark' ? logoDark : logoLight;
@@ -20,7 +20,7 @@ export const Logo: React.FC<LogoProps> = ({
   return (
     <img 
       src={logo} 
-      alt="WebPadel Logo" 
+      alt="TeamUp Logo" 
       className={className}
       width={width}
       height={height}

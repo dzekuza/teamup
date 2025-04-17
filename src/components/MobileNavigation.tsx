@@ -9,7 +9,7 @@ import Avatar2 from '../assets/avatars/Avatar2.png';
 import Avatar3 from '../assets/avatars/Avatar3.png';
 import Avatar4 from '../assets/avatars/Avatar4.png';
 import { UserProfileDialog } from './UserProfileDialog';
-import { Bookmark } from '@mui/icons-material';
+import { Bookmark, LocationOn } from '@mui/icons-material';
 
 const avatars = {
   Avatar1,
@@ -123,6 +123,14 @@ export const MobileNavigation: React.FC = () => {
               </svg>
             </div>
             <span className={`text-xs ${location.pathname === '/my-events' ? 'text-[#C1FF2F]' : 'text-gray-400'}`}>Events</span>
+          </Link>
+
+          {/* Locations */}
+          <Link to="/locations" className="flex flex-col items-center space-y-1">
+            <div className={`p-1 rounded-full ${location.pathname === '/locations' ? 'text-[#C1FF2F]' : 'text-gray-400'}`}>
+              <LocationOn className="h-6 w-6" />
+            </div>
+            <span className={`text-xs ${location.pathname === '/locations' ? 'text-[#C1FF2F]' : 'text-gray-400'}`}>Venues</span>
           </Link>
 
           {/* Notifications */}

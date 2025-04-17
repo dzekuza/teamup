@@ -644,22 +644,39 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
   };
 
   return (
-    <div className="bg-[#1E1E1E] rounded-xl overflow-hidden border border-gray-800 hover:border-[#C1FF2F] transition-colors">
+    <div className="bg-[#1E1E1E] rounded-xl overflow-hidden border border-gray-800 hover:border-[#C1FF2F] transition-all hover:shadow-lg hover:shadow-[#C1FF2F]/20 group">
       {/* Location image and event details section */}
-      <div className="relative" style={{ height: "15rem" }}>
+      <div className="relative overflow-hidden" style={{ height: "16rem" }}>
         <img
           src={locationImage}
           alt={event.location}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
         {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent" />
         
         {/* Event title and date on image */}
         <div className="absolute bottom-4 left-4 right-4">
-          <div className="text-[#C1FF2F] font-medium text-sm mb-1">{event.sportType || 'Padel'}</div>
-          <h3 className="text-xl font-bold text-white mb-1">{event.title}</h3>
-          <p className="text-gray-200">{extractCity(event.location)} · {formatEventDate(event.date)}</p>
+          <div className="flex items-center mb-1.5">
+            <span className="bg-black/60 backdrop-blur-sm text-[#C1FF2F] font-medium text-sm px-2.5 py-0.5 rounded-full mr-2">
+              {event.sportType || 'Padel'}
+            </span>
+          </div>
+          <h3 className="text-xl font-bold text-white mb-1 group-hover:text-[#C1FF2F] transition-colors">{event.title}</h3>
+          <div className="flex items-center text-gray-200 text-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span>{extractCity(event.location)}</span>
+            
+            <span className="mx-2">•</span>
+            
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <span>{formatEventDate(event.date)}</span>
+          </div>
         </div>
         
         {/* Add the save button */}
@@ -702,31 +719,37 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
         </div>
       </div>
 
-      <div className="p-4">
+      <div className="p-5">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-2">
-            <img
-              src={avatars[creatorInfo?.photoURL as keyof typeof avatars] || avatars.Avatar1}
-              alt={creatorInfo?.displayName || 'Unknown User'}
-              className="w-8 h-8 rounded-full cursor-pointer hover:opacity-90"
-              onClick={() => setSelectedPlayerId(event.createdBy)}
-            />
-            <div className="flex items-center space-x-1">
-              <span className="text-white font-medium">
+          <div className="flex items-center space-x-3">
+            <div className="relative">
+              <img
+                src={avatars[creatorInfo?.photoURL as keyof typeof avatars] || avatars.Avatar1}
+                alt={creatorInfo?.displayName || 'Unknown User'}
+                className="w-10 h-10 rounded-full cursor-pointer hover:opacity-90 border-2 border-[#C1FF2F]"
+                onClick={() => setSelectedPlayerId(event.createdBy)}
+              />
+              {creatorInfo?.emailVerified && (
+                <div className="absolute -bottom-1 -right-1 bg-blue-500 rounded-full p-0.5">
+                  <svg className="h-3.5 w-3.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                </div>
+              )}
+            </div>
+            <div>
+              <span className="text-white font-medium block">
                 {creatorInfo?.displayName || 'Unknown User'}
               </span>
-              {creatorInfo?.emailVerified && (
-                <svg className="h-4 w-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-              )}
+              <span className="text-xs text-gray-400">Organizer</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
             {/* Share button */}
             <button
               onClick={() => setIsShareDialogOpen(true)}
-              className="p-2 rounded-full text-gray-400 hover:text-white hover:bg-[#2A2A2A] transition-colors"
+              className="p-2 rounded-full text-gray-400 hover:text-white hover:bg-[#2A2A2A] transition-all"
+              title="Share event"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
@@ -736,7 +759,8 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
             {user && event.createdBy === user.uid && (
               <button
                 onClick={() => setIsEditDialogOpen(true)}
-                className="p-2 rounded-full text-gray-400 hover:text-white hover:bg-[#2A2A2A] transition-colors"
+                className="p-2 rounded-full text-gray-400 hover:text-white hover:bg-[#2A2A2A] transition-all"
+                title="Edit event"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -758,17 +782,32 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
         </div>
 
         {/* Time and Level Info in Grid */}
-        <div className="grid grid-cols-3 gap-2 mb-4">
-          <div className="bg-[#2A2A2A] p-3 rounded-lg">
-            <p className="text-gray-400 text-xs mb-1">Start time</p>
+        <div className="grid grid-cols-3 gap-3 mb-5">
+          <div className="bg-[#2A2A2A] p-3 rounded-lg hover:bg-[#333333] transition-colors">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-gray-400 text-xs">Start time</p>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-[#C1FF2F]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
             <p className="text-white font-medium">{event.time}</p>
           </div>
-          <div className="bg-[#2A2A2A] p-3 rounded-lg">
-            <p className="text-gray-400 text-xs mb-1">End time</p>
+          <div className="bg-[#2A2A2A] p-3 rounded-lg hover:bg-[#333333] transition-colors">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-gray-400 text-xs">End time</p>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-[#C1FF2F]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
             <p className="text-white font-medium">{event.endTime}</p>
           </div>
-          <div className="bg-[#2A2A2A] p-3 rounded-lg">
-            <p className="text-gray-400 text-xs mb-1">Level</p>
+          <div className="bg-[#2A2A2A] p-3 rounded-lg hover:bg-[#333333] transition-colors">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-gray-400 text-xs">Level</p>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-[#C1FF2F]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+              </svg>
+            </div>
             <p className="text-white font-medium">{event.level}</p>
           </div>
         </div>
@@ -778,14 +817,21 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
           <button
             onClick={handleJoinEvent}
             disabled={isLoading}
-            className="w-full bg-[#C1FF2F] text-black py-3 px-4 rounded-xl font-semibold hover:bg-[#B1EF1F] transition-colors flex items-center justify-center"
+            className="w-full bg-[#C1FF2F] text-black py-3.5 px-4 rounded-xl font-semibold hover:bg-[#B1EF1F] transform hover:translate-y-[-2px] transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md hover:shadow-[#C1FF2F]/30"
           >
             {isLoading ? (
               <svg className="animate-spin h-5 w-5 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-            ) : "Join event"}
+            ) : (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                </svg>
+                Join event
+              </>
+            )}
           </button>
         )}
 
@@ -794,7 +840,7 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
           <button
             onClick={handleLeaveEvent}
             disabled={isLoading}
-            className="mt-2 w-full bg-red-600 text-white rounded-xl p-4 font-medium hover:bg-red-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+            className="mt-3 w-full bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl py-3.5 px-4 font-medium hover:from-red-700 hover:to-red-800 transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-sm hover:shadow-md hover:shadow-red-900/30 transform hover:translate-y-[-2px]"
           >
             {isLoading ? (
               <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -804,7 +850,7 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
             ) : (
               <>
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
                 </svg>
                 Leave Game
               </>
@@ -816,12 +862,12 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
         {isPastEvent() && event.matchResults && Array.isArray(event.matchResults) && event.matchResults.length > 0 && (
           <button
             onClick={() => setIsMatchResultsOpen(true)}
-            className="mt-2 w-full bg-[#2A2A2A] text-white rounded-xl p-4 font-medium hover:bg-[#3A3A3A] transition-colors flex items-center justify-center gap-2"
+            className="mt-3 w-full bg-blue-600 text-white rounded-xl py-3.5 px-4 font-medium hover:bg-blue-700 transition-all flex items-center justify-center gap-2 shadow-sm"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
-            View match results
+            View Match Results
           </button>
         )}
       </div>
@@ -867,29 +913,63 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
               <p className="text-red-500 mb-4">{error}</p>
             ) : (
               <>
-                <h2 className="text-2xl font-bold mb-4 text-white">Join Private Event</h2>
+                <h2 className="text-2xl font-bold mb-6 text-white flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#C1FF2F]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  Join Private Event
+                </h2>
                 <form onSubmit={handlePasswordSubmit}>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter password"
-                    className="w-full p-3 border border-gray-700 bg-[#2A2A2A] text-white rounded-xl mb-4 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
-                  />
-                  {passwordError && <p className="text-red-500 mb-4">{passwordError}</p>}
+                  <div className="relative mb-5">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                      </svg>
+                    </div>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter password"
+                      className="w-full pl-10 p-3.5 border border-gray-700 bg-[#2A2A2A] text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-[#C1FF2F] focus:border-transparent"
+                    />
+                  </div>
+                  {passwordError && (
+                    <p className="text-red-500 mb-4 flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      {passwordError}
+                    </p>
+                  )}
                   <button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full bg-[#C1FF2F] text-black p-3 rounded-xl font-medium hover:bg-[#B1EF1F] transition-colors"
+                    className="w-full bg-[#C1FF2F] text-black py-3.5 font-medium rounded-xl hover:bg-[#B1EF1F] transform hover:translate-y-[-2px] transition-all shadow-sm hover:shadow-md hover:shadow-[#C1FF2F]/30 flex items-center justify-center gap-2"
                   >
-                    {isLoading ? 'Joining...' : 'Join Event'}
+                    {isLoading ? (
+                      <>
+                        <svg className="animate-spin h-5 w-5 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Joining...
+                      </>
+                    ) : (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                        </svg>
+                        Join Event
+                      </>
+                    )}
                   </button>
                 </form>
               </>
             )}
             <button
               onClick={() => setShowJoinDialog(false)}
-              className="mt-4 w-full bg-[#2A2A2A] text-white p-3 rounded-xl font-medium hover:bg-[#3A3A3A] transition-colors"
+              className="mt-4 w-full border border-gray-700 text-white py-3.5 rounded-xl font-medium hover:bg-[#2A2A2A] transition-all flex items-center justify-center"
             >
               Cancel
             </button>

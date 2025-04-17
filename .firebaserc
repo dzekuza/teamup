@@ -2,6 +2,14 @@
   "projects": {
     "default": "newprojecta-36c09"
   },
-  "targets": {},
+  "targets": {
+    "newprojecta-36c09": {
+      "hosting": {
+        "default": [
+          "teamup.lt"
+        ]
+      }
+    }
+  },
   "etags": {}
 }

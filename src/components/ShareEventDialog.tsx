@@ -265,11 +265,12 @@ export const ShareEventDialog: React.FC<ShareEventDialogProps> = ({
 
       {/* Desktop popup dialog */}
       <div 
-        className={`hidden md:block fixed inset-0 z-50 ${isVisible ? 'block' : 'hidden'}`}
+        className={`fixed inset-0 z-50 ${open ? 'md:block' : 'hidden'}`}
         style={{ 
           backgroundColor: 'rgba(0, 0, 0, 0.5)', 
           transition: 'opacity 0.3s ease',
-          opacity: open ? 1 : 0
+          opacity: open ? 1 : 0,
+          pointerEvents: open ? 'auto' : 'none'
         }}
         onClick={onClose}
       >

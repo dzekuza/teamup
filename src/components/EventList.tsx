@@ -148,7 +148,10 @@ export const EventList: FC<EventListProps> = ({
       {events.map((event) => (
         <div
           key={event.id}
-          onClick={() => onEventClick(event.id)}
+          onClick={(e) => {
+            e.stopPropagation(); // Stop propagation to prevent unintended clicks
+            onEventClick(event.id);
+          }}
           className="cursor-pointer"
         >
           <EventCard event={event} onEventUpdated={handleEventUpdated} />

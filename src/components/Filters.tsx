@@ -147,16 +147,28 @@ const FilterContent: React.FC<FiltersProps> = ({ onFilterChange, currentFilters,
 
       <div className="flex items-center">
         <div className="flex items-center h-full">
-          <input
-            id="showJoinedOnly"
-            type="checkbox"
-            checked={currentFilters.showJoinedOnly}
-            onChange={(e) => handleFilterChange('showJoinedOnly', e.target.checked)}
-            className="h-4 w-4 text-[#C1FF2F] bg-[#1A1A1A] border-gray-800 rounded focus:ring-[#C1FF2F] focus:ring-offset-gray-900"
-          />
-          <label htmlFor="showJoinedOnly" className="ml-2 text-sm text-gray-400">
-            Show only events I've joined
-          </label>
+          <div className="flex items-center border border-gray-800 rounded-full bg-[#1A1A1A] p-1 w-64">
+            <button 
+              className={`flex-1 py-2 px-3 text-sm font-medium rounded-full transition-colors ${
+                !currentFilters.showJoinedOnly 
+                  ? 'bg-[#C1FF2F] text-black' 
+                  : 'text-gray-400 hover:text-white'
+              }`}
+              onClick={() => handleFilterChange('showJoinedOnly', false)}
+            >
+              All events
+            </button>
+            <button 
+              className={`flex-1 py-2 px-3 text-sm font-medium rounded-full transition-colors ${
+                currentFilters.showJoinedOnly 
+                  ? 'bg-[#C1FF2F] text-black' 
+                  : 'text-gray-400 hover:text-white'
+              }`}
+              onClick={() => handleFilterChange('showJoinedOnly', true)}
+            >
+              Events I joined
+            </button>
+          </div>
         </div>
       </div>
     </div>

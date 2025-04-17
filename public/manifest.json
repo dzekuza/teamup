@@ -1,20 +1,20 @@
 {
-  "short_name": "WebPadel",
-  "name": "WebPadel - Find and join padel events",
+  "short_name": "TeamUp",
+  "name": "TeamUp - Find and join sports events",
   "icons": [
     {
-      "src": "favicon.png",
+      "src": "logo.svg",
       "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/png"
+      "type": "image/svg+xml"
     },
     {
-      "src": "favicon.png",
-      "type": "image/png",
+      "src": "logo.svg",
+      "type": "image/svg+xml",
       "sizes": "192x192"
     },
     {
-      "src": "favicon.png",
-      "type": "image/png",
+      "src": "logo.svg",
+      "type": "image/svg+xml",
       "sizes": "512x512"
     }
   ],

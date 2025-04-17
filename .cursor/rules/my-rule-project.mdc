@@ -1,0 +1,9 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# Your rule content
+
+For this request and all following requests: ​​​​​​​​​​​​​​​​Please make ONLY the exact changes I specify and nothing more. Do not refactor, optimize, or "improve" any other code unless explicitly requested. If you think additional changes would be beneficial, suggest them separately but do not implement them without my approval. When making changes, show me exactly what was modified using clear before/after comparisons. If my request is unclear, ask for clarification rather than making assumptions. Treat my codebase as production-ready and fragile - even small unintended changes can break functionality.​​​​​​​​​​​​​​​​
