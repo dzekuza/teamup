@@ -1,12 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { auth } from '../firebase';
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, FacebookAuthProvider } from 'firebase/auth';
 import logoWhite from '../assets/images/logo-white.svg';
 import phoneMockup from '../assets/phonemock.png';
 import ResetPasswordDialog from '../components/ResetPasswordDialog';
 import logoGoogle from '../assets/google.svg';
 import { setCookie, getCookie, removeCookie } from '../utils/cookieUtils';
+
+// Declare global Facebook SDK types
+declare global {
+  interface Window {
+    fbAsyncInit?: () => void;
+    FB?: {
+      init: (options: {
+        appId: string;
+        cookie: boolean;
+        xfbml: boolean;
+        version: string;
+      }) => void;
+    };
+  }
+}
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -31,6 +46,34 @@ const Login: React.FC = () => {
       setPassword(savedPassword);
       setRememberMe(true);
     }
+  }, []);
+
+  // Initialize Facebook SDK
+  useEffect(() => {
+    // Initialize Facebook SDK
+    window.fbAsyncInit = function() {
+      if (window.FB) {
+        window.FB.init({
+          appId: '1551008789077882', // Replace with your actual Facebook App ID
+          cookie: true,
+          xfbml: true,
+          version: 'v18.0'
+        });
+      }
+    };
+
+    // Load Facebook SDK
+    const loadFacebookSDK = () => {
+      const script = document.createElement('script');
+      script.id = 'facebook-jssdk';
+      script.src = "https://connect.facebook.net/en_US/sdk.js";
+      const firstScript = document.getElementsByTagName('script')[0];
+      if (firstScript && firstScript.parentNode) {
+        firstScript.parentNode.insertBefore(script, firstScript);
+      }
+    };
+
+    loadFacebookSDK();
   }, []);
 
   const getFirebaseErrorMessage = (error: any) => {
@@ -134,6 +177,37 @@ const Login: React.FC = () => {
     }
   };
 
+  const handleFacebookLogin = async () => {
+    setError('');
+    setIsLoading(true);
+
+    try {
+      const provider = new FacebookAuthProvider();
+      provider.addScope('email'); // Request email permission
+      provider.addScope('public_profile'); // Request basic profile info
+      
+      const result = await signInWithPopup(auth, provider);
+      
+      if (rememberMe && result.user) {
+        // Store non-sensitive user data for quick access
+        const userData = {
+          uid: result.user.uid,
+          email: result.user.email,
+          displayName: result.user.displayName
+        };
+        
+        setCookie('userData', userData, { expires: 30 });
+      }
+      
+      // Login successful
+      navigate('/');
+    } catch (error: any) {
+      setError(getFirebaseErrorMessage(error));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleContinue = () => {
     if (!email) {
       setError('Please enter your email');
@@ -162,7 +236,7 @@ const Login: React.FC = () => {
             <button
               onClick={handleGoogleLogin}
               disabled={isLoading}
-              className="w-full bg-white text-black rounded-xl p-4 font-medium hover:bg-gray-100 transition-colors flex items-center justify-center gap-2"
+              className="w-full bg-white text-black rounded-xl p-4 font-medium hover:bg-gray-100 transition-colors flex items-center justify-center gap-2 mb-3"
             >
               <img src={logoGoogle} alt="Google" className="h-5 mr-3" />
               {isLoading ? (
@@ -172,6 +246,24 @@ const Login: React.FC = () => {
                 </>
               ) : (
                 'Continue with Google'
+              )}
+            </button>
+
+            <button
+              onClick={handleFacebookLogin}
+              disabled={isLoading}
+              className="w-full bg-[#1877F2] text-white rounded-xl p-4 font-medium hover:bg-[#166FE5] transition-colors flex items-center justify-center gap-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M9.19795 21.5H13.198V13.4901H16.8021L17.198 9.50977H13.198V7.5C13.198 6.94772 13.6457 6.5 14.198 6.5H17.198V2.5H14.198C11.4365 2.5 9.19795 4.73858 9.19795 7.5V9.50977H7.19795L6.80206 13.4901H9.19795V21.5Z" />
+              </svg>
+              {isLoading ? (
+                <>
+                  <LoadingSpinner />
+                  <span>Signing in with Facebook...</span>
+                </>
+              ) : (
+                'Continue with Facebook'
               )}
             </button>
 
@@ -259,41 +351,39 @@ const Login: React.FC = () => {
                   <button
                     type="button"
                     onClick={togglePasswordVisibility}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-white"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"
                   >
                     {showPassword ? (
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                        <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                        <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" />
+                        <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
                       </svg>
                     ) : (
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" />
-                        <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
+                        <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                        <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
                       </svg>
                     )}
                   </button>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <input
-                    id="remember-me"
-                    name="remember-me"
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    className="h-4 w-4 text-[#C1FF2F] border-gray-600 rounded focus:ring-[#C1FF2F] bg-[#2A2A2A]"
-                  />
-                  <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-400">
-                    Remember me
-                  </label>
-                </div>
+              <div className="flex items-center">
+                <input
+                  id="remember-me"
+                  name="remember-me"
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={() => setRememberMe(!rememberMe)}
+                  className="h-4 w-4 text-[#C1FF2F] focus:ring-[#C1FF2F] border-gray-600 rounded"
+                />
+                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-400">
+                  Remember me
+                </label>
                 <button
                   type="button"
                   onClick={() => setShowResetPassword(true)}
-                  className="text-[#C1FF2F] hover:underline text-sm"
+                  className="ml-auto text-sm text-[#C1FF2F] hover:underline"
                 >
                   Forgot password?
                 </button>
@@ -305,30 +395,76 @@ const Login: React.FC = () => {
                 </div>
               )}
 
-              <div className="flex gap-4">
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(1)}
-                  className="w-full bg-[#2A2A2A] text-white rounded-xl p-4 font-medium hover:bg-[#3A3A3A] transition-colors"
-                >
-                  Back
-                </button>
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full bg-[#C1FF2F] text-black rounded-xl p-4 font-medium hover:bg-[#B1EF1F] transition-colors flex items-center justify-center gap-2"
-                >
-                  {isLoading ? (
-                    <>
-                      <LoadingSpinner />
-                      <span>Signing in...</span>
-                    </>
-                  ) : (
-                    'Sign in'
-                  )}
-                </button>
-              </div>
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full bg-[#C1FF2F] text-black rounded-xl p-4 font-medium hover:bg-[#B1EF1F] transition-colors flex items-center justify-center"
+              >
+                {isLoading ? (
+                  <>
+                    <LoadingSpinner />
+                    <span className="ml-2">Signing in...</span>
+                  </>
+                ) : (
+                  'Sign in'
+                )}
+              </button>
             </form>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-800"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-[#121212] text-gray-400">Or sign in with</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col space-y-3">
+              <button
+                onClick={handleGoogleLogin}
+                disabled={isLoading}
+                className="w-full bg-white text-black rounded-xl p-4 font-medium hover:bg-gray-100 transition-colors flex items-center justify-center gap-2"
+              >
+                <img src={logoGoogle} alt="Google" className="h-5 mr-3" />
+                {isLoading ? (
+                  <>
+                    <LoadingSpinner />
+                    <span>Signing in with Google...</span>
+                  </>
+                ) : (
+                  'Continue with Google'
+                )}
+              </button>
+
+              <button
+                onClick={handleFacebookLogin}
+                disabled={isLoading}
+                className="w-full bg-[#1877F2] text-white rounded-xl p-4 font-medium hover:bg-[#166FE5] transition-colors flex items-center justify-center gap-2"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M9.19795 21.5H13.198V13.4901H16.8021L17.198 9.50977H13.198V7.5C13.198 6.94772 13.6457 6.5 14.198 6.5H17.198V2.5H14.198C11.4365 2.5 9.19795 4.73858 9.19795 7.5V9.50977H7.19795L6.80206 13.4901H9.19795V21.5Z" />
+                </svg>
+                {isLoading ? (
+                  <>
+                    <LoadingSpinner />
+                    <span>Signing in with Facebook...</span>
+                  </>
+                ) : (
+                  'Continue with Facebook'
+                )}
+              </button>
+            </div>
+
+            <p className="text-center">
+              <span className="text-gray-400">Don't have an account? </span>
+              <button 
+                onClick={() => navigate('/register')}
+                className="text-[#C1FF2F] hover:underline font-medium"
+              >
+                Create new
+              </button>
+            </p>
           </div>
         );
     }

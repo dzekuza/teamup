@@ -1,6 +1,6 @@
 import { FC, useState, useEffect, useRef } from 'react';
 import { doc, getDoc, updateDoc, deleteDoc, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, storage } from '../firebase';
 import { useAuth } from '../hooks/useAuth';
 import { Event } from '../types/index';
 import { useClickOutside } from '../hooks/useClickOutside';
@@ -8,6 +8,7 @@ import { PADEL_LOCATIONS, Location } from '../constants/locations';
 import { sendEventInvitation } from '../services/emailService';
 import { createNotification } from '../services/notificationService';
 import { FriendSearch } from './FriendSearch';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 interface EditEventDialogProps {
   open: boolean;
@@ -35,6 +36,12 @@ export const EditEventDialog: FC<EditEventDialogProps> = ({ open, onClose, onEve
   const [invitedEmails, setInvitedEmails] = useState<string[]>([]);
   const { user, userFriends } = useAuth();
   const dialogRef = useRef<HTMLDivElement>(null);
+  
+  // New state for cover image
+  const [coverImage, setCoverImage] = useState<File | null>(null);
+  const [coverImageURL, setCoverImageURL] = useState<string>('');
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useClickOutside(dialogRef, onClose);
 
@@ -59,6 +66,12 @@ export const EditEventDialog: FC<EditEventDialogProps> = ({ open, onClose, onEve
           setMaxPlayers(eventData.maxPlayers.toString());
           setIsPrivate(eventData.isPrivate || false);
           setPassword(eventData.password || '');
+          
+          // Load cover image URL if it exists
+          if (eventData.coverImageURL) {
+            setCoverImageURL(eventData.coverImageURL);
+            setImagePreview(eventData.coverImageURL);
+          }
         }
       } catch (error) {
         console.error('Error fetching event:', error);
@@ -73,10 +86,46 @@ export const EditEventDialog: FC<EditEventDialogProps> = ({ open, onClose, onEve
     }
   }, [open, eventId, onClose, user]);
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const selectedFile = e.target.files[0];
+      setCoverImage(selectedFile);
+
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(selectedFile);
+    }
+  };
+
+  const triggerFileInput = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const removeImage = () => {
+    setCoverImage(null);
+    setImagePreview(null);
+    setCoverImageURL('');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    setLoading(true);
+    
     try {
+      let updatedCoverImageURL = coverImageURL;
+      
+      // If a new image is selected, upload it
+      if (coverImage) {
+        const storageRef = ref(storage, `eventCovers/${eventId}/${Date.now()}_${coverImage.name}`);
+        const uploadResult = await uploadBytes(storageRef, coverImage);
+        updatedCoverImageURL = await getDownloadURL(uploadResult.ref);
+      }
+
       const eventRef = doc(db, 'events', eventId);
       await updateDoc(eventRef, {
         title,
@@ -89,6 +138,7 @@ export const EditEventDialog: FC<EditEventDialogProps> = ({ open, onClose, onEve
         maxPlayers: parseInt(maxPlayers),
         isPrivate,
         ...(isPrivate && { password }),
+        ...(updatedCoverImageURL && { coverImageURL: updatedCoverImageURL }),
       });
 
       // Send notifications and invitation emails to selected friends
@@ -261,6 +311,46 @@ export const EditEventDialog: FC<EditEventDialogProps> = ({ open, onClose, onEve
                 className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
                 required
               />
+            </div>
+
+            {/* Cover Image Upload */}
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-2">Cover Image</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="hidden"
+                ref={fileInputRef}
+              />
+              
+              {imagePreview ? (
+                <div className="relative rounded-xl overflow-hidden mb-2 h-40">
+                  <img 
+                    src={imagePreview} 
+                    alt="Cover Preview" 
+                    className="w-full h-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={removeImage}
+                    className="absolute top-2 right-2 bg-black bg-opacity-50 rounded-full p-1 text-white hover:bg-opacity-70"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <div 
+                  onClick={triggerFileInput}
+                  className="border-2 border-dashed border-gray-700 rounded-xl h-40 flex flex-col items-center justify-center cursor-pointer hover:border-gray-500 transition-colors"
+                >
+                  <svg className="w-12 h-12 text-gray-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                  </svg>
+                  <p className="text-gray-500">Click to upload a cover image</p>
+                  <p className="text-gray-600 text-sm mt-1">Recommended size: 1200 x 600</p>
+                </div>
+              )}
             </div>
 
             <div>

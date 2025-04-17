@@ -45,6 +45,7 @@ export interface Event {
   password?: string;
   sportType: string;
   description?: string;
+  coverImageURL?: string;
   customLocationCoordinates?: {
     lat: number;
     lng: number;
@@ -69,4 +70,18 @@ export interface Notification {
   createdAt: string;
   read: boolean;
   userId: string;
+}
+
+export interface Memory {
+  id: string;
+  eventId: string;
+  eventTitle: string;
+  description?: string;
+  imageUrl: string;
+  createdBy: string;
+  createdAt: string;
+  likes: string[];
+  sportType?: string;
+  date: string;
+  location: string;
 } 

@@ -35,9 +35,10 @@ export interface FiltersProps {
   currentFilters: FilterOptions;
   isMobile?: boolean;
   hideSportTypeFilter?: boolean;
+  hideSearchBar?: boolean;
 }
 
-const FilterContent: React.FC<FiltersProps> = ({ onFilterChange, currentFilters, showMobileFilters, onCloseMobileFilters, hideSportTypeFilter }) => {
+const FilterContent: React.FC<FiltersProps> = ({ onFilterChange, currentFilters, showMobileFilters, onCloseMobileFilters, hideSportTypeFilter, hideSearchBar }) => {
   const handleFilterChange = (key: keyof FilterOptions, value: string | boolean) => {
     onFilterChange({
       ...currentFilters,
@@ -47,22 +48,24 @@ const FilterContent: React.FC<FiltersProps> = ({ onFilterChange, currentFilters,
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-8 gap-4">
-      {/* Search field */}
-      <div className="md:col-span-2">
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+      {/* Search field - only show if not hidden */}
+      {!hideSearchBar && (
+        <div className="md:col-span-2">
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+            </div>
+            <input
+              type="text"
+              id="search"
+              value={currentFilters.searchTerm}
+              onChange={(e) => handleFilterChange('searchTerm', e.target.value)}
+              placeholder="Search by title, location, or players..."
+              className="w-full bg-[#1A1A1A] text-white border border-gray-800 rounded-lg pl-10 p-2 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F] focus:border-transparent"
+            />
           </div>
-          <input
-            type="text"
-            id="search"
-            value={currentFilters.searchTerm}
-            onChange={(e) => handleFilterChange('searchTerm', e.target.value)}
-            placeholder="Search by title, location, or players..."
-            className="w-full bg-[#1A1A1A] text-white border border-gray-800 rounded-lg pl-10 p-2 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F] focus:border-transparent"
-          />
         </div>
-      </div>
+      )}
 
       <div>
         <select
@@ -167,6 +170,7 @@ export const Filters: React.FC<FiltersProps> = ({
   currentFilters,
   isMobile = false,
   hideSportTypeFilter,
+  hideSearchBar
 }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -219,7 +223,8 @@ export const Filters: React.FC<FiltersProps> = ({
       currentFilters={currentFilters} 
       showMobileFilters={showMobileFilters} 
       onCloseMobileFilters={onCloseMobileFilters}
-      hideSportTypeFilter={hideSportTypeFilter} 
+      hideSportTypeFilter={hideSportTypeFilter}
+      hideSearchBar={hideSearchBar}
     />;
   }
 
@@ -288,6 +293,7 @@ export const Filters: React.FC<FiltersProps> = ({
                   showMobileFilters={showMobileFilters}
                   onCloseMobileFilters={onCloseMobileFilters}
                   hideSportTypeFilter={hideSportTypeFilter}
+                  hideSearchBar={hideSearchBar}
                 />
               </div>
             </Transition.Child>

@@ -25,6 +25,7 @@ export const MobileNavigation: React.FC = () => {
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [userAvatar, setUserAvatar] = useState<string>('Avatar1');
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [isHidden, setIsHidden] = useState(false);
 
   useEffect(() => {
     const loadUserAvatar = async () => {
@@ -66,12 +67,28 @@ export const MobileNavigation: React.FC = () => {
     return () => clearInterval(interval);
   }, [user]);
 
+  // Listen for the custom event to hide navigation
+  useEffect(() => {
+    const handleToggleNavigation = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail && typeof customEvent.detail.hide === 'boolean') {
+        setIsHidden(customEvent.detail.hide);
+      }
+    };
+
+    window.addEventListener('toggleNavigation', handleToggleNavigation);
+    
+    return () => {
+      window.removeEventListener('toggleNavigation', handleToggleNavigation);
+    };
+  }, []);
+
   const handleEventCreated = () => {
     window.location.reload();
   };
 
-  // If user is not logged in, don't show mobile navigation
-  if (!user) return null;
+  // If user is not logged in or navigation is hidden, don't show mobile navigation
+  if (!user || isHidden) return null;
 
   return (
     <>
@@ -121,6 +138,16 @@ export const MobileNavigation: React.FC = () => {
               )}
             </div>
             <span className={`text-xs ${location.pathname === '/notifications' ? 'text-[#C1FF2F]' : 'text-gray-400'}`}>Notifications</span>
+          </Link>
+
+          {/* Community */}
+          <Link to="/community" className="flex flex-col items-center space-y-1">
+            <div className={`p-1 rounded-full ${location.pathname === '/community' ? 'text-[#C1FF2F]' : 'text-gray-400'}`}>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            </div>
+            <span className={`text-xs ${location.pathname === '/community' ? 'text-[#C1FF2F]' : 'text-gray-400'}`}>Community</span>
           </Link>
 
           {/* Saved Events - New Item */}

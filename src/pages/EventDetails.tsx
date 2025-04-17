@@ -20,8 +20,13 @@ import {
   Share as ShareIcon, 
   Edit as EditIcon,
   Bookmark as BookmarkIcon,
-  BookmarkBorder as BookmarkBorderIcon
+  BookmarkBorder as BookmarkBorderIcon,
+  CameraAlt as CameraIcon,
+  Delete as DeleteIcon
 } from '@mui/icons-material';
+import { ShareMemoryDialog } from '../components/ShareMemoryDialog';
+import { EditEventDialog } from '../components/EditEventDialog';
+import { ShareEventDialog } from '../components/ShareEventDialog';
 // Don't use React Icons for now - using SVG directly
 // import { FaShareAlt } from 'react-icons/fa/index.js';
 // import { FaEdit } from 'react-icons/fa/index.js';
@@ -111,6 +116,9 @@ const EventDetails: React.FC = () => {
   const [isSaved, setIsSaved] = useState(false);
   const [savingEvent, setSavingEvent] = useState(false);
   const [interestedCount, setInterestedCount] = useState(0);
+  const [shareMemoryDialogOpen, setShareMemoryDialogOpen] = useState(false);
+  // Hide navigation on mobile screens when viewing event details
+  const [hideNavigation, setHideNavigation] = useState(true);
   // Check if user is admin or creator of the event
   const isUserCreator = user?.uid === event?.createdBy;
   
@@ -132,6 +140,17 @@ const EventDetails: React.FC = () => {
     }
   }, [locationData]);
 
+  // Send message to hide navigation on mobile
+  useEffect(() => {
+    // Using a custom event to communicate with the navigation components
+    window.dispatchEvent(new CustomEvent('toggleNavigation', { detail: { hide: hideNavigation } }));
+
+    return () => {
+      // On component unmount, show navigation again
+      window.dispatchEvent(new CustomEvent('toggleNavigation', { detail: { hide: false } }));
+    };
+  }, [hideNavigation]);
+
   useEffect(() => {
     const fetchEvent = async () => {
       try {
@@ -143,11 +162,20 @@ const EventDetails: React.FC = () => {
         const eventDoc = await getDoc(doc(db, 'events', id));
         if (eventDoc.exists()) {
           const eventData = eventDoc.data() as Event;
-          setEvent({ ...eventData, id: eventDoc.id });
+          
+          // Ensure players array is clean by filtering out null/undefined
+          const cleanPlayers = eventData.players?.filter(Boolean) || [];
+          
+          // Set the event with processed players array
+          setEvent({ 
+            ...eventData, 
+            id: eventDoc.id,
+            players: cleanPlayers
+          });
           
           // Check if user is in the event
-          if (user && eventData.players) {
-            const isPlayerInEvent = eventData.players.filter(Boolean).some(p => 
+          if (user && cleanPlayers.length > 0) {
+            const isPlayerInEvent = cleanPlayers.some(p => 
               isPlayerObject(p) ? p.id === user.uid : p === user.uid
             );
             setIsPlayerInEvent(isPlayerInEvent);
@@ -181,7 +209,7 @@ const EventDetails: React.FC = () => {
           
           // Extract and set players
           if (eventData.players && Array.isArray(eventData.players)) {
-            setPlayers(eventData.players.filter(Boolean));
+            setPlayers(cleanPlayers);
           }
 
           // Fetch creator info
@@ -234,13 +262,8 @@ const EventDetails: React.FC = () => {
         const savedDoc = await getDoc(doc(db, 'savedEvents', `${user.uid}_${event.id}`));
         setIsSaved(savedDoc.exists());
         
-        // Get total count of people who saved this event
-        const savedQuery = query(
-          collection(db, 'savedEvents'),
-          where('eventId', '==', event.id)
-        );
-        const querySnapshot = await getDocs(savedQuery);
-        setInterestedCount(querySnapshot.size);
+        // Set interested count based on current user's status only
+        setInterestedCount(savedDoc.exists() ? 1 : 0);
       } catch (error) {
         console.error('Error checking saved status:', error);
       }
@@ -271,17 +294,35 @@ const EventDetails: React.FC = () => {
         photoURL: user.photoURL || undefined
       };
 
+      // Get the latest event data
+      const eventDoc = await getDoc(eventRef);
+      if (!eventDoc.exists()) {
+        toast.error('Event not found');
+        return;
+      }
+
+      const currentEvent = eventDoc.data() as Event;
+      const currentPlayers = currentEvent.players?.filter(Boolean) || [];
+      
+      // Check if we've reached the maximum players
+      if (currentPlayers.length >= event.maxPlayers) {
+        toast.error('This event is now full');
+        return;
+      }
+
+      // Update in database
       await updateDoc(eventRef, {
         players: arrayUnion(newPlayer)
       });
 
-      // Update local state
+      // Update local state with accurate player list
+      const updatedPlayers = [...event.players.filter(Boolean), newPlayer];
       setEvent({
         ...event,
-        players: [...event.players, newPlayer]
+        players: updatedPlayers
       });
       
-      setPlayers([...players, newPlayer]);
+      setPlayers(updatedPlayers);
       setIsPlayerInEvent(true);
       toast.success('Successfully joined the event!');
     } catch (error) {
@@ -307,31 +348,42 @@ const EventDetails: React.FC = () => {
     if (!event || !user) return;
     
     try {
+      setActionInProgress(true);
       const eventRef = doc(db, 'events', id || '');
       const currentPlayer = event.players.find(p => 
         isPlayerObject(p) ? p.id === user.uid : p === user.uid
       );
       
-      if (!currentPlayer) return;
+      if (!currentPlayer) {
+        toast.error('You are not in this event');
+        return;
+      }
 
       // Remove the player from the event
       await updateDoc(eventRef, {
         players: arrayRemove(currentPlayer)
       });
 
-      // Update local state
+      // Update local state with filtered player list
+      const updatedPlayers = event.players.filter(p => 
+        isPlayerObject(p) ? p.id !== user.uid : p !== user.uid
+      );
+      
       setEvent({
         ...event,
-        players: event.players.filter(p => 
-          isPlayerObject(p) ? p.id !== user.uid : p !== user.uid
-        )
+        players: updatedPlayers
       });
+      
+      setPlayers(updatedPlayers);
+      setIsPlayerInEvent(false);
       
       toast.success('Left the event successfully');
       navigate('/');
     } catch (error) {
       console.error('Error leaving event:', error);
       toast.error('Failed to leave the event');
+    } finally {
+      setActionInProgress(false);
     }
   };
 
@@ -343,6 +395,46 @@ const EventDetails: React.FC = () => {
   // Make sure handleEditEvent is defined
   const handleEditEvent = () => {
     setProfileDialogOpen(true);
+  };
+
+  // Add handle delete event function
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  
+  const handleDeleteEvent = async () => {
+    if (!event || !user) return;
+    
+    try {
+      setActionInProgress(true);
+      const eventRef = doc(db, 'events', event.id);
+      
+      // Check if user is creator or admin
+      if (event.createdBy !== user.uid && !(currentUser?.isAdmin)) {
+        toast.error('You do not have permission to delete this event');
+        return;
+      }
+      
+      // Delete the event document
+      await deleteDoc(eventRef);
+      
+      // Also delete any saved references to this event
+      const savedEventsQuery = query(
+        collection(db, 'savedEvents'), 
+        where('eventId', '==', event.id)
+      );
+      
+      const savedEventsDocs = await getDocs(savedEventsQuery);
+      const deletePromises = savedEventsDocs.docs.map(doc => deleteDoc(doc.ref));
+      await Promise.all(deletePromises);
+      
+      toast.success('Event deleted successfully');
+      navigate('/');
+    } catch (error) {
+      console.error('Error deleting event:', error);
+      toast.error('Failed to delete event');
+    } finally {
+      setActionInProgress(false);
+      setShowDeleteConfirm(false);
+    }
   };
 
   const handleSaveEvent = async () => {
@@ -357,7 +449,7 @@ const EventDetails: React.FC = () => {
         // Remove from saved events
         await deleteDoc(savedEventRef);
         setIsSaved(false);
-        setInterestedCount(prev => Math.max(0, prev - 1));
+        setInterestedCount(0); // Set to 0 since we're only tracking current user's status
         toast.success('Event removed from saved');
       } else {
         // Add to saved events
@@ -371,7 +463,7 @@ const EventDetails: React.FC = () => {
           sportType: event.sportType
         });
         setIsSaved(true);
-        setInterestedCount(prev => prev + 1);
+        setInterestedCount(1); // Set to 1 since we're only tracking current user's status
         toast.success('Event saved');
       }
     } catch (error) {
@@ -380,6 +472,11 @@ const EventDetails: React.FC = () => {
     } finally {
       setSavingEvent(false);
     }
+  };
+
+  // Add a new function to handle opening the share memory dialog
+  const handleShareMemory = () => {
+    setShareMemoryDialogOpen(true);
   };
 
   if (loading) {
@@ -407,9 +504,11 @@ const EventDetails: React.FC = () => {
   const coordinates = locationData?.coordinates || DEFAULT_COORDINATES;
   
   // Determine which cover image to use
-  const coverImageUrl = fallbackImage 
-    ? DEFAULT_COVER_IMAGE 
-    : (locationData?.image || DEFAULT_COVER_IMAGE);
+  const coverImageUrl = event.coverImageURL 
+    ? event.coverImageURL
+    : event?.sportType === 'Padel' && locationData?.image
+      ? locationData.image
+      : DEFAULT_COVER_IMAGE;
 
   // Show players section
   const renderPlayers = () => {
@@ -417,9 +516,9 @@ const EventDetails: React.FC = () => {
     
     return (
       <div className="mt-6">
-        <h3 className="text-xl font-semibold mb-4 text-white">Players ({event.players.length}/{event.maxPlayers})</h3>
+        <h3 className="text-xl font-semibold mb-4 text-white">Players ({event.players.filter(player => player && player.id).length}/{event.maxPlayers})</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {event.players.filter(Boolean).map((player, index) => {
+          {event.players.filter(player => player && player.id).map((player, index) => {
             // Determine if player is an object or string
             const playerId = isPlayerObject(player) ? player.id : player;
             const playerName = isPlayerObject(player) ? (player.displayName || player.name) : 'Unknown';
@@ -464,6 +563,44 @@ const EventDetails: React.FC = () => {
     );
   };
 
+  // Render join/leave button
+  const renderActionButton = () => {
+    if (event.status === 'completed' || new Date() > new Date(`${event.date}T${event.time}`)) {
+      return null;
+    }
+    
+    if (isPlayerInEvent) {
+      return (
+        <button
+          onClick={handleLeaveEvent}
+          className="w-full bg-[#FF3B3B] hover:bg-[#E02F2F] text-white font-medium py-3 px-4 rounded-lg transition duration-200"
+          disabled={isLoading || actionInProgress}
+        >
+          {actionInProgress ? <span className="animate-pulse">Processing...</span> : 'Leave Game'}
+        </button>
+      );
+    } else if (event.players && event.players.length < event.maxPlayers) {
+      return (
+        <button
+          onClick={handleJoinEvent}
+          className="w-full bg-[#C1FF2F] hover:bg-[#a4e620] text-[#161723] font-medium py-3 px-4 rounded-lg transition duration-200"
+          disabled={isLoading || actionInProgress}
+        >
+          {actionInProgress ? <span className="animate-pulse">Processing...</span> : 'Join Game'}
+        </button>
+      );
+    } else {
+      return (
+        <button
+          className="w-full bg-[#252736] text-white font-medium py-3 px-4 rounded-lg cursor-not-allowed"
+          disabled
+        >
+          Game Full
+        </button>
+      );
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#121212] pb-24 md:pb-8 text-white">
       {loading ? (
@@ -477,10 +614,10 @@ const EventDetails: React.FC = () => {
       ) : (
         <>
           <div className="relative max-w-4xl mx-auto mt-0 md:mt-6">
-            {locationData && (
+            {coverImageUrl && (
               <img
-                src={locationData.image || '/default-location.jpg'}
-                alt={locationData.name}
+                src={coverImageUrl}
+                alt={event.location}
                 className="w-full h-64 md:h-96 object-cover md:rounded-t-lg md:rounded-b-lg"
                 onError={(e) => {
                   e.currentTarget.src = '/default-location.jpg';
@@ -488,6 +625,16 @@ const EventDetails: React.FC = () => {
               />
             )}
             <div className="absolute inset-0 bg-gradient-to-t from-[rgb(18_18_18/var(--tw-bg-opacity))] to-transparent md:rounded-lg"></div>
+            
+            {/* Back button for mobile */}
+            <button 
+              onClick={() => navigate(-1)} 
+              className="absolute top-4 left-4 z-10 bg-black bg-opacity-50 rounded-full p-2 md:hidden"
+              aria-label="Back"
+            >
+              <ArrowLeftIcon className="text-white" />
+            </button>
+            
             <div className="absolute bottom-0 left-0 p-4 md:p-6">
               <div className="text-[#C1FF2F] font-medium text-sm md:text-base mb-1">{event.sportType || 'Padel'}</div>
               <h1 className="text-2xl md:text-3xl font-bold mb-2 text-white">{event.title}</h1>
@@ -497,7 +644,7 @@ const EventDetails: React.FC = () => {
             </div>
             <div className="absolute top-4 right-4 flex space-x-2">
               <div className="bg-[#252736] text-white text-xs rounded-full px-3 py-1 flex items-center">
-                <span>{event.players?.length || 0}/{event.maxPlayers} Players</span>
+                <span>{event.players?.filter(player => player && player.id).length || 0}/{event.maxPlayers} Players</span>
               </div>
               {event.status === 'completed' ? (
                 <div className="bg-gray-600 text-white text-xs rounded-full px-3 py-1 flex items-center">
@@ -515,7 +662,7 @@ const EventDetails: React.FC = () => {
             </div>
           </div>
 
-          <div className="max-w-4xl mx-auto px-4 md:px-6 mt-4 md:mt-10">
+          <div className="max-w-4xl mx-auto px-4 md:px-6 mt-4 md:mt-10 pb-24 md:pb-0">
             <div className="flex justify-end space-x-2 mb-6">
               <button
                 onClick={handleShareEvent}
@@ -543,20 +690,29 @@ const EventDetails: React.FC = () => {
                 )}
               </button>
               {(isUserCreator || currentUser?.isAdmin) && (
-                <button
-                  onClick={handleEditEvent}
-                  className="flex items-center space-x-1 text-gray-300 hover:text-[#C1FF2F]"
-                >
-                  <svg
-                    className="h-5 w-5"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                    xmlns="http://www.w3.org/2000/svg"
+                <>
+                  <button
+                    onClick={handleEditEvent}
+                    className="flex items-center space-x-1 text-gray-300 hover:text-[#C1FF2F]"
                   >
-                    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
-                  </svg>
-                  <span>Edit</span>
-                </button>
+                    <svg
+                      className="h-5 w-5"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
+                    </svg>
+                    <span>Edit</span>
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="flex items-center space-x-1 text-gray-300 hover:text-red-500"
+                  >
+                    <DeleteIcon className="h-5 w-5" />
+                    <span>Delete</span>
+                  </button>
+                </>
               )}
             </div>
 
@@ -609,9 +765,9 @@ const EventDetails: React.FC = () => {
                 </div>
 
                 <div className="bg-[rgb(30_30_30/var(--tw-bg-opacity))] rounded-lg p-4 mb-6">
-                  <h3 className="text-xl font-semibold mb-4 text-white">Players ({event.players.length}/{event.maxPlayers})</h3>
+                  <h3 className="text-xl font-semibold mb-4 text-white">Players ({event.players.filter(player => player && player.id).length}/{event.maxPlayers})</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {event.players.filter(Boolean).map((player, index) => {
+                    {event.players.filter(player => player && player.id).map((player, index) => {
                       // Determine if player is an object or string
                       const playerId = isPlayerObject(player) ? player.id : player;
                       const playerName = isPlayerObject(player) ? (player.displayName || player.name) : 'Unknown';
@@ -654,43 +810,70 @@ const EventDetails: React.FC = () => {
                   </div>
                 </div>
 
-                {event.status !== 'completed' && new Date() < new Date(`${event.date}T${event.time}`) && (
-                  <div className="mt-6">
-                    {isPlayerInEvent ? (
-                      <button
-                        onClick={handleLeaveEvent}
-                        className="w-full bg-[#FF3B3B] hover:bg-[#E02F2F] text-white font-medium py-2 px-4 rounded-lg transition duration-200"
-                        disabled={isLoading || actionInProgress}
-                      >
-                        {actionInProgress ? <span className="animate-pulse">Processing...</span> : 'Leave Game'}
-                      </button>
-                    ) : event.players && event.players.length < event.maxPlayers ? (
-                      <button
-                        onClick={handleJoinEvent}
-                        className="w-full bg-[#C1FF2F] hover:bg-[#a4e620] text-[#161723] font-medium py-2 px-4 rounded-lg transition duration-200"
-                        disabled={isLoading || actionInProgress}
-                      >
-                        {actionInProgress ? <span className="animate-pulse">Processing...</span> : 'Join Game'}
-                      </button>
-                    ) : (
-                      <button
-                        className="w-full bg-[#252736] text-white font-medium py-2 px-4 rounded-lg cursor-not-allowed"
-                        disabled
-                      >
-                        Game Full
-                      </button>
-                    )}
-                  </div>
-                )}
+                {/* Show join/leave button only on desktop */}
+                <div className="hidden md:block mt-6">
+                  {event.status !== 'completed' && new Date() < new Date(`${event.date}T${event.time}`) && (
+                    <div>
+                      {isPlayerInEvent ? (
+                        <button
+                          onClick={handleLeaveEvent}
+                          className="w-full bg-[#FF3B3B] hover:bg-[#E02F2F] text-white font-medium py-2 px-4 rounded-lg transition duration-200"
+                          disabled={isLoading || actionInProgress}
+                        >
+                          {actionInProgress ? <span className="animate-pulse">Processing...</span> : 'Leave Game'}
+                        </button>
+                      ) : event.players && event.players.length < event.maxPlayers ? (
+                        <button
+                          onClick={handleJoinEvent}
+                          className="w-full bg-[#C1FF2F] hover:bg-[#a4e620] text-[#161723] font-medium py-2 px-4 rounded-lg transition duration-200"
+                          disabled={isLoading || actionInProgress}
+                        >
+                          {actionInProgress ? <span className="animate-pulse">Processing...</span> : 'Join Game'}
+                        </button>
+                      ) : (
+                        <button
+                          className="w-full bg-[#252736] text-white font-medium py-2 px-4 rounded-lg cursor-not-allowed"
+                          disabled
+                        >
+                          Game Full
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
 
                 {event.status === 'completed' && event.matchResults && (
                   <div className="mt-6">
                     <button
                       onClick={() => setResultsDialogOpen(true)}
-                      className="w-full bg-[#C1FF2F] hover:bg-[#a4e620] text-[#161723] font-medium py-2 px-4 rounded-lg transition duration-200"
+                      className="w-full bg-[#C1FF2F] hover:bg-[#a4e620] text-[#161723] font-medium py-2 px-4 rounded-lg transition duration-200 mb-4"
                     >
                       View Match Results
                     </button>
+                    
+                    {isPlayerInEvent && (
+                      <button
+                        onClick={handleShareMemory}
+                        className="w-full bg-[#151515] hover:bg-[#1A1A1A] text-white font-medium py-2 px-4 rounded-lg transition duration-200 flex items-center justify-center"
+                      >
+                        <CameraIcon className="mr-2" />
+                        Share memories
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {event.status === 'completed' && !event.matchResults && (
+                  <div className="mt-6">
+                    {isPlayerInEvent && (
+                      <button
+                        onClick={handleShareMemory}
+                        className="w-full bg-[#151515] hover:bg-[#1A1A1A] text-white font-medium py-2 px-4 rounded-lg transition duration-200 flex items-center justify-center"
+                      >
+                        <CameraIcon className="mr-2" />
+                        Share memories
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -698,16 +881,7 @@ const EventDetails: React.FC = () => {
               <div>
                 <div className="bg-[rgb(30_30_30/var(--tw-bg-opacity))] rounded-lg p-4 mb-6">
                   <h2 className="text-lg font-semibold mb-4 text-white">Location</h2>
-                  <div className="flex items-center mb-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    <span className="text-white">{locationData ? locationData.name : 'Loading...'}</span>
-                  </div>
-                  <p className="text-gray-400 mb-4">{locationData ? locationData.address : 'Loading address...'}</p>
-                  
-                  {locationData && locationData.coordinates && (
+                  {locationData?.coordinates && (
                     <div className="w-full h-64 rounded-lg overflow-hidden">
                       <Map
                         mapLib={Promise.resolve(maplibregl)}
@@ -732,6 +906,17 @@ const EventDetails: React.FC = () => {
                       </Map>
                     </div>
                   )}
+                  
+                  {/* Location name and address below the map */}
+                  <div className="mt-4">
+                    <div className="flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      <span className="text-white">{locationData ? locationData.name : 'Loading...'}</span>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="bg-[rgb(30_30_30/var(--tw-bg-opacity))] rounded-lg p-4">
@@ -771,6 +956,15 @@ const EventDetails: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* Mobile sticky button */}
+          {event.status !== 'completed' && new Date() < new Date(`${event.date}T${event.time}`) && (
+            <div className="md:hidden fixed bottom-0 left-0 right-0 p-4 bg-[#121212] shadow-lg border-t border-gray-800 z-30">
+              <div className="max-w-4xl mx-auto">
+                {renderActionButton()}
+              </div>
+            </div>
+          )}
         </>
       )}
 
@@ -783,71 +977,65 @@ const EventDetails: React.FC = () => {
       )}
 
       {/* Edit Event Dialog */}
-      {profileDialogOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-[rgb(30_30_30/var(--tw-bg-opacity))] rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-xl font-bold mb-4 text-white">Edit Event</h2>
-            <p className="text-gray-300 mb-4">This feature is coming soon. You will be able to edit event details here.</p>
-            <div className="flex justify-end">
-              <button
-                onClick={() => setProfileDialogOpen(false)}
-                className="bg-[#C1FF2F] hover:bg-[#a4e620] text-[#161723] px-4 py-2 rounded-lg font-medium"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
+      {profileDialogOpen && event && (
+        <EditEventDialog
+          open={profileDialogOpen}
+          onClose={() => setProfileDialogOpen(false)}
+          onEventUpdated={() => {
+            // Refresh event data after update
+            window.location.reload();
+          }}
+          eventId={event.id}
+        />
       )}
 
       {/* Share Event Dialog */}
-      {shareDialogOpen && (
+      {shareDialogOpen && event && (
+        <ShareEventDialog
+          open={shareDialogOpen}
+          onClose={() => setShareDialogOpen(false)}
+          eventId={event.id}
+          eventDetails={{
+            title: event.title,
+            date: event.date,
+            time: event.time,
+            location: event.location
+          }}
+        />
+      )}
+
+      {/* Share Memory Dialog */}
+      {event && (
+        <ShareMemoryDialog
+          open={shareMemoryDialogOpen}
+          onClose={() => setShareMemoryDialogOpen(false)}
+          event={event}
+        />
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-[rgb(30_30_30/var(--tw-bg-opacity))] rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-xl font-bold mb-4 text-white">Share Event</h2>
-            <p className="text-gray-300 mb-4">Share this event with friends:</p>
-            <div className="bg-[rgb(40_40_40/var(--tw-bg-opacity))] p-4 rounded-lg mb-4 break-all">
-              <p className="text-sm text-white">{window.location.href}</p>
-            </div>
-            <div className="flex justify-end">
+          <div className="bg-[#1E1E1E] rounded-lg p-6 max-w-md w-full">
+            <h2 className="text-xl font-bold mb-4 text-white">Delete Event</h2>
+            <p className="text-gray-300 mb-6">Are you sure you want to delete this event? This action cannot be undone.</p>
+            <div className="flex justify-end space-x-4">
               <button
-                onClick={() => {
-                  navigator.clipboard.writeText(window.location.href);
-                  toast.success('Link copied to clipboard!');
-                  setShareDialogOpen(false);
-                }}
-                className="bg-[#C1FF2F] hover:bg-[#a4e620] text-[#161723] px-4 py-2 rounded-lg font-medium mr-2"
-              >
-                Copy Link
-              </button>
-              <button
-                onClick={() => setShareDialogOpen(false)}
+                onClick={() => setShowDeleteConfirm(false)}
                 className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-medium"
               >
-                Close
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteEvent}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium"
+              >
+                Delete Event
               </button>
             </div>
           </div>
         </div>
       )}
-
-      <div className="flex flex-col gap-2 mt-4">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-green-500"></div>
-          <p className="text-white text-sm">
-            {event.players.length}/{event.maxPlayers} joined
-          </p>
-        </div>
-        
-        {interestedCount > 0 && (
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-            <p className="text-white text-sm">
-              {interestedCount} interested
-            </p>
-          </div>
-        )}
-      </div>
     </div>
   );
 };

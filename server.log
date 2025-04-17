@@ -45,3 +45,20 @@
 2025-04-15T17:57:05.853Z: Attempting to send email to: info@weteamup.app
 2025-04-15T17:57:05.853Z: From email: info@weteamup.app
 2025-04-15T17:57:06.160Z: SendGrid response: [{"statusCode":202,"body":"","headers":{"server":"nginx","date":"Tue, 15 Apr 2025 17:57:06 GMT","content-length":"0","connection":"keep-alive","x-message-id":"5CqiGZeeTx2wO3YukDGd3g","access-control-allow-origin":"https://sendgrid.api-docs.io","access-control-allow-methods":"POST","access-control-allow-headers":"Authorization, Content-Type, On-behalf-of, x-sg-elas-acl","access-control-max-age":"600","x-no-cors-reason":"https://sendgrid.com/docs/Classroom/Basics/API/cors.html","strict-transport-security":"max-age=31536000; includeSubDomains","content-security-policy":"frame-ancestors 'none'","cache-control":"no-cache","x-content-type-options":"no-sniff","referrer-policy":"strict-origin-when-cross-origin"}},""]
+2025-04-17T14:38:34.427Z: Loading .env file from: /Users/gvozdovic/webpadel/.env
+2025-04-17T14:38:34.434Z: Environment variables loaded successfully
+2025-04-17T14:38:34.435Z: Environment variables after loading:
+2025-04-17T14:38:34.435Z: REACT_APP_SENDGRID_API_KEY: set (length: 69)
+2025-04-17T14:38:34.435Z: REACT_APP_SENDER_EMAIL: info@weteamup.app
+2025-04-17T14:38:34.435Z: SendGrid API Key found: true
+2025-04-17T14:38:34.435Z: SendGrid API Key prefix: SG.ZexSfmL
+2025-04-17T14:38:34.439Z: Server is running on port 3001
+2025-04-17T14:38:37.285Z: Attempting to send email to: info@gvozdovic.com
+2025-04-17T14:38:37.286Z: From email: info@weteamup.app
+2025-04-17T14:38:38.194Z: SendGrid response: [{"statusCode":202,"body":"","headers":{"server":"nginx","date":"Thu, 17 Apr 2025 14:38:38 GMT","content-length":"0","connection":"keep-alive","x-message-id":"jT6FP8GCQbKwTjX7XQwkww","access-control-allow-origin":"https://sendgrid.api-docs.io","access-control-allow-methods":"POST","access-control-allow-headers":"Authorization, Content-Type, On-behalf-of, x-sg-elas-acl","access-control-max-age":"600","x-no-cors-reason":"https://sendgrid.com/docs/Classroom/Basics/API/cors.html","strict-transport-security":"max-age=31536000; includeSubDomains","content-security-policy":"frame-ancestors 'none'","cache-control":"no-cache","x-content-type-options":"no-sniff","referrer-policy":"strict-origin-when-cross-origin"}},""]
+2025-04-17T14:46:44.621Z: Attempting to send email to: hello@godislove.lt
+2025-04-17T14:46:44.622Z: From email: info@weteamup.app
+2025-04-17T14:46:45.237Z: SendGrid response: [{"statusCode":202,"body":"","headers":{"server":"nginx","date":"Thu, 17 Apr 2025 14:46:45 GMT","content-length":"0","connection":"keep-alive","x-message-id":"Kb9C4acQT4ifUHUFYF6KgQ","access-control-allow-origin":"https://sendgrid.api-docs.io","access-control-allow-methods":"POST","access-control-allow-headers":"Authorization, Content-Type, On-behalf-of, x-sg-elas-acl","access-control-max-age":"600","x-no-cors-reason":"https://sendgrid.com/docs/Classroom/Basics/API/cors.html","strict-transport-security":"max-age=31536000; includeSubDomains","content-security-policy":"frame-ancestors 'none'","cache-control":"no-cache","x-content-type-options":"no-sniff","referrer-policy":"strict-origin-when-cross-origin"}},""]
+2025-04-17T14:46:45.814Z: Attempting to send email to: dzekuza@gmail.com
+2025-04-17T14:46:45.814Z: From email: info@weteamup.app
+2025-04-17T14:46:45.865Z: SendGrid response: [{"statusCode":202,"body":"","headers":{"server":"nginx","date":"Thu, 17 Apr 2025 14:46:45 GMT","content-length":"0","connection":"keep-alive","x-message-id":"RcIbqEymSvCDVUy7YKa29A","access-control-allow-origin":"https://sendgrid.api-docs.io","access-control-allow-methods":"POST","access-control-allow-headers":"Authorization, Content-Type, On-behalf-of, x-sg-elas-acl","access-control-max-age":"600","x-no-cors-reason":"https://sendgrid.com/docs/Classroom/Basics/API/cors.html","strict-transport-security":"max-age=31536000; includeSubDomains","content-security-policy":"frame-ancestors 'none'","cache-control":"no-cache","x-content-type-options":"no-sniff","referrer-policy":"strict-origin-when-cross-origin"}},""]

@@ -13,6 +13,7 @@ import LandingPage from './pages/LandingPage';
 import { useAuth } from './hooks/useAuth';
 import Preloader from './components/Preloader';
 import { SavedEvents } from './pages/SavedEvents';
+import { Community } from './pages/Community';
 import { useCookieContext } from './contexts/CookieContext';
 
 // Add global styles for mobile navigation padding
@@ -65,6 +66,7 @@ const App: React.FC = () => {
           <Route path="/event/:id" element={user ? <EventDetails /> : <Navigate to="/login" />} />
           <Route path="/my-events" element={user ? <Home myEventsOnly={true} /> : <Navigate to="/login" />} />
           <Route path="/notifications" element={user ? <Home notificationsOnly={true} /> : <Navigate to="/login" />} />
+          <Route path="/community" element={user ? <Community /> : <Navigate to="/login" />} />
           <Route path="/saved-events" element={user ? <SavedEvents /> : <Navigate to="/login" />} />
         </Routes>
         {user && isMobile && <MobileNavigation />}

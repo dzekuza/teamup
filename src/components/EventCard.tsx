@@ -93,10 +93,18 @@ const extractCity = (location: string): string => {
   return location.length > 20 ? location.substring(0, 20) + '...' : location;
 };
 
+// Format the date to display as "Apr 2" format
+const formatEventDate = (dateString: string) => {
+  const date = new Date(dateString);
+  const month = date.toLocaleString('en-US', { month: 'short' });
+  const day = date.getDate();
+  return `${month} ${day}`;
+};
+
 export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const isJoined = user && event.players && event.players.filter(Boolean).some(player => player && player.id === user.uid);
+  const isJoined = user && event.players && event.players.some(player => player && player.id === user.uid);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [playerInfos, setPlayerInfos] = useState<(PlayerInfo | null)[]>([]);
@@ -123,9 +131,13 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
 
   // Get location image
   const locationData = PADEL_LOCATIONS.find(loc => loc.name === event.location);
-  const locationImage = event.sportType === 'Padel' 
-    ? (locationData?.image || '')
-    : 'https://firebasestorage.googleapis.com/v0/b/newprojecta-36c09.firebasestorage.app/o/Locations%2Fstatic%20cover.jpg?alt=media&token=4c319254-5854-4b3c-9bc7-e67cfe1a58b1';
+  const DEFAULT_COVER_IMAGE = "https://firebasestorage.googleapis.com/v0/b/newprojecta-36c09.appspot.com/o/Locations%2Fstatic%20cover.jpg?alt=media&token=4c319254-5854-4b3c-9bc7-e67cfe1a58b1";
+  
+  const locationImage = event.coverImageURL 
+    ? event.coverImageURL
+    : event?.sportType === 'Padel' && locationData?.image
+      ? locationData.image
+      : DEFAULT_COVER_IMAGE;
 
   const isPastEvent = () => {
     try {
@@ -144,8 +156,8 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
         return false;
       }
       
-      const [year, month, day] = event.date.split('-').map(num => parseInt(num));
-      const [hours, minutes] = event.endTime.split(':').map(num => parseInt(num));
+      const [year, month, day] = (event.date || '1970-01-01').split('-').map(num => parseInt(num));
+      const [hours, minutes] = (event.endTime || '00:00').split(':').map(num => parseInt(num));
       const eventEndDate = new Date(year, month - 1, day, hours, minutes); // month is 0-based
       return eventEndDate < new Date();
     } catch (error) {
@@ -159,8 +171,8 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
     const calculateTimeLeft = () => {
       try {
         // Parse the date and time strings into a Date object
-        const [year, month, day] = event.date.split('-').map(num => parseInt(num));
-        const [hours, minutes] = event.time.split(':').map(num => parseInt(num));
+        const [year, month, day] = (event.date || '1970-01-01').split('-').map(num => parseInt(num));
+        const [hours, minutes] = (event.time || '00:00').split(':').map(num => parseInt(num));
         const eventDate = new Date(year, month - 1, day, hours, minutes); // month is 0-based
         const now = new Date();
         const difference = eventDate.getTime() - now.getTime();
@@ -268,13 +280,9 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
         const savedDoc = await getDoc(doc(db, 'savedEvents', `${user.uid}_${event.id}`));
         setIsSaved(savedDoc.exists());
         
-        // Get total count of people who saved this event
-        const savedQuery = query(
-          collection(db, 'savedEvents'),
-          where('eventId', '==', event.id)
-        );
-        const querySnapshot = await getDocs(savedQuery);
-        setInterestedCount(querySnapshot.size);
+        // We won't query for total count since it might cause permission issues
+        // Just set to 0 or 1 based on current user's status
+        setInterestedCount(savedDoc.exists() ? 1 : 0);
       } catch (error) {
         console.error('Error checking saved status:', error);
       }
@@ -554,7 +562,7 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
         // Remove from saved events
         await deleteDoc(savedEventRef);
         setIsSaved(false);
-        setInterestedCount(prev => Math.max(0, prev - 1));
+        setInterestedCount(0); // Set to 0 since we're not tracking total count anymore
       } else {
         // Add to saved events
         await setDoc(savedEventRef, {
@@ -567,7 +575,7 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
           sportType: event.sportType
         });
         setIsSaved(true);
-        setInterestedCount(prev => prev + 1);
+        setInterestedCount(1); // Set to 1 since we're only tracking current user's status
       }
     } catch (error) {
       console.error('Error saving/unsaving event:', error);
@@ -651,14 +659,7 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
         <div className="absolute bottom-4 left-4 right-4">
           <div className="text-[#C1FF2F] font-medium text-sm mb-1">{event.sportType || 'Padel'}</div>
           <h3 className="text-xl font-bold text-white mb-1">{event.title}</h3>
-          <p className="text-gray-200">{event.date} at {event.time}</p>
-          <div className="flex items-center mb-2">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            <span className="text-gray-300 text-sm">{extractCity(event.location)}</span>
-          </div>
+          <p className="text-gray-200">{extractCity(event.location)} · {formatEventDate(event.date)}</p>
         </div>
         
         {/* Add the save button */}
@@ -678,13 +679,6 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
 
         {/* Status indicators */}
         <div className="absolute top-2 left-2 right-14 z-10 flex flex-row flex-wrap" style={{ gap: "0.4rem" }}>
-          {/* Interested indicator - only show if there are interested people */}
-          {interestedCount > 0 && (
-            <div className="bg-black/50 text-white px-3 py-1 rounded-full text-sm font-semibold">
-              {interestedCount} interested
-            </div>
-          )}
-          
           {/* Event status indicator */}
           {isPastEvent() ? (
             <div className="bg-red-600 text-white px-3 py-1 rounded-full text-sm font-semibold">
@@ -759,7 +753,7 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
 
         {/* Participation Info */}
         <div className="mb-4 text-sm text-gray-400">
-          <span>{event.players ? event.players.filter(Boolean).length : 0} Joined</span>
+          <span>{event.players ? event.players.filter(player => player && player.id).length : 0} Joined</span>
           <span> · {interestedCount} Saved</span>
         </div>
 

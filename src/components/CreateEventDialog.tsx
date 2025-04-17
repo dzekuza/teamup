@@ -1,6 +1,6 @@
 import { FC, useState, useRef, useEffect } from 'react';
 import { addDoc, collection, getDocs, query, where, getDoc, doc, setDoc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, storage } from '../firebase';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { useClickOutside } from '../hooks/useClickOutside';
@@ -10,6 +10,7 @@ import { Event, Player } from '../types';
 import { PADEL_LOCATIONS, Location } from '../constants/locations';
 import { sendEventInvitation, sendEventCreationEmail } from '../services/sendGridService';
 import { createNotification } from '../services/notificationService';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import {
   DialogTitle,
   DialogContent,
@@ -96,6 +97,11 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
   const [selectedSecond, setSelectedSecond] = useState(0);
   const [selectedAmPm, setSelectedAmPm] = useState<'AM' | 'PM'>('PM');
   const timePickerRef = useRef<HTMLDivElement>(null);
+
+  // Cover image state
+  const [coverImage, setCoverImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Detect mobile screen size
   useEffect(() => {
@@ -349,6 +355,15 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
       // Generate a title if not provided
       const eventTitle = title.trim() || `${sportType} Event at ${location}`;
 
+      // Upload cover image if provided
+      let coverImageURL = undefined;
+      if (coverImage) {
+        // Create a unique filename for storage
+        const storageRef = ref(storage, `eventCovers/${user.uid}_${Date.now()}_${coverImage.name}`);
+        const uploadResult = await uploadBytes(storageRef, coverImage);
+        coverImageURL = await getDownloadURL(uploadResult.ref);
+      }
+
       const eventData: Omit<Event, 'id'> = {
         title: eventTitle,
         date,
@@ -365,7 +380,8 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
         sportType,
         description,
         ...(isPrivate && { password }),
-        ...(customLocationCoordinates && { customLocationCoordinates })
+        ...(customLocationCoordinates && { customLocationCoordinates }),
+        ...(coverImageURL && { coverImageURL })
       };
 
       const docRef = await addDoc(collection(db, 'events'), eventData);
@@ -657,6 +673,32 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
     }
   };
 
+  // Image handling functions
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const selectedFile = e.target.files[0];
+      setCoverImage(selectedFile);
+
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(selectedFile);
+    }
+  };
+
+  const triggerFileInput = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const removeImage = () => {
+    setCoverImage(null);
+    setImagePreview(null);
+  };
+
   if (showSuccess && eventId) {
     const timeRange = `${startTime} - ${endTime}`;
     return (
@@ -723,6 +765,46 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
                 placeholder="Describe your event, provide additional details..."
                 className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F] min-h-[100px] resize-y"
               />
+            </div>
+            
+            {/* Cover Image Upload */}
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-2">Cover Image</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="hidden"
+                ref={fileInputRef}
+              />
+              
+              {imagePreview ? (
+                <div className="relative rounded-xl overflow-hidden mb-2 h-40">
+                  <img 
+                    src={imagePreview} 
+                    alt="Cover Preview" 
+                    className="w-full h-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={removeImage}
+                    className="absolute top-2 right-2 bg-black bg-opacity-50 rounded-full p-1 text-white hover:bg-opacity-70"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <div 
+                  onClick={triggerFileInput}
+                  className="border-2 border-dashed border-gray-700 rounded-xl h-40 flex flex-col items-center justify-center cursor-pointer hover:border-gray-500 transition-colors"
+                >
+                  <svg className="w-12 h-12 text-gray-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                  </svg>
+                  <p className="text-gray-500">Click to upload a cover image</p>
+                  <p className="text-gray-600 text-sm mt-1">Recommended size: 1200 x 600</p>
+                </div>
+              )}
             </div>
             
             <div>

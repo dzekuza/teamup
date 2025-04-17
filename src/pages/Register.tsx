@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { auth } from '../firebase';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { createUserWithEmailAndPassword, updateProfile, signInWithPopup, FacebookAuthProvider, GoogleAuthProvider } from 'firebase/auth';
 import phoneMockup from '../assets/phonemock.png';
 import logoWhite from '../assets/images/logo-white.svg';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { sendWelcomeEmail } from '../services/sendGridService';
 import { setCookie, removeCookie } from '../utils/cookieUtils';
+import logoGoogle from '../assets/google.svg';
 
 const SPORTS = [
   { id: 'padel', name: 'Padel', icon: '🎾' },
@@ -40,6 +41,34 @@ export const Register: React.FC = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Initialize Facebook SDK
+  useEffect(() => {
+    // Initialize Facebook SDK
+    window.fbAsyncInit = function() {
+      if (window.FB) {
+        window.FB.init({
+          appId: '1551008789077882', // Replace with your actual Facebook App ID
+          cookie: true,
+          xfbml: true,
+          version: 'v18.0'
+        });
+      }
+    };
+
+    // Load Facebook SDK
+    const loadFacebookSDK = () => {
+      const script = document.createElement('script');
+      script.id = 'facebook-jssdk';
+      script.src = "https://connect.facebook.net/en_US/sdk.js";
+      const firstScript = document.getElementsByTagName('script')[0];
+      if (firstScript && firstScript.parentNode) {
+        firstScript.parentNode.insertBefore(script, firstScript);
+      }
+    };
+
+    loadFacebookSDK();
+  }, []);
 
   const handleSportToggle = (sportId: string) => {
     setSelectedSports(prev => 
@@ -228,6 +257,98 @@ export const Register: React.FC = () => {
     }
   };
 
+  const handleFacebookRegister = async () => {
+    setError('');
+    setIsLoading(true);
+
+    try {
+      const provider = new FacebookAuthProvider();
+      provider.addScope('email'); // Request email permission
+      provider.addScope('public_profile'); // Request basic profile info
+      
+      const result = await signInWithPopup(auth, provider);
+      
+      if (result.user) {
+        // Check if a profile document already exists for this user
+        // If not, create a new one using available data
+        await setDoc(doc(db, 'users', result.user.uid), {
+          uid: result.user.uid,
+          email: result.user.email,
+          displayName: result.user.displayName,
+          phoneNumber: result.user.phoneNumber || '',
+          photoURL: result.user.photoURL || 'Avatar1',
+          sports: selectedSports.length > 0 ? selectedSports : ['padel'], // Default to padel if no sports selected
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }, { merge: true }); // Use merge to avoid overwriting existing data
+        
+        if (result.user.email) {
+          await sendWelcomeEmail(result.user.email, result.user.displayName || 'New User');
+        }
+        
+        // Store user data in cookie if remember me is checked
+        if (rememberMe && result.user) {
+          const userData = {
+            uid: result.user.uid,
+            email: result.user.email,
+            displayName: result.user.displayName
+          };
+          setCookie('userData', userData, { expires: 30 });
+        }
+        
+        navigate('/');
+      }
+    } catch (error: any) {
+      setError(getFirebaseErrorMessage(error));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleRegister = async () => {
+    setError('');
+    setIsLoading(true);
+
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      
+      if (result.user) {
+        // Create or update the user profile
+        await setDoc(doc(db, 'users', result.user.uid), {
+          uid: result.user.uid,
+          email: result.user.email,
+          displayName: result.user.displayName,
+          phoneNumber: result.user.phoneNumber || '',
+          photoURL: result.user.photoURL || 'Avatar1',
+          sports: selectedSports.length > 0 ? selectedSports : ['padel'], // Default to padel if no sports selected
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+        
+        if (result.user.email) {
+          await sendWelcomeEmail(result.user.email, result.user.displayName || 'New User');
+        }
+        
+        // Store user data in cookie if remember me is checked
+        if (rememberMe && result.user) {
+          const userData = {
+            uid: result.user.uid,
+            email: result.user.email,
+            displayName: result.user.displayName
+          };
+          setCookie('userData', userData, { expires: 30 });
+        }
+        
+        navigate('/');
+      }
+    } catch (error: any) {
+      setError(getFirebaseErrorMessage(error));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const LoadingSpinner = () => (
     <svg className="animate-spin h-5 w-5 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -340,46 +461,95 @@ export const Register: React.FC = () => {
       case 1:
         return (
           <div className="space-y-6">
-            <h1 className="text-4xl font-bold text-white mb-3">
-              Create an account
-            </h1>
-            <p className="text-gray-400 text-lg mb-8">
-              Let's start with your hobby
-            </p>
-            
-            <div className="space-y-4">
-              <label className="block text-sm font-medium text-gray-400">
-                Select sport that you are interested in
-              </label>
-              <div className="grid grid-cols-2 gap-4">
-                {SPORTS.map((sport) => (
-                  <button
-                    key={sport.id}
-                    onClick={() => handleSportToggle(sport.id)}
-                    type="button"
-                    className={`p-4 rounded-xl transition-colors flex flex-col items-center ${
-                      selectedSports.includes(sport.id)
-                        ? 'bg-[#C1FF2F] text-black'
-                        : 'bg-[#2A2A2A] text-white hover:bg-[#3A3A3A]'
-                    }`}
-                  >
-                    <span className="text-2xl mb-2">{sport.icon}</span>
-                    <span className="font-medium">{sport.name}</span>
-                  </button>
-                ))}
-              </div>
+            <h1 className="text-4xl font-bold text-white mb-3">Let's create your account</h1>
+            <p className="text-gray-400 text-lg mb-8">Select the sports you're interested in</p>
+
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              {SPORTS.map(sport => (
+                <button
+                  key={sport.id}
+                  type="button"
+                  onClick={() => handleSportToggle(sport.id)}
+                  className={`flex items-center p-4 rounded-xl transition-colors ${
+                    selectedSports.includes(sport.id) 
+                      ? 'bg-[#C1FF2F] text-black' 
+                      : 'bg-[#2A2A2A] text-white hover:bg-[#3A3A3A]'
+                  }`}
+                >
+                  <span className="text-2xl mr-3">{sport.icon}</span>
+                  <span className="font-medium">{sport.name}</span>
+                </button>
+              ))}
             </div>
 
             {error && (
-              <p className="text-red-500 text-sm">{error}</p>
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+                <span className="block sm:inline">{error}</span>
+              </div>
             )}
 
-            <button
-              onClick={handleContinue}
-              className="w-full bg-[#C1FF2F] text-black rounded-xl p-4 font-medium hover:bg-[#B1EF1F] transition-colors"
-            >
-              Continue
-            </button>
+            <div className="space-y-3">
+              <button
+                onClick={handleContinue}
+                className="w-full bg-[#C1FF2F] text-black rounded-xl p-4 font-medium hover:bg-[#B1EF1F] transition-colors"
+                disabled={isLoading}
+              >
+                Continue
+              </button>
+
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-800"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-[#121212] text-gray-400">Or continue with</span>
+                </div>
+              </div>
+
+              <button
+                onClick={handleGoogleRegister}
+                disabled={isLoading}
+                className="w-full bg-white text-black rounded-xl p-4 font-medium hover:bg-gray-100 transition-colors flex items-center justify-center gap-2 mb-3"
+              >
+                <img src={logoGoogle} alt="Google" className="h-5 mr-3" />
+                {isLoading ? (
+                  <>
+                    <LoadingSpinner />
+                    <span>Signing up with Google...</span>
+                  </>
+                ) : (
+                  'Sign up with Google'
+                )}
+              </button>
+
+              <button
+                onClick={handleFacebookRegister}
+                disabled={isLoading}
+                className="w-full bg-[#1877F2] text-white rounded-xl p-4 font-medium hover:bg-[#166FE5] transition-colors flex items-center justify-center gap-2"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M9.19795 21.5H13.198V13.4901H16.8021L17.198 9.50977H13.198V7.5C13.198 6.94772 13.6457 6.5 14.198 6.5H17.198V2.5H14.198C11.4365 2.5 9.19795 4.73858 9.19795 7.5V9.50977H7.19795L6.80206 13.4901H9.19795V21.5Z" />
+                </svg>
+                {isLoading ? (
+                  <>
+                    <LoadingSpinner />
+                    <span>Signing up with Facebook...</span>
+                  </>
+                ) : (
+                  'Sign up with Facebook'
+                )}
+              </button>
+            </div>
+
+            <p className="text-center">
+              <span className="text-gray-400">Already have an account? </span>
+              <button 
+                onClick={() => navigate('/login')}
+                className="text-[#C1FF2F] hover:underline font-medium"
+              >
+                Log in
+              </button>
+            </p>
           </div>
         );
 

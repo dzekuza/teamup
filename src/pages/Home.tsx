@@ -3,7 +3,7 @@ import { CreateEventDialog } from '../components/CreateEventDialog';
 import { EditEventDialog } from '../components/EditEventDialog';
 import { Filters } from '../components/Filters';
 import { EventList } from '../components/EventList';
-import { FunnelIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { FunnelIcon, PlusIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../hooks/useAuth';
 import { useProfileCompletion } from '../hooks/useProfileCompletion';
 import { useNavigate } from 'react-router-dom';
@@ -76,6 +76,13 @@ export const Home: FC<HomeProps> = ({ myEventsOnly = false, notificationsOnly = 
       sportType 
     }));
   };
+  
+  const handleSearchChange = (searchTerm: string) => {
+    setFilters(prev => ({
+      ...prev,
+      searchTerm
+    }));
+  };
 
   // Determine page title based on props
   const getPageTitle = () => {
@@ -86,27 +93,65 @@ export const Home: FC<HomeProps> = ({ myEventsOnly = false, notificationsOnly = 
 
   return (
     <div className="min-h-screen bg-[#121212] pb-24 md:pb-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header with title and mobile filter button */}
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-white">{getPageTitle()}</h1>
-          
-          {/* Don't show filter button on notifications page */}
+      {/* Sticky header for mobile */}
+      <div className="md:hidden sticky top-0 z-30 bg-[#121212]/80 backdrop-blur-md shadow-md">
+        <div className="px-4 pt-4 pb-2">
+          {/* Header with title */}
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-2xl font-bold text-white">{getPageTitle()}</h1>
+            
+            {/* Don't show filter button on notifications page */}
+            {!notificationsOnly && (
+              <button
+                type="button"
+                className="inline-flex items-center gap-x-2 rounded-md bg-[#1A1A1A] px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#2A2A2A] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C1FF2F]"
+                onClick={() => setShowMobileFilters(true)}
+              >
+                <FunnelIcon className="-ml-0.5 h-5 w-5" aria-hidden="true" />
+                Filters
+              </button>
+            )}
+          </div>
+
+          {/* Mobile Search Bar - only show on mobile and not on notifications page */}
           {!notificationsOnly && (
-            <button
-              type="button"
-              className="md:hidden inline-flex items-center gap-x-2 rounded-md bg-[#1A1A1A] px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#2A2A2A] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C1FF2F]"
-              onClick={() => setShowMobileFilters(true)}
-            >
-              <FunnelIcon className="-ml-0.5 h-5 w-5" aria-hidden="true" />
-              Filters
-            </button>
+            <div className="mb-4">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                </div>
+                <input
+                  type="text"
+                  value={filters.searchTerm}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  placeholder="Search by title, location, or players..."
+                  className="w-full bg-[#1A1A1A] text-white border border-gray-800 rounded-lg pl-10 p-2 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F] focus:border-transparent"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Sport Type Filter - Show on mobile, hide on notifications page */}
+          {!notificationsOnly && (
+            <div className="pb-2 overflow-x-auto">
+              <SportTypeFilter
+                selectedSportType={filters.sportType}
+                onChange={handleSportTypeChange}
+              />
+            </div>
           )}
         </div>
+      </div>
 
-        {/* Sport Type Filter - Show on all screen sizes, hide on notifications page */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-8">
+        {/* Desktop Header - only visible on desktop */}
+        <div className="hidden md:flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold text-white">{getPageTitle()}</h1>
+        </div>
+
+        {/* Sport Type Filter - Only show on desktop and not on notifications page */}
         {!notificationsOnly && (
-          <div className="mb-6">
+          <div className="hidden md:block mb-6">
             <SportTypeFilter
               selectedSportType={filters.sportType}
               onChange={handleSportTypeChange}
@@ -139,16 +184,19 @@ export const Home: FC<HomeProps> = ({ myEventsOnly = false, notificationsOnly = 
         )}
       </div>
 
-      {/* Mobile filters - Hide on notifications page */}
+      {/* Mobile filters - Hide completely since we have filters at the top */}
       {!notificationsOnly && (
-        <Filters
-          onFilterChange={handleFilterChange}
-          currentFilters={filters}
-          showMobileFilters={showMobileFilters}
-          onCloseMobileFilters={() => setShowMobileFilters(false)}
-          isMobile
-          hideSportTypeFilter={true}
-        />
+        <div className="hidden">
+          <Filters
+            onFilterChange={handleFilterChange}
+            currentFilters={filters}
+            showMobileFilters={showMobileFilters}
+            onCloseMobileFilters={() => setShowMobileFilters(false)}
+            isMobile
+            hideSportTypeFilter={true}
+            hideSearchBar={true}
+          />
+        </div>
       )}
 
       {/* Dialogs */}

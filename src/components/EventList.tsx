@@ -87,7 +87,7 @@ export const EventList: FC<EventListProps> = ({
           eventsList = eventsList.filter(event =>
             event.title.toLowerCase().includes(searchTerm) ||
             event.location.toLowerCase().includes(searchTerm) ||
-            event.players.some(player => player.name.toLowerCase().includes(searchTerm))
+            event.players.some(player => player && player.name && player.name.toLowerCase().includes(searchTerm))
           );
         }
 
@@ -95,7 +95,7 @@ export const EventList: FC<EventListProps> = ({
         if (filters.showJoinedOnly) {
           if (user) {
             eventsList = eventsList.filter(event =>
-              event.players.some(player => player.id === user.uid)
+              event.players && event.players.filter(player => player !== null).some(player => player.id === user.uid)
             );
           }
         }

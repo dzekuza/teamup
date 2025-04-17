@@ -1,5 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { addToAppleWallet } from '../utils/appleWallet';
+import { format } from 'date-fns';
+import { QRCodeSVG } from 'qrcode.react';
+import { toast } from 'react-hot-toast';
 
 interface ShareEventDialogProps {
   open: boolean;
@@ -23,11 +26,14 @@ export const ShareEventDialog: React.FC<ShareEventDialogProps> = ({
   const [isVisible, setIsVisible] = useState(false);
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [showQR, setShowQR] = useState(false);
 
   // Show/hide animation logic
   useEffect(() => {
     if (open) {
       setIsVisible(true);
+      setShowQR(false);
     } else {
       // Add a delay to allow the animation to complete before hiding
       const timer = setTimeout(() => {
@@ -68,9 +74,27 @@ export const ShareEventDialog: React.FC<ShareEventDialogProps> = ({
   const handleCopyLink = async () => {
     try {
       await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000); // Reset after 2 seconds
     } catch (error) {
       console.error('Failed to copy link:', error);
     }
+  };
+
+  const handleEmailShare = () => {
+    const subject = encodeURIComponent(`Join me for ${eventDetails.title}`);
+    const body = encodeURIComponent(
+      `Hey,\n\nI'd like to invite you to join me for ${eventDetails.title} on ${eventDetails.date} at ${eventDetails.time}, ${eventDetails.location}.\n\nYou can view the event details and join here: ${shareUrl}\n\nHope to see you there!`
+    );
+    window.open(`mailto:?subject=${subject}&body=${body}`);
+  };
+
+  const handleFacebookShare = () => {
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`, '_blank');
+  };
+
+  const toggleQRCode = () => {
+    setShowQR(!showQR);
   };
 
   const handleAddToCalendar = () => {
@@ -125,34 +149,30 @@ export const ShareEventDialog: React.FC<ShareEventDialogProps> = ({
     }
   };
 
-  return (
-    <div 
-      className={`fixed inset-0 z-50 ${isVisible ? 'block' : 'hidden'}`}
-      style={{ 
-        backgroundColor: 'rgba(0, 0, 0, 0.5)', 
-        transition: 'background-color 0.3s ease, opacity 0.3s ease',
-        opacity: open ? 1 : 0
-      }}
-      onClick={onClose}
-    >
-      <div 
-        className={`fixed inset-x-0 bottom-0 z-50 bg-[#1E1E1E] rounded-t-xl max-h-[90vh] overflow-auto transform transition-transform duration-300 ease-out ${open ? 'translate-y-0' : 'translate-y-full'}`}
-        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-        onClick={(e) => e.stopPropagation()}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-      >
-        <div className="w-full flex justify-center py-2">
-          <div className="w-10 h-1 bg-gray-500 rounded-full"></div>
+  // Share dialog content component that will be reused between mobile and desktop
+  const ShareContent = () => (
+    <>
+      <h2 className="text-2xl font-medium text-white mb-4 text-center">
+        Share Event
+      </h2>
+      
+      {showQR ? (
+        <div className="flex flex-col items-center mb-6">
+          <div className="bg-white p-4 rounded-lg mb-4">
+            <QRCodeSVG value={shareUrl} size={200} />
+          </div>
+          <p className="text-gray-300 text-sm mb-4 text-center">Scan this QR code to access the event</p>
+          <button
+            onClick={toggleQRCode}
+            className="px-6 py-2 bg-[#2A2A2A] text-white rounded-xl font-medium hover:bg-[#3A3A3A] transition-colors"
+          >
+            Back to Sharing Options
+          </button>
         </div>
-        <div className="p-8">
-          <h2 className="text-2xl font-medium text-white mb-4 text-center">
-            Share Event
-          </h2>
-          
+      ) : (
+        <>
           <div className="mb-6">
-            <div className="flex items-center gap-2 bg-[#2A2A2A] rounded-xl p-3">
+            <div className="flex items-center gap-2 bg-[#2A2A2A] rounded-xl p-3 mb-2">
               <input
                 type="text"
                 value={shareUrl}
@@ -161,41 +181,107 @@ export const ShareEventDialog: React.FC<ShareEventDialogProps> = ({
               />
               <button
                 onClick={handleCopyLink}
-                className="px-3 py-1 bg-[#C1FF2F] text-black text-sm rounded-lg hover:bg-[#B1EF1F] transition-colors"
+                className={`px-3 py-1 ${copied ? 'bg-green-500' : 'bg-[#C1FF2F]'} text-black text-sm rounded-lg transition-colors`}
               >
-                Copy
+                {copied ? 'Copied!' : 'Copy'}
               </button>
             </div>
           </div>
 
-          <div className="flex flex-col gap-3">
+          <div className="grid grid-cols-2 gap-3 mb-4">
             <button
-              onClick={handleAddToCalendar}
-              className="px-6 py-2 bg-[#2A2A2A] text-white rounded-xl font-medium hover:bg-[#3A3A3A] transition-colors flex items-center justify-center gap-2"
+              onClick={handleEmailShare}
+              className="px-4 py-3 bg-[#2A2A2A] text-white rounded-xl font-medium hover:bg-[#3A3A3A] transition-colors flex flex-col items-center justify-center gap-2"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
-              Add to Calendar
+              <span>Email</span>
             </button>
+            
             <button
-              onClick={handleAddToAppleWallet}
-              className="px-6 py-2 bg-black text-white rounded-xl font-medium hover:bg-gray-900 transition-colors flex items-center justify-center gap-2"
+              onClick={handleFacebookShare}
+              className="px-4 py-3 bg-[#1877F2] text-white rounded-xl font-medium hover:bg-[#166FE5] transition-colors flex flex-col items-center justify-center gap-2"
             >
-              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12.1,5.8c1.2-1.1,2.7-1.7,4.3-1.7c0.2,1.9-0.5,3.8-1.7,5c-1.2,1.2-2.7,1.7-4.2,1.7C10.3,8.9,11,7,12.1,5.8z M18.4,19.5c-0.9,1.7-1.9,3.2-3.4,3.2c-1.5,0-1.9-0.9-3.6-0.9c-1.7,0-2.2,0.9-3.6,0.9c-1.5,0-2.6-1.6-3.5-3.2c-1.9-2.9-2.1-6.3-0.9-8.1c0.8-1.2,2.2-1.9,3.7-1.9c1.5,0,2.5,0.9,3.7,0.9c1.2,0,1.9-0.9,3.7-0.9c1.3,0,2.7,0.7,3.7,1.9C15.6,13.5,15.9,18.4,18.4,19.5z"/>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M9.19795 21.5H13.198V13.4901H16.8021L17.198 9.50977H13.198V7.5C13.198 6.94772 13.6457 6.5 14.198 6.5H17.198V2.5H14.198C11.4365 2.5 9.19795 4.73858 9.19795 7.5V9.50977H7.19795L6.80206 13.4901H9.19795V21.5Z" />
               </svg>
-              Add to Apple Wallet
+              <span>Facebook</span>
             </button>
+            
+            <button
+              onClick={toggleQRCode}
+              className="px-4 py-3 bg-[#2A2A2A] text-white rounded-xl font-medium hover:bg-[#3A3A3A] transition-colors flex flex-col items-center justify-center gap-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+              </svg>
+              <span>QR Code</span>
+            </button>
+            
             <button
               onClick={onClose}
-              className="px-6 py-2 bg-[#C1FF2F] text-black rounded-xl font-medium hover:bg-[#B1EF1F] transition-colors"
+              className="px-4 py-3 bg-[#C1FF2F] text-black rounded-xl font-medium hover:bg-[#B1EF1F] transition-colors flex flex-col items-center justify-center gap-2"
             >
-              Done
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <span>Done</span>
             </button>
+          </div>
+        </>
+      )}
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile bottom sheet dialog */}
+      <div 
+        className={`md:hidden fixed inset-0 z-50 ${isVisible ? 'block' : 'hidden'}`}
+        style={{ 
+          backgroundColor: '#121212', 
+          transition: 'opacity 0.3s ease',
+          opacity: open ? 1 : 0
+        }}
+        onClick={onClose}
+      >
+        <div 
+          className={`fixed inset-x-0 bottom-0 z-50 bg-[#1E1E1E] rounded-t-xl max-h-[90vh] overflow-auto transform transition-transform duration-300 ease-out ${open ? 'translate-y-0' : 'translate-y-full'}`}
+          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+          onClick={(e) => e.stopPropagation()}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          <div className="w-full flex justify-center py-2">
+            <div className="w-10 h-1 bg-gray-500 rounded-full"></div>
+          </div>
+          <div className="p-8">
+            <ShareContent />
           </div>
         </div>
       </div>
-    </div>
+
+      {/* Desktop popup dialog */}
+      <div 
+        className={`hidden md:block fixed inset-0 z-50 ${isVisible ? 'block' : 'hidden'}`}
+        style={{ 
+          backgroundColor: 'rgba(0, 0, 0, 0.5)', 
+          transition: 'opacity 0.3s ease',
+          opacity: open ? 1 : 0
+        }}
+        onClick={onClose}
+      >
+        <div 
+          className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-[#1E1E1E] rounded-xl max-w-md w-full max-h-[90vh] overflow-auto shadow-xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="p-8">
+            <ShareContent />
+          </div>
+        </div>
+      </div>
+    </>
   );
 }; 
