@@ -115,23 +115,15 @@ export const MobileNavigation: React.FC = () => {
             <span className={`text-xs ${location.pathname === '/' ? 'text-[#C1FF2F]' : 'text-gray-400'}`}>Explore</span>
           </Link>
 
-          {/* Events */}
-          <Link to="/my-events" className="flex flex-col items-center space-y-1">
-            <div className={`p-1 rounded-full ${location.pathname === '/my-events' ? 'text-[#C1FF2F]' : 'text-gray-400'}`}>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-            </div>
-            <span className={`text-xs ${location.pathname === '/my-events' ? 'text-[#C1FF2F]' : 'text-gray-400'}`}>Events</span>
-          </Link>
-
           {/* Locations */}
+          {/*
           <Link to="/locations" className="flex flex-col items-center space-y-1">
             <div className={`p-1 rounded-full ${location.pathname === '/locations' ? 'text-[#C1FF2F]' : 'text-gray-400'}`}>
               <LocationOn className="h-6 w-6" />
             </div>
             <span className={`text-xs ${location.pathname === '/locations' ? 'text-[#C1FF2F]' : 'text-gray-400'}`}>Venues</span>
           </Link>
+          */}
 
           {/* Notifications */}
           <Link to="/notifications" className="flex flex-col items-center space-y-1 relative">

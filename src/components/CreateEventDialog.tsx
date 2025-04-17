@@ -355,6 +355,9 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
       // Generate a title if not provided
       const eventTitle = title.trim() || `${sportType} Event at ${location}`;
 
+      // Get the string version of the location
+      const locationString = typeof location === 'object' && location !== null && (location as any).name ? (location as any).name : String(location);
+
       // Upload cover image if provided
       let coverImageURL = undefined;
       if (coverImage) {
@@ -369,7 +372,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
         date,
         time: startTime,
         endTime,
-        location,
+        location: locationString,
         level,
         players,
         maxPlayers: parseInt(maxPlayers),
@@ -391,7 +394,10 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
       // Send event creation email to the creator
       if (user.email) {
         try {
-          await sendEventCreationEmail(user.email, newEvent);
+          await sendEventCreationEmail(user.email, {
+            ...newEvent,
+            location: locationString
+          });
         } catch (emailError) {
           console.error('Error sending event creation email:', emailError);
         }

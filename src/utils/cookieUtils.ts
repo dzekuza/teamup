@@ -114,11 +114,10 @@ export const getUserPreferences = (): object | null => {
  * Clear all cookies set by the application
  */
 export const clearAllCookies = (): void => {
-  // Get all cookies
   const allCookies = Cookies.get();
   
   // Remove each cookie
-  Object.keys(allCookies).forEach(cookie => {
+  Object.keys(allCookies).forEach((cookie: string) => {
     removeCookie(cookie);
   });
 }; 

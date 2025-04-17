@@ -2,6 +2,7 @@ import './setupReact';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
+import 'maplibre-gl/dist/maplibre-gl.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 import { CookieProvider } from './contexts/CookieContext';
