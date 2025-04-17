@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { Navbar } from './components/Navbar';
 import { MobileNavigation } from './components/MobileNavigation';
 import { EmailVerificationBanner } from './components/EmailVerificationBanner';
+import CookieConsentBanner from './components/CookieConsentBanner';
 import { Home } from './pages/Home';
 import Login from './pages/Login';
 import { Register } from './pages/Register';
@@ -12,6 +13,7 @@ import LandingPage from './pages/LandingPage';
 import { useAuth } from './hooks/useAuth';
 import Preloader from './components/Preloader';
 import { SavedEvents } from './pages/SavedEvents';
+import { useCookieContext } from './contexts/CookieContext';
 
 // Add global styles for mobile navigation padding
 const mobileNavStyles = `
@@ -27,6 +29,7 @@ const mobileNavStyles = `
 
 const App: React.FC = () => {
   const { user, loading } = useAuth();
+  const { preferences } = useCookieContext();
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   useEffect(() => {
@@ -65,6 +68,9 @@ const App: React.FC = () => {
           <Route path="/saved-events" element={user ? <SavedEvents /> : <Navigate to="/login" />} />
         </Routes>
         {user && isMobile && <MobileNavigation />}
+        
+        {/* Show cookie consent banner if user hasn't provided consent yet */}
+        {(!preferences || !preferences.cookieConsent) && <CookieConsentBanner />}
       </Router>
     </div>
   );
