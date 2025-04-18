@@ -8,6 +8,10 @@
     ],
     "rewrites": [
       {
+        "source": "/event{,/**}",
+        "function": "generateEventMetaTags"
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }

@@ -27,6 +27,7 @@ import {
 import { ShareMemoryDialog } from '../components/ShareMemoryDialog';
 import { EditEventDialog } from '../components/EditEventDialog';
 import { ShareEventDialog } from '../components/ShareEventDialog';
+import { EventStickyBar } from '../components/EventStickyBar';
 // Don't use React Icons for now - using SVG directly
 // import { FaShareAlt } from 'react-icons/fa/index.js';
 // import { FaEdit } from 'react-icons/fa/index.js';
@@ -393,8 +394,10 @@ const EventDetails: React.FC = () => {
   };
 
   // Make sure handleEditEvent is defined
-  const handleEditEvent = () => {
-    setProfileDialogOpen(true);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  
+  const handleEdit = () => {
+    setIsEditDialogOpen(true);
   };
 
   // Add handle delete event function
@@ -601,6 +604,9 @@ const EventDetails: React.FC = () => {
     }
   };
 
+  // Determine if the current user is the creator
+  const isCreator = user?.uid === event.createdBy;
+
   return (
     <div className="min-h-screen bg-[#121212] pb-24 md:pb-8 text-white">
       {loading ? (
@@ -692,7 +698,7 @@ const EventDetails: React.FC = () => {
               {(isUserCreator || currentUser?.isAdmin) && (
                 <>
                   <button
-                    onClick={handleEditEvent}
+                    onClick={handleEdit}
                     className="flex items-center space-x-1 text-gray-300 hover:text-[#C1FF2F]"
                   >
                     <svg
@@ -810,38 +816,7 @@ const EventDetails: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Show join/leave button only on desktop */}
-                <div className="hidden md:block mt-6">
-                  {event.status !== 'completed' && new Date() < new Date(`${event.date}T${event.time}`) && (
-                    <div>
-                      {isPlayerInEvent ? (
-                        <button
-                          onClick={handleLeaveEvent}
-                          className="w-full bg-[#FF3B3B] hover:bg-[#E02F2F] text-white font-medium py-2 px-4 rounded-lg transition duration-200"
-                          disabled={isLoading || actionInProgress}
-                        >
-                          {actionInProgress ? <span className="animate-pulse">Processing...</span> : 'Leave Game'}
-                        </button>
-                      ) : event.players && event.players.length < event.maxPlayers ? (
-                        <button
-                          onClick={handleJoinEvent}
-                          className="w-full bg-[#C1FF2F] hover:bg-[#a4e620] text-[#161723] font-medium py-2 px-4 rounded-lg transition duration-200"
-                          disabled={isLoading || actionInProgress}
-                        >
-                          {actionInProgress ? <span className="animate-pulse">Processing...</span> : 'Join Game'}
-                        </button>
-                      ) : (
-                        <button
-                          className="w-full bg-[#252736] text-white font-medium py-2 px-4 rounded-lg cursor-not-allowed"
-                          disabled
-                        >
-                          Game Full
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-
+                {/* Match results and share memory buttons */}
                 {event.status === 'completed' && event.matchResults && (
                   <div className="mt-6">
                     <button
@@ -980,6 +955,17 @@ const EventDetails: React.FC = () => {
               </div>
             </div>
           )}
+
+          {/* Desktop Sticky Bar (The one we are keeping) */}
+          <EventStickyBar 
+            event={event}
+            user={currentUser}
+            isJoined={isPlayerInEvent}
+            isPastEvent={new Date() > new Date(`${event.date}T${event.time}`)}
+            onJoin={handleJoinEvent}
+            onLeave={handleLeaveEvent}
+            isLoading={actionInProgress}
+          />
         </>
       )}
 
@@ -992,10 +978,10 @@ const EventDetails: React.FC = () => {
       )}
 
       {/* Edit Event Dialog */}
-      {profileDialogOpen && event && (
+      {event && (
         <EditEventDialog
-          open={profileDialogOpen}
-          onClose={() => setProfileDialogOpen(false)}
+          open={isEditDialogOpen}
+          onClose={() => setIsEditDialogOpen(false)}
           onEventUpdated={() => {
             // Refresh event data after update
             window.location.reload();

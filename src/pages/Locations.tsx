@@ -11,7 +11,7 @@ import { EventCard } from '../components/EventCard';
 import { EventNote as EventIcon, ArrowCircleUp as ArrowUpIcon, Add as AddIcon, FilterAlt as FilterIcon, Search as SearchIcon } from '@mui/icons-material';
 import { CreateEventDialog } from '../components/CreateEventDialog';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft as ChevronLeftIcon } from '@mui/icons-material';
+import { ChevronLeft as ChevronLeftIcon, ChevronRight as ChevronRightIcon } from '@mui/icons-material';
 
 interface ViewState {
   longitude: number;
@@ -255,159 +255,144 @@ const Locations: React.FC = () => {
   const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(true);
 
   return (
-    <div className="h-screen w-screen relative overflow-hidden">
-      {/* Full-screen map as background */}
-      <div className="absolute inset-0 z-0">
-        <Map
-            mapLib={Promise.resolve(maplibregl)}
-            initialViewState={viewState}
-            style={{ width: '100%', height: '100%' }}
-            mapStyle="https://api.maptiler.com/maps/streets-v2-dark/style.json?key=33rTk4pHojFrbxONf77X"
-            attributionControl={false}
-          >
-            {/* No need for transparent overlay since map is now interactive */}
-            {filteredLocations.map((location, index) => (
-              <Marker
-                key={index}
-                longitude={location.coordinates.lng}
-                latitude={location.coordinates.lat}
-              >
-                <div 
-                  className={`py-1 px-3 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${
-                    hoveredLocationId === location.name || selectedLocation?.name === location.name 
-                      ? 'bg-[#C1FF2F] text-black' 
-                      : 'bg-[#2A2A2A]/80 text-white'
-                  }`}
-                  onClick={() => navigate(`/location/${encodeURIComponent(location.name)}`)}
-                >
-                  {location.name}
-                </div>
-              </Marker>
-            ))}
-          </Map>
-      </div>
-
-      {/* Left side panel for locations */}
-      <div className="flex flex-grow w-full h-[calc(100vh-64px)] bg-black">
-        {/* Left panel with search and location list */}
-        <div className={`${isLeftPanelOpen ? 'w-[400px]' : 'w-0'} h-full transition-width duration-300 bg-black overflow-hidden relative`}>
-          <div className="h-full flex flex-col">
-            <div className="flex items-center justify-between p-4">
-              <h2 className="text-lg font-bold text-white">Locations</h2>
-              {/* Toggle button for left panel */}
-              <button 
-                onClick={() => setIsLeftPanelOpen(false)}
-                className="p-1 rounded-full hover:bg-gray-800"
-              >
-                <ChevronLeftIcon />
-              </button>
-            </div>
-            
-            {/* Location list container */}
-            <div className="overflow-y-auto flex-grow py-4 my-4">
-              {filteredLocations.length === 0 ? (
-                <div className="p-6 text-center">
-                  <p className="text-gray-400">No venues match your search criteria</p>
-                  <button
-                    onClick={() => {
-                      setSearchTerm('');
-                      setSelectedSportType('all');
-                    }}
-                    className="mt-4 bg-[#2A2A2A] text-white px-4 py-2 rounded-lg hover:bg-[#3A3A3A]"
+    <div className="min-h-screen bg-[#121212] pb-8 text-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-8">
+        <div className="flex flex-col md:flex-row gap-6 h-[calc(100vh-10rem)]">
+          <div className={`${isLeftPanelOpen ? 'w-full md:w-[400px]' : 'w-0'} h-full transition-all duration-300 bg-[#1A1A1A] rounded-lg overflow-hidden relative flex flex-col`}>
+            {isLeftPanelOpen && (
+              <>
+                <div className="flex items-center justify-between p-4 border-b border-gray-700 flex-shrink-0">
+                  <h2 className="text-lg font-bold text-white">Locations</h2>
+                  <button 
+                    onClick={() => setIsLeftPanelOpen(false)}
+                    className="p-1 rounded-full text-gray-400 hover:text-white hover:bg-gray-800 md:block hidden"
+                    aria-label="Close locations panel"
                   >
-                    Clear Filters
+                    <ChevronLeftIcon />
                   </button>
                 </div>
-              ) : (
-                <div className="divide-y divide-gray-800">
-                  {filteredLocations.map((location, index) => (
-                    <div 
-                      key={index} 
-                      className={`p-4 cursor-pointer transition-all duration-200 border-b border-gray-800 last:border-b-0 ${
-                        selectedLocation?.name === location.name 
-                          ? 'bg-[#2A2A2A]' 
-                          : hoveredLocationId === location.name
-                            ? 'bg-[#1A1A1A]'
-                            : 'hover:bg-[#1A1A1A]'
-                      }`}
-                      onClick={() => navigate(`/location/${encodeURIComponent(location.name)}`)}
-                      onMouseEnter={() => setHoveredLocationId(location.name)}
-                      onMouseLeave={() => setHoveredLocationId(null)}
-                    >
-                      <div className="flex flex-col">
-                        <div className="flex items-start">
-                          <div className="w-20 h-20 rounded-lg overflow-hidden mr-3 flex-shrink-0">
-                            <img 
-                              src={location.image} 
-                              alt={location.name} 
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                // Fallback image on error
-                                (e.target as HTMLImageElement).src = "https://firebasestorage.googleapis.com/v0/b/newprojecta-36c09.appspot.com/o/Locations%2Fstatic%20cover.jpg?alt=media&token=4c319254-5854-4b3c-9bc7-e67cfe1a58b1";
-                              }}
-                            />
-                          </div>
-                          <div className="flex-1">
-                            {/* Make location name more visible with larger font and higher contrast */}
-                            <h3 className="font-semibold text-lg text-white">{location.name}</h3>
-                            <div className="flex items-center mt-1">
-                              <div className="flex text-[#C1FF2F]">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                                </svg>
-                                <span className="ml-1 text-xs">4.9, 200 reviews</span>
+
+                <div className="p-4 border-b border-gray-700 flex-shrink-0">
+                  <input 
+                    type="text" 
+                    placeholder="Search locations..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full p-2 rounded-md bg-[#2A2A2A] text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-[#C1FF2F]"
+                  />
+                </div>
+
+                <div className="overflow-y-auto flex-grow">
+                  {filteredLocations.length === 0 ? (
+                    <div className="p-6 text-center">
+                      <p className="text-gray-400">No venues match your search criteria</p>
+                      <button
+                        onClick={() => {
+                          setSearchTerm('');
+                          setSelectedSportType('all');
+                        }}
+                        className="mt-4 bg-[#2A2A2A] text-white px-4 py-2 rounded-lg hover:bg-[#3A3A3A]"
+                      >
+                        Clear Filters
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-gray-800">
+                      {filteredLocations.map((location, index) => (
+                        <div 
+                          key={index} 
+                          className={`p-4 cursor-pointer transition-colors duration-150 ${ 
+                            selectedLocation?.name === location.name 
+                              ? 'bg-[#2A2A2A]'
+                              : hoveredLocationId === location.name
+                                ? 'bg-[#222222]'
+                                : 'hover:bg-[#1F1F1F]'
+                          }`}
+                          onClick={() => navigate(`/location/${encodeURIComponent(location.name)}`)}
+                          onMouseEnter={() => setHoveredLocationId(location.name)}
+                          onMouseLeave={() => setHoveredLocationId(null)}
+                        >
+                          <div className="flex flex-col">
+                            <div className="flex items-start">
+                              <div className="w-20 h-20 rounded-lg overflow-hidden mr-3 flex-shrink-0">
+                                <img 
+                                  src={location.image} 
+                                  alt={location.name} 
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).src = "https://firebasestorage.googleapis.com/v0/b/newprojecta-36c09.appspot.com/o/Locations%2Fstatic%20cover.jpg?alt=media&token=4c319254-5854-4b3c-9bc7-e67cfe1a58b1";
+                                  }}
+                                />
+                              </div>
+                              <div className="flex-1">
+                                <h3 className="font-semibold text-base text-white mb-1">{location.name}</h3>
+                                <p className="text-xs text-gray-400 mt-1 line-clamp-2">{location.address}</p>
                               </div>
                             </div>
-                            <p className="text-xs text-gray-400 mt-1">{location.address}</p>
                           </div>
                         </div>
-                      </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
-              )}
-            </div>
+              </>
+            )}
+          </div>
+
+          <div className="flex-1 h-full rounded-lg overflow-hidden relative">
+            {!isLeftPanelOpen && (
+              <button 
+                onClick={() => setIsLeftPanelOpen(true)}
+                className="absolute top-4 left-4 z-20 p-2 bg-[#1A1A1A]/80 backdrop-blur-sm text-white rounded-full hover:bg-gray-800 transition-colors shadow-md"
+                aria-label="Open locations panel"
+              >
+                <ChevronRightIcon />
+              </button>
+            )}
+            
+            <Map
+              {...({
+                initialViewState: viewState,
+                onMove: (evt: any) => setViewState(evt.viewState), 
+                style: { width: '100%', height: '100%' },
+                mapLib: Promise.resolve(maplibregl),
+                mapStyle: "https://api.maptiler.com/maps/streets-v2-dark/style.json?key=33rTk4pHojFrbxONf77X",
+                children: (
+                  <>
+                    {filteredLocations.map((location, index) => (
+                      <Marker
+                        key={index}
+                        longitude={location.coordinates.lng}
+                        latitude={location.coordinates.lat}
+                      >
+                        <div 
+                          className={`py-1 px-2 rounded-md text-xs font-medium transition-colors cursor-pointer shadow ${ 
+                            hoveredLocationId === location.name || selectedLocation?.name === location.name 
+                              ? 'bg-[#C1FF2F] text-black' 
+                              : 'bg-[#2A2A2A]/80 text-white backdrop-blur-sm'
+                          }`}
+                          onClick={() => navigate(`/location/${encodeURIComponent(location.name)}`)}
+                          onMouseEnter={() => setHoveredLocationId(location.name)}
+                          onMouseLeave={() => setHoveredLocationId(null)}
+                        >
+                          {location.name}
+                        </div>
+                      </Marker>
+                    ))}
+                  </>
+                )
+              } as any)} 
+            />
           </div>
         </div>
       </div>
 
-      {/* Selected Location Info Overlay (if a location is selected) */}
-      {selectedLocation && (
-        <div className="absolute bottom-0 left-0 right-0 p-4 z-20 sm:left-1/3 lg:left-1/4">
-          <div className="bg-[#1E1E1E] rounded-xl p-4 shadow-lg max-w-2xl mx-auto">
-            <div className="flex items-start justify-between">
-              <div>
-                <h2 className="text-xl font-bold text-[#C1FF2F]">{selectedLocation.name}</h2>
-                <p className="text-sm text-gray-300 mt-1">{selectedLocation.address}</p>
-              </div>
-              <button
-                onClick={() => navigate(`/location/${encodeURIComponent(selectedLocation.name)}`)}
-                className="bg-[#C1FF2F] text-black px-4 py-2 rounded-lg font-medium hover:bg-[#B1EF1F] transition-colors"
-              >
-                View Details
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Create Event Dialog */}
       {selectedLocation && (
         <CreateEventDialog
           open={isCreateDialogOpen}
           onClose={() => setIsCreateDialogOpen(false)}
           onEventCreated={handleEventCreated}
         />
-      )}
-
-      {/* Toggle button for left panel - visible when panel is closed */}
-      {!isLeftPanelOpen && (
-        <button 
-          onClick={() => setIsLeftPanelOpen(true)}
-          className="absolute top-4 left-4 z-20 p-2 bg-black rounded-full hover:bg-gray-800"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-        </button>
       )}
     </div>
   );

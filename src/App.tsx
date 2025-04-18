@@ -49,7 +49,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#111111]">
+    <div className="min-h-screen bg-[#020304]">
       {/* Add global styles */}
       <style>{mobileNavStyles}</style>
       

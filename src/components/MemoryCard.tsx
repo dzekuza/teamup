@@ -34,9 +34,6 @@ interface MemoryCardProps {
 }
 
 export const MemoryCard: FC<MemoryCardProps> = ({ memory, onDelete }) => {
-  // Return null early if memory is not provided
-  if (!memory) return null;
-
   const { user } = useAuth();
   const navigate = useNavigate();
   const [creatorInfo, setCreatorInfo] = useState<{
@@ -50,12 +47,9 @@ export const MemoryCard: FC<MemoryCardProps> = ({ memory, onDelete }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Check if current user is the creator of the memory
-  const isCreator = user?.uid === memory.createdBy;
-
   useEffect(() => {
-    const fetchCreatorInfo = async () => {
-      if (memory.createdBy) {
+    if (memory?.createdBy) {
+      const fetchCreatorInfo = async () => {
         const userDoc = await getDoc(doc(db, 'users', memory.createdBy));
         if (userDoc.exists()) {
           const userData = userDoc.data();
@@ -65,21 +59,27 @@ export const MemoryCard: FC<MemoryCardProps> = ({ memory, onDelete }) => {
             emailVerified: userData.emailVerified || false
           });
         }
-      }
-    };
-
-    fetchCreatorInfo();
-  }, [memory.createdBy]);
+      };
+      fetchCreatorInfo();
+    }
+  }, [memory?.createdBy]);
 
   useEffect(() => {
-    if (memory.likes && user) {
+    if (memory?.likes && user) {
       setIsLiked(memory.likes.includes(user.uid));
       setLikeCount(memory.likes.length);
+    } else {
+      setIsLiked(false);
+      setLikeCount(0);
     }
-  }, [memory.likes, user]);
+  }, [memory?.likes, user]);
+
+  if (!memory) return null;
+
+  const isCreator = user?.uid === memory.createdBy;
 
   const handleLike = async () => {
-    if (!user) return;
+    if (!user || !memory) return;
 
     try {
       const memoryRef = doc(db, 'memories', memory.id);
@@ -105,11 +105,12 @@ export const MemoryCard: FC<MemoryCardProps> = ({ memory, onDelete }) => {
   };
 
   const handleEventClick = () => {
+    if (!memory) return;
     navigate(`/event/${memory.eventId}`);
   };
 
   const handleDeleteMemory = async () => {
-    if (!user || !isCreator || isDeleting) return;
+    if (!user || !memory || !isCreator || isDeleting) return;
     
     try {
       setIsDeleting(true);

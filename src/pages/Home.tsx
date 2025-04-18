@@ -407,19 +407,25 @@ export const Home: FC<HomeProps> = ({ myEventsOnly = false, notificationsOnly = 
           />
         ) : (
           <div className="h-[60vh] rounded-lg overflow-hidden relative">
-            <Map 
-              initialViewState={initialViewState} 
-              mapStyle="https://api.maptiler.com/maps/streets/style.json?key=33rTk4pHojFrbxONf77X"
-              style={{width: '100%', height: '100%'}}
-              mapLib={maplibregl}
+            <Map
+              mapLib={Promise.resolve(maplibregl)}
+              initialViewState={{
+                longitude: 25.2797, // Default center (Vilnius)
+                latitude: 54.6872,
+                zoom: 11
+              }}
+              style={{ width: '100%', height: '100%' }}
+              mapStyle="https://api.maptiler.com/maps/streets-v2-dark/style.json?key=33rTk4pHojFrbxONf77X"
+              onError={(e: Error) => console.error("Map error:", e)}
             >
-              {/* Markers */}
-              {events.map(event => (
-                event.customLocationCoordinates && (
+              {events.map(event => {
+                const coords = event.customLocationCoordinates;
+                if (!coords) return null;
+                return (
                   <Marker 
                     key={event.id}
-                    longitude={event.customLocationCoordinates.lng}
-                    latitude={event.customLocationCoordinates.lat}
+                    longitude={coords.lng}
+                    latitude={coords.lat}
                     anchor="center"
                   >
                     <div 
@@ -434,8 +440,8 @@ export const Home: FC<HomeProps> = ({ myEventsOnly = false, notificationsOnly = 
                       </span>
                     </div>
                   </Marker>
-                )
-              ))}
+                );
+              })}
             </Map>
             
             {/* Custom Popup Div - Keep outside Map */}

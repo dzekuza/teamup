@@ -47,7 +47,7 @@ interface EventCardProps {
 
 const PlayerTooltip: React.FC<{ children: React.ReactNode; content: string }> = ({ children, content }) => {
   const [isOpen, setIsOpen] = useState(false);
-
+  
   return (
     <div className="relative">
       <div
@@ -239,11 +239,11 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
                   name: userData?.displayName || 'Unknown Player',
                   email: userData?.email || undefined
                 };
-              }
-            } catch (error) {
-              console.error(`Error fetching player info for ID ${player.id}:`, error);
             }
+          } catch (error) {
+              console.error(`Error fetching player info for ID ${player.id}:`, error);
           }
+        }
         }
         
         setPlayerInfos(initialInfos);
@@ -323,7 +323,7 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
 
     setIsLoading(true);
     setError(null);
-
+    
     try {
       const eventRef = doc(db, 'events', event.id);
       const eventDoc = await getDoc(eventRef);
@@ -334,7 +334,7 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
         setIsLoading(false);
         return;
       }
-
+      
       const eventData = eventDoc.data() as Event;
       console.log('Event data from DB:', eventData);
       
@@ -351,7 +351,7 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
         setIsLoading(false);
         return;
       }
-
+      
       const newPlayer: Player = {
         id: user.uid,
         name: user.displayName || 'Unknown Player',
@@ -396,9 +396,9 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
         players: updatedPlayers
       });
       console.log('Successfully updated players in database');
-
+      
       try {
-        // Create notification for event creator
+      // Create notification for event creator
         await createNotification({
           type: 'event_joined',
           eventId: event.id,
@@ -648,9 +648,10 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
       {/* Location image and event details section */}
       <div className="relative overflow-hidden" style={{ height: "16rem" }}>
         <img
-          src={locationImage}
-          alt={event.location}
+          src={event.coverImageURL ? event.coverImageURL : (event?.sportType === 'Padel' && locationData?.image ? locationData.image : DEFAULT_COVER_IMAGE)}
+          alt={event.title || 'Event image'}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          onError={(e) => (e.currentTarget.src = DEFAULT_COVER_IMAGE)}
         />
         {/* Gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent" />
@@ -684,11 +685,11 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
         {/* Add the save button */}
         <div className="absolute top-2 right-2 z-10">
           <button
-            onClick={handleSaveEvent}
+          onClick={handleSaveEvent}
             disabled={savingEvent}
             className="bg-black/50 hover:bg-black/70 rounded-full p-1 transition-colors"
-          >
-            {isSaved ? (
+        >
+          {isSaved ? (
               <Bookmark className="text-[#C1FF2F]" />
             ) : (
               <BookmarkBorder className="text-white" />
@@ -815,9 +816,9 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
         </div>
 
         {/* Join Button */}
-        {!isJoined && !isPastEvent() && (
+            {!isJoined && !isPastEvent() && (
           <button
-            onClick={handleJoinEvent}
+                onClick={handleJoinEvent}
             disabled={isLoading}
             className="w-full bg-[#C1FF2F] text-black py-3.5 px-4 rounded-xl font-semibold hover:bg-[#B1EF1F] transform hover:translate-y-[-2px] transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md hover:shadow-[#C1FF2F]/30"
           >
@@ -838,10 +839,10 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
         )}
 
         {/* Leave game button */}
-        {isJoined && !isPastEvent() && (
+            {isJoined && !isPastEvent() && (
           <button
-            onClick={handleLeaveEvent}
-            disabled={isLoading}
+                onClick={handleLeaveEvent}
+                disabled={isLoading}
             className="mt-3 w-full bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl py-3.5 px-4 font-medium hover:from-red-700 hover:to-red-800 transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-sm hover:shadow-md hover:shadow-red-900/30 transform hover:translate-y-[-2px]"
           >
             {isLoading ? (

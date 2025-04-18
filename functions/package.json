@@ -2,7 +2,7 @@
   "name": "functions",
   "description": "Cloud Functions for Firebase",
   "scripts": {
-    "lint": "echo \"No linting configured\"",
+    "lint": "eslint .",
     "serve": "firebase emulators:start --only functions",
     "shell": "firebase functions:shell",
     "start": "npm run shell",
@@ -10,18 +10,20 @@
     "logs": "firebase functions:log"
   },
   "engines": {
-    "node": "18"
+    "node": "20"
   },
   "main": "index.js",
   "dependencies": {
-    "@mailerlite/mailerlite-nodejs": "^1.4.0",
     "@sendgrid/mail": "^7.7.0",
-    "firebase-admin": "^11.11.0",
-    "firebase-functions": "^4.5.0",
+    "firebase-admin": "latest",
+    "firebase-functions": "latest",
+    "node-fetch": "^2.7.0",
     "nodemailer": "^6.9.7"
   },
   "devDependencies": {
-    "firebase-functions-test": "^3.1.0"
+    "eslint": "^8.15.0",
+    "eslint-config-google": "^0.14.0",
+    "firebase-functions-test": "^3.4.1"
   },
   "private": true
 }
