@@ -11,13 +11,14 @@ import { VerifyEmail } from './pages/VerifyEmail';
 import EventDetails from './pages/EventDetails';
 import SingleLocation from './pages/SingleLocation';
 import LandingPage from './pages/LandingPage';
-import { useAuth } from './hooks/useAuth';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Preloader from './components/Preloader';
 import { SavedEvents } from './pages/SavedEvents';
 import { Community } from './pages/Community';
 import Locations from './pages/Locations';
 import { useCookieContext } from './contexts/CookieContext';
+import { AccessProvider, useAccess } from './contexts/AccessContext';
+import AccessCodePage from './pages/AccessCodePage';
 
 // Add global styles for mobile navigation padding
 const mobileNavStyles = `
@@ -32,8 +33,9 @@ const mobileNavStyles = `
 `;
 
 const AppContent: React.FC = () => {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { preferences } = useCookieContext();
+  const { isAccessGranted } = useAccess();
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   useEffect(() => {
@@ -45,37 +47,39 @@ const AppContent: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  if (loading) {
+  if (authLoading) {
     return <Preloader />;
+  }
+
+  if (!isAccessGranted) {
+    return <AccessCodePage />;
   }
 
   return (
     <div className="min-h-screen bg-[#121212] text-white flex flex-col">
       {!isMobile && <Navbar />}
       <main className="flex-grow container mx-auto px-4 py-8 pt-4">
-        <Outlet />
+        <Routes>
+          <Route path="/" element={user ? <Home /> : <LandingPage />} />
+          <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
+          <Route path="/register" element={!user ? <Register /> : <Navigate to="/" />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/event/:id" element={user ? <EventDetails /> : <Navigate to="/login" />} />
+          <Route path="/my-events" element={user ? <Home myEventsOnly={true} /> : <Navigate to="/login" />} />
+          <Route path="/notifications" element={user ? <Home notificationsOnly={true} /> : <Navigate to="/login" />} />
+          <Route path="/community" element={user ? <Community /> : <Navigate to="/login" />} />
+          <Route path="/saved-events" element={user ? <SavedEvents /> : <Navigate to="/login" />} />
+          <Route path="/locations" element={user ? <Locations /> : <Navigate to="/login" />} />
+          <Route path="/location/:locationId" element={user ? <SingleLocation /> : <Navigate to="/login" />} />
+        </Routes>
       </main>
       {user && (
         <>
           <EmailVerificationBanner />
         </>
       )}
-      <Routes>
-        <Route path="/" element={user ? <Home /> : <LandingPage />} />
-        <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
-        <Route path="/register" element={!user ? <Register /> : <Navigate to="/" />} />
-        <Route path="/verify-email" element={<VerifyEmail />} />
-        <Route path="/event/:id" element={user ? <EventDetails /> : <Navigate to="/login" />} />
-        <Route path="/my-events" element={user ? <Home myEventsOnly={true} /> : <Navigate to="/login" />} />
-        <Route path="/notifications" element={user ? <Home notificationsOnly={true} /> : <Navigate to="/login" />} />
-        <Route path="/community" element={user ? <Community /> : <Navigate to="/login" />} />
-        <Route path="/saved-events" element={user ? <SavedEvents /> : <Navigate to="/login" />} />
-        <Route path="/locations" element={user ? <Locations /> : <Navigate to="/login" />} />
-        <Route path="/location/:locationId" element={user ? <SingleLocation /> : <Navigate to="/login" />} />
-      </Routes>
       {user && isMobile && <MobileNavigation />}
       
-      {/* Show cookie consent banner if user hasn't provided consent yet */}
       {(!preferences || !preferences.cookieConsent) && <CookieConsentBanner />}
     </div>
   );
@@ -84,9 +88,11 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
   return (
     <AuthProvider>
-      <Router>
-        <AppContent />
-      </Router>
+      <AccessProvider>
+        <Router>
+          <AppContent />
+        </Router>
+      </AccessProvider>
     </AuthProvider>
   );
 };
