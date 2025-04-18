@@ -205,7 +205,7 @@ export const SavedEvents: React.FC = () => {
           />
         </div>
 
-        {/* Desktop filters */}
+        {/* Desktop filters (and mobile overlay trigger) */}
         <div className="hidden md:block mb-6">
           <Filters
             onFilterChange={handleFilterChange}
@@ -213,6 +213,7 @@ export const SavedEvents: React.FC = () => {
             showMobileFilters={showMobileFilters}
             onCloseMobileFilters={() => setShowMobileFilters(false)}
             hideSportTypeFilter={true}
+            isMobile={true}
           />
         </div>
 
@@ -249,16 +250,6 @@ export const SavedEvents: React.FC = () => {
           </div>
         )}
       </div>
-
-      {/* Mobile filters */}
-      <Filters
-        onFilterChange={handleFilterChange}
-        currentFilters={filters}
-        showMobileFilters={showMobileFilters}
-        onCloseMobileFilters={() => setShowMobileFilters(false)}
-        isMobile
-        hideSportTypeFilter={true}
-      />
 
       {/* Create Event Dialog */}
       {showCreateDialog && (

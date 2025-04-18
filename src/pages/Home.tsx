@@ -17,7 +17,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Event, Player } from '../types/index';
-import { PADEL_LOCATIONS } from '../constants/locations'; // Import locations if needed for default images
+import { PADEL_LOCATIONS, Location as PadelLocation } from '../constants/locations'; // Import and alias Location
 import { CalendarDaysIcon, ClockIcon, ScaleIcon } from '@heroicons/react/20/solid'; // Icons for popup
 
 interface FilterOptions {
@@ -76,6 +76,17 @@ const getEventCoverImageUrl = (event: Event): string => {
     : event?.sportType === 'Padel' && locationData?.image
       ? locationData.image
       : DEFAULT_COVER_IMAGE;
+};
+
+// Helper to get coordinates for an event
+const getEventCoordinates = (event: Event): { lat: number; lng: number } | null => {
+  if (event.sportType === 'Padel') {
+    const padelLoc = PADEL_LOCATIONS.find(loc => loc.name === event.location);
+    return padelLoc?.coordinates || null;
+  } else if (event.customLocationCoordinates) {
+    return event.customLocationCoordinates;
+  }
+  return null;
 };
 
 export const Home: FC<HomeProps> = ({ myEventsOnly = false, notificationsOnly = false }) => {
@@ -235,9 +246,10 @@ export const Home: FC<HomeProps> = ({ myEventsOnly = false, notificationsOnly = 
       const map = mapRef.current.getMap();
       if (!map) return;
       
+      // Use the helper function to get coordinates
       const coordinates = events
-        .map(event => event.customLocationCoordinates)
-        .filter(coord => coord && typeof coord.lat === 'number' && typeof coord.lng === 'number');
+        .map(getEventCoordinates) // Use helper here
+        .filter(coord => coord !== null) as { lat: number; lng: number }[];
 
       if (coordinates.length === 0) return; 
 
@@ -248,10 +260,12 @@ export const Home: FC<HomeProps> = ({ myEventsOnly = false, notificationsOnly = 
       
       // Use LngLatBounds from the maplibregl instance
       const bounds = new maplibregl.LngLatBounds();
-      coordinates.forEach(coord => { bounds.extend([coord!.lng, coord!.lat]); });
-      map.fitBounds(bounds, { padding: 60, maxZoom: 15, duration: 1000 });
+      coordinates.forEach(coord => {
+        bounds.extend([coord.lng, coord.lat]);
+      });
+      map.fitBounds(bounds, { padding: 60, maxZoom: 15, essential: true });
     }
-  }, [events, viewMode]); 
+  }, [viewMode, events]); // Depend on events array
 
   // useEffect for popup positioning (using mapRef)
   useEffect(() => {
@@ -312,8 +326,8 @@ export const Home: FC<HomeProps> = ({ myEventsOnly = false, notificationsOnly = 
           </div>
 
           {!notificationsOnly && (
-            <div className="mb-4">
-              <div className="relative">
+            <div className="mb-4 flex items-center gap-2">
+              <div className="relative flex-grow">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
                 </div>
@@ -321,10 +335,17 @@ export const Home: FC<HomeProps> = ({ myEventsOnly = false, notificationsOnly = 
                   type="text"
                   value={filters.searchTerm}
                   onChange={(e) => handleSearchChange(e.target.value)}
-                  placeholder="Search by title, location, or players..."
+                  placeholder="Search..."
                   className="w-full bg-[#1A1A1A] text-white border border-gray-800 rounded-lg pl-10 p-2 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F] focus:border-transparent"
                 />
               </div>
+              <button
+                onClick={() => setShowMobileFilters(true)}
+                className="flex-shrink-0 p-2 bg-[#1A1A1A] text-gray-400 border border-gray-800 rounded-lg hover:text-white hover:border-gray-600 transition-colors"
+                aria-label="Open Filters"
+              >
+                <FunnelIcon className="h-5 w-5" />
+              </button>
             </div>
           )}
 
@@ -419,13 +440,15 @@ export const Home: FC<HomeProps> = ({ myEventsOnly = false, notificationsOnly = 
               onError={(e: Error) => console.error("Map error:", e)}
             >
               {events.map(event => {
-                const coords = event.customLocationCoordinates;
-                if (!coords) return null;
-                return (
+                // Use the helper function to get coordinates for the marker
+                const coordinates = getEventCoordinates(event);
+                
+                // Only render marker if coordinates are valid
+                return coordinates ? (
                   <Marker 
                     key={event.id}
-                    longitude={coords.lng}
-                    latitude={coords.lat}
+                    longitude={coordinates.lng}
+                    latitude={coordinates.lat}
                     anchor="center"
                   >
                     <div 
@@ -440,7 +463,7 @@ export const Home: FC<HomeProps> = ({ myEventsOnly = false, notificationsOnly = 
                       </span>
                     </div>
                   </Marker>
-                );
+                ) : null;
               })}
             </Map>
             

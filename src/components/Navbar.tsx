@@ -55,9 +55,9 @@ export const Navbar: FC = () => {
   };
 
   return (
-    <nav className="bg-[#1E1E1E] border-b border-[#2A2A2A] sticky top-0 z-50">
-      <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-20">
+    <nav className="bg-[#1E1E1E] sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
           <Link to="/" className="flex items-center">
             <img src={LogoWhite} alt="WebPadel" className="h-8 w-auto" />
           </Link>

@@ -13,21 +13,18 @@ const {onRequest} = require("firebase-functions/v2/https");
 const {onDocumentCreated, onDocumentUpdated} = require("firebase-functions/v2/firestore");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 // const {onUserCreated} = require("firebase-functions/v2/auth"); // Removed V2 Auth
-// const {defineSecret} = require("firebase-functions/params"); // Removed V2 Secret definitions
+const {defineSecret} = require("firebase-functions/params"); // Re-add for V2 secrets
 // const functions = require("firebase-functions"); // Use V1 functions - REMOVED
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
-// const MailerLite = require("@mailerlite/mailerlite-nodejs").default; // Removed
-// const sgMail = require("@sendgrid/mail"); // REMOVED
+const sgMail = require("@sendgrid/mail"); // Re-add SendGrid
 const fetch = require("node-fetch");
 
 admin.initializeApp();
 
-// Define SendGrid Secrets - Removed
-/*
+// Define SendGrid Secrets (Needed for V2 functions)
 const sendgridApiKey = defineSecret("SENDGRID_API_KEY");
 const sendgridFromEmail = defineSecret("SENDGRID_FROM_EMAIL");
-*/
 
 // Initialize SendGrid Client - Use functions.config() within the V1 function
 
@@ -73,8 +70,8 @@ exports.sendWelcomeEmail = functions.auth.user().onCreate(async (user) => {
 });
 */
 
-// 2. Handle event creation notification (V2) - Uncommented
-exports.onEventCreation = onDocumentCreated("events/{eventId}", async (event) => {
+// 2. Handle event creation notification (V2) - Re-enabled SendGrid email
+exports.onEventCreation = onDocumentCreated({secrets: [sendgridApiKey, sendgridFromEmail], document: "events/{eventId}"}, async (event) => {
   const snapshot = event.data;
   if (!snapshot) {
     logger.error("No data associated with the event: onEventCreation");
@@ -88,17 +85,37 @@ exports.onEventCreation = onDocumentCreated("events/{eventId}", async (event) =>
     const creatorDoc = await admin.firestore().collection("users").doc(creatorId).get();
 
     if (creatorDoc.exists && creatorDoc.data().email) {
-      // const creatorData = creatorDoc.data(); // Removed
-      // await sendEmail(creatorData.email, emailTemplates.eventCreated(eventData, creatorData)); // Removed
-      logger.info("Event creation processed (email sending removed)", {eventId: event.id});
+      const creatorData = creatorDoc.data();
+      const creatorEmail = creatorData.email;
+
+      // Initialize SendGrid
+      sgMail.setApiKey(sendgridApiKey.value());
+
+      // Construct email
+      const msg = {
+        to: creatorEmail,
+        from: sendgridFromEmail.value(),
+        subject: `Event Created: ${eventData.title}`,
+        text: `Hi ${creatorData.displayName || "there"},\n\nYour event "${eventData.title}" has been successfully created!\n\nDate: ${new Date(eventData.date).toLocaleDateString()}\nTime: ${eventData.time} - ${eventData.endTime || "N/A"}\nLocation: ${eventData.location}\n\nYou can view and manage your event here: https://teamup.lt/event/${event.id}\n\nInvite some friends! 🎾`,
+        // html: "<strong>Optional HTML version</strong>",
+      };
+
+      // Send email
+      await sgMail.send(msg);
+      logger.info("Event creation email sent via SendGrid", {eventId: event.id, creatorEmail: creatorEmail});
+    } else {
+      logger.warn("Creator email not found, cannot send event creation email.", {eventId: event.id, creatorId: creatorId});
     }
   } catch (error) {
-    logger.error("Error sending event creation email", {error, eventId: event.id});
+    logger.error("Error processing event creation email", {
+      error: error.response ? error.response.body : error.message,
+      eventId: event.id,
+    });
   }
 });
 
 // 3. Handle player joining event notification (V2) - Uncommented
-exports.onEventUpdate = onDocumentUpdated("events/{eventId}", async (event) => {
+exports.onEventUpdate = onDocumentUpdated({secrets: [sendgridApiKey, sendgridFromEmail], document: "events/{eventId}"}, async (event) => {
   const change = event.data;
   if (!change || !change.before || !change.after) {
     logger.error("No before/after data associated with the event: onEventUpdate");
@@ -183,7 +200,7 @@ exports.onEventUpdate = onDocumentUpdated("events/{eventId}", async (event) => {
 });
 
 // 4. Schedule function to send event reminders (runs every hour) - Already V2 - Uncommented
-exports.sendEventReminders = onSchedule("every 60 minutes", async (context) => {
+exports.sendEventReminders = onSchedule({secrets: [sendgridApiKey, sendgridFromEmail], schedule: "every 60 minutes"}, async (context) => {
   try {
     const now = new Date();
     const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
@@ -244,7 +261,7 @@ exports.sendEventReminders = onSchedule("every 60 minutes", async (context) => {
 });
 
 // 5. Schedule function to send memory sharing invitations (runs every 6 hours) - Already V2 - Uncommented
-exports.sendMemorySharingInvites = onSchedule("every 6 hours", async (context) => {
+exports.sendMemorySharingInvites = onSchedule({secrets: [sendgridApiKey, sendgridFromEmail], schedule: "every 6 hours"}, async (context) => {
   try {
     const now = new Date();
 

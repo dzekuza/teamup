@@ -11,10 +11,10 @@ const LandingPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#121212] grid md:grid-cols-2">
       {/* Left Column - Content */}
-      <div className="flex flex-col items-center justify-center p-8">
-        <img src={LogoWhite} alt="Logo" className="h-8 mb-12" />
+      <div className="flex flex-col items-start justify-center p-8 md:p-16">
+        <img src={LogoWhite} alt="Logo" className="h-12 mb-12 md:mb-16" />
         
-        <div className="w-full max-w-md space-y-8">
+        <div className="w-full max-w-md space-y-8 pl-0">
           <div>
             <h1 className="text-4xl font-bold text-white mb-3">
               Create an account or login
@@ -45,11 +45,11 @@ const LandingPage: React.FC = () => {
       </div>
 
       {/* Right Column - Phone Mockup */}
-      <div className="hidden md:flex items-center justify-center bg-[#CDEA68] relative">
+      <div className="hidden md:flex items-center justify-center bg-[#CDEA68] relative p-16">
         <img
-          src={phoneMockup}
+          src={"https://firebasestorage.googleapis.com/v0/b/newprojecta-36c09.firebasestorage.app/o/iMockup%20-%20iPhone%2015%20Pro%20Max-1.png?alt=media&token=060a25f0-cc84-4960-987b-b3bc03605a4a"}
           alt="App preview"
-          className="max-w-md w-full h-auto"
+          className="w-full h-auto object-contain max-h-[80vh]"
         />
       </div>
     </div>

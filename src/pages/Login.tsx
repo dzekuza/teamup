@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { auth } from '../firebase';
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, FacebookAuthProvider } from 'firebase/auth';
 import logoWhite from '../assets/images/logo-white.svg';
-import phoneMockup from '../assets/phonemock.png';
 import ResetPasswordDialog from '../components/ResetPasswordDialog';
 import logoGoogle from '../assets/google.svg';
 import { setCookie, getCookie, removeCookie } from '../utils/cookieUtils';
@@ -494,11 +493,11 @@ const Login: React.FC = () => {
         </div>
 
         {/* Right Column - Phone Mockup */}
-        <div className="hidden md:block relative bg-[#CDEA68] overflow-hidden">
+        <div className="hidden md:block relative bg-[#CDEA68] overflow-hidden p-16">
           <img
-            src={phoneMockup}
+            src={"https://firebasestorage.googleapis.com/v0/b/newprojecta-36c09.firebasestorage.app/o/iMockup%20-%20iPhone%2015%20Pro%20Max-2.png?alt=media&token=d8d661f7-e2f7-4710-8f13-3719e8a4945b"}
             alt="App preview"
-            className="absolute inset-0 w-full h-full object-cover object-center"
+            className="absolute inset-0 w-full h-full object-contain p-4 md:p-8"
           />
         </div>
       </div>

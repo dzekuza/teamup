@@ -21,6 +21,7 @@ import {
   Button,
   Avatar,
   CircularProgress,
+  Switch,
 } from '@mui/material';
 import { Close as CloseIcon, Add as AddIcon, Remove as RemoveIcon } from '@mui/icons-material';
 import StyledRadio from './StyledRadio';
@@ -102,6 +103,9 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
   const [coverImage, setCoverImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Define total steps at component scope
+  const totalSteps = 5;
 
   // Detect mobile screen size
   useEffect(() => {
@@ -277,32 +281,26 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
   const canProceedToNextStep = () => {
     switch (currentStep) {
       case 1:
-        return sportType !== '';
+        return sportType !== ''; // Title/Desc are optional
       case 2:
-        return date !== null && startTime !== '';
+        return level !== ''; // Cover/Privacy are optional/have defaults
       case 3:
-        if (sportType === 'Padel') {
-          return PADEL_LOCATIONS.some(loc => loc.name === location);
-        }
-        return location.trim() !== '';
+        return date !== '' && startTime !== '';
       case 4:
-        return level !== '' && maxPlayers !== '';
+        // Validate location based on sport type
+        const isLocationValid = sportType === 'Padel' 
+          ? PADEL_LOCATIONS.some(loc => loc.name === location) 
+          : location.trim() !== '';
+        return isLocationValid && maxPlayers !== '';
       case 5:
-        return true; // Privacy settings are optional
-      case 6:
-        // Allow proceeding if either friends are selected or emails are added
-        // Also enforce the rule that if 2 friends are selected, only 1 additional participant is allowed
-        const totalParticipants = selectedFriends.length + invitedEmails.length;
-        const maxAllowedParticipants = parseInt(maxPlayers) - 1; // -1 for the event creator
-        return totalParticipants <= maxAllowedParticipants && 
-               (selectedFriends.length < 2 || invitedEmails.length <= 1);
+         return true; // Price defaults, invites optional
       default:
         return false;
     }
   };
 
   const handleNext = () => {
-    if (currentStep < 6 && canProceedToNextStep()) {
+    if (currentStep < totalSteps && canProceedToNextStep()) { 
       setCurrentStep((prev) => (prev + 1) as Step);
     }
   };
@@ -650,13 +648,12 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
 
   // Progress bar rendering function
   const renderProgressBar = () => {
-    const totalSteps = 6;
     const stepPercent = (currentStep / totalSteps) * 100;
     
     return (
       <div className="mb-6">
         <div className="flex justify-between text-xs text-gray-500 mb-1">
-          <span>Step {currentStep} of {totalSteps}</span>
+          <span>Step {currentStep} of {totalSteps}</span> 
           <span>{Math.round(stepPercent)}% Complete</span>
         </div>
         <div className="w-full bg-[#2A2A2A] h-2 rounded-full overflow-hidden">
@@ -727,11 +724,11 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
     switch (currentStep) {
       case 1:
         return (
-          <div className="space-y-6">
-            <h3 className="text-xl font-semibold text-white">Select Sport Type</h3>
-            <p className="text-gray-400">Choose the type of sport for your event</p>
+          <div>
+            <h3 className="text-xl font-semibold text-white mb-2">Select Sport Type</h3>
+            <p className="text-gray-400 mb-6">Choose the type of sport for your event</p>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4 mb-6">
               {SPORTS.map((sport) => (
                 <button
                   key={sport.id}
@@ -747,35 +744,36 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
                 </button>
               ))}
             </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-400">Event Title</label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder={`${sportType || 'Your'} Event`}
+                  className="mt-1 block w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-400">Event Description</label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Describe your event, provide additional details..."
+                  className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F] min-h-[100px] resize-y"
+                />
+              </div>
+            </div>
           </div>
         );
       case 2:
         return (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-400">Event Title</label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder={`${sportType} Event`}
-                className="mt-1 block w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-400">Event Description</label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Describe your event, provide additional details..."
-                className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F] min-h-[100px] resize-y"
-              />
-            </div>
-            
-            {/* Cover Image Upload */}
-            <div>
-              <label className="block text-sm font-medium text-gray-400 mb-2">Cover Image</label>
+              <label className="block text-sm font-medium text-gray-400 mb-2">Cover Image (Optional)</label>
               <input
                 type="file"
                 accept="image/*"
@@ -783,7 +781,6 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
                 className="hidden"
                 ref={fileInputRef}
               />
-              
               {imagePreview ? (
                 <div className="relative rounded-xl overflow-hidden mb-2 h-40">
                   <img 
@@ -812,7 +809,93 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
                 </div>
               )}
             </div>
-            
+
+            <div>
+              <label className="block text-sm font-medium text-gray-400">Level</label>
+              {sportType === 'Padel' ? (
+                <select
+                  value={level}
+                  onChange={(e) => setLevel(e.target.value as Event['level'])}
+                  className="mt-1 block w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
+                  required
+                >
+                  <option value="D-">D-</option>
+                  <option value="D">D</option>
+                  <option value="D+">D+</option>
+                  <option value="C-">C-</option>
+                  <option value="C">C</option>
+                  <option value="C+">C+</option>
+                  <option value="B-">B-</option>
+                  <option value="B">B</option>
+                  <option value="B+">B+</option>
+                  <option value="A-">A-</option>
+                  <option value="A">A</option>
+                  <option value="A+">A+</option>
+                </select>
+              ) : (
+                <select
+                  value={level}
+                  onChange={(e) => setLevel(e.target.value as Event['level'])}
+                  className="mt-1 block w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
+                  required
+                >
+                  <option value="Beginner">Beginner</option>
+                  <option value="Intermediate">Intermediate</option>
+                  <option value="Advanced">Advanced</option>
+                </select>
+              )}
+            </div>
+
+            <div className="space-y-4 pt-2">
+              <label className="block text-sm font-medium text-gray-400">Event Privacy</label>
+              <div className="space-y-4">
+                <div className="flex items-center p-4 bg-[#2A2A2A] rounded-xl hover:bg-[#3A3A3A] transition-colors cursor-pointer">
+                  <input
+                    type="radio"
+                    id="public"
+                    name="privacy"
+                    checked={!isPrivate}
+                    onChange={() => setIsPrivate(false)}
+                    className="h-4 w-4 text-[#C1FF2F] border-gray-600 focus:ring-[#C1FF2F] focus:ring-offset-0"
+                  />
+                  <label htmlFor="public" className="ml-3 text-white cursor-pointer">
+                    <span className="block font-medium">Public Event</span>
+                    <span className="block text-sm text-gray-400">Anyone can join this event</span>
+                  </label>
+                </div>
+                <div className="flex items-center p-4 bg-[#2A2A2A] rounded-xl hover:bg-[#3A3A3A] transition-colors cursor-pointer">
+                  <input
+                    type="radio"
+                    id="private"
+                    name="privacy"
+                    checked={isPrivate}
+                    onChange={() => setIsPrivate(true)}
+                    className="h-4 w-4 text-[#C1FF2F] border-gray-600 focus:ring-[#C1FF2F] focus:ring-offset-0"
+                  />
+                  <label htmlFor="private" className="ml-3 text-white cursor-pointer">
+                    <span className="block font-medium">Private Event</span>
+                    <span className="block text-sm text-gray-400">Only people with the password can join</span>
+                  </label>
+                </div>
+                {isPrivate && (
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-400 mb-2">Password</label>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
+                      placeholder="Enter password for private event"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      case 3:
+        return (
+          <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-400">Date</label>
               <div className="mt-1 grid grid-cols-2 gap-2">
@@ -872,15 +955,14 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
               </div>
             </div>
 
-            {/* Time picker */}
             {showTimePicker && (
               <div 
                 className="absolute z-50 bg-[#1E1E1E] rounded-xl shadow-lg overflow-hidden w-[calc(100%-2rem)]"
                 ref={timePickerRef}
                 style={{ 
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
+                  top: '50%', 
+                  left: '50%', 
+                  transform: 'translate(-50%, -50%)', 
                   maxWidth: isMobile ? '100%' : '320px'
                 }}
               >
@@ -905,7 +987,6 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
                 </div>
                 
                 <div className="flex text-center h-40 overflow-hidden">
-                  {/* Hours */}
                   <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700">
                     {hours.map((hour) => (
                       <div 
@@ -922,7 +1003,6 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
                     ))}
                   </div>
                   
-                  {/* Minutes */}
                   <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700">
                     {minutes.map((minute) => (
                       <div 
@@ -939,7 +1019,6 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
                     ))}
                   </div>
                   
-                  {/* AM/PM */}
                   <div className="flex-1 flex flex-col justify-center">
                     <div 
                       className={`py-3 cursor-pointer hover:bg-[#2A2A2A] ${
@@ -965,137 +1044,71 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
                 </div>
               </div>
             )}
-
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="isPaid"
-                checked={isPaid}
-                onChange={(e) => setIsPaid(e.target.checked)}
-                className="w-4 h-4 text-[#C1FF2F] bg-[#2A2A2A] border-gray-600 rounded focus:ring-[#C1FF2F] focus:ring-opacity-25"
-              />
-              <label htmlFor="isPaid" className="ml-2 text-sm font-medium text-white">
-                This is a paid event
-              </label>
-            </div>
-
-            {isPaid && (
-              <div>
-                <label className="block text-sm font-medium text-gray-400">Price (€)</label>
-                <input
-                  type="number"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  min="0"
-                  step="0.01"
-                  className="mt-1 block w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
-                  required
-                />
-              </div>
-            )}
-          </div>
-        );
-      case 3:
-        return (
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-2">Location</label>
-            {sportType === 'Padel' ? (
-              <div className="grid grid-cols-2 gap-4">
-                {PADEL_LOCATIONS.map((loc) => (
-                  <button
-                    key={loc.name}
-                    type="button"
-                    onClick={() => setLocation(loc.name)}
-                    className={`w-full rounded-xl overflow-hidden ${
-                      location === loc.name 
-                        ? 'ring-2 ring-[#C1FF2F]' 
-                        : 'hover:ring-2 hover:ring-gray-500'
-                    }`}
-                  >
-                    <div className="relative h-36">
-                      <img
-                        src={loc.image}
-                        alt={loc.name}
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-                      <div className="absolute bottom-0 left-0 right-0 p-3">
-                        <p className="text-white text-sm font-medium line-clamp-2">
-                          {loc.name}
-                        </p>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div>
-                <LocationSearch 
-                  onLocationSelect={handleLocationSelect}
-                  placeholder="Search for places, venues or addresses"
-                />
-                {location && (
-                  <div className="mt-3 p-4 bg-[#2A2A2A] rounded-xl border border-[#3A3A3A]">
-                    <div className="flex items-start gap-3">
-                      <div className="bg-[#353535] p-2 rounded-lg">
-                        📍
-                      </div>
-                      <div>
-                        <p className="text-white font-medium">{location}</p>
-                        {customLocationCoordinates && (
-                          <p className="text-xs text-gray-400 mt-1">
-                            GPS: {customLocationCoordinates.lat.toFixed(6)}, {customLocationCoordinates.lng.toFixed(6)}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {!location && (
-                  <p className="mt-2 text-gray-400 text-sm">
-                    Search for a specific place, sports venue, or address for your event
-                  </p>
-                )}
-              </div>
-            )}
           </div>
         );
       case 4:
         return (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-400">Level</label>
+              <label className="block text-sm font-medium text-gray-400 mb-2">Location</label>
               {sportType === 'Padel' ? (
-                <select
-                  value={level}
-                  onChange={(e) => setLevel(e.target.value as Event['level'])}
-                  className="mt-1 block w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
-                  required
-                >
-                  <option value="D-">D-</option>
-                  <option value="D">D</option>
-                  <option value="D+">D+</option>
-                  <option value="C-">C-</option>
-                  <option value="C">C</option>
-                  <option value="C+">C+</option>
-                  <option value="B-">B-</option>
-                  <option value="B">B</option>
-                  <option value="B+">B+</option>
-                  <option value="A-">A-</option>
-                  <option value="A">A</option>
-                  <option value="A+">A+</option>
-                </select>
+                <div className="grid grid-cols-2 gap-4">
+                  {PADEL_LOCATIONS.map((loc) => (
+                    <button
+                      key={loc.name}
+                      type="button"
+                      onClick={() => setLocation(loc.name)}
+                      className={`w-full rounded-xl overflow-hidden ${
+                        location === loc.name 
+                          ? 'ring-2 ring-[#C1FF2F]' 
+                          : 'hover:ring-2 hover:ring-gray-500'
+                      }`}
+                    >
+                      <div className="relative h-36">
+                        <img
+                          src={loc.image}
+                          alt={loc.name}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+                        <div className="absolute bottom-0 left-0 right-0 p-3">
+                          <p className="text-white text-sm font-medium line-clamp-2">
+                            {loc.name}
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
               ) : (
-                <select
-                  value={level}
-                  onChange={(e) => setLevel(e.target.value as Event['level'])}
-                  className="mt-1 block w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
-                  required
-                >
-                  <option value="Beginner">Beginner</option>
-                  <option value="Intermediate">Intermediate</option>
-                  <option value="Advanced">Advanced</option>
-                </select>
+                <div>
+                  <LocationSearch 
+                    onLocationSelect={handleLocationSelect}
+                    placeholder="Search for places, venues or addresses"
+                  />
+                  {location && (
+                    <div className="mt-3 p-4 bg-[#2A2A2A] rounded-xl border border-[#3A3A3A]">
+                      <div className="flex items-start gap-3">
+                        <div className="bg-[#353535] p-2 rounded-lg">
+                          📍
+                        </div>
+                        <div>
+                          <p className="text-white font-medium">{location}</p>
+                          {customLocationCoordinates && (
+                            <p className="text-xs text-gray-400 mt-1">
+                              GPS: {customLocationCoordinates.lat.toFixed(6)}, {customLocationCoordinates.lng.toFixed(6)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {!location && (
+                    <p className="mt-2 text-gray-400 text-sm">
+                      Search for a specific place, sports venue, or address for your event
+                    </p>
+                  )}
+                </div>
               )}
             </div>
 
@@ -1131,138 +1144,131 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
       case 5:
         return (
           <div className="space-y-6">
-            <label className="block text-sm font-medium text-gray-400">Event Privacy</label>
-            <div className="space-y-4">
-              <div className="flex items-center p-4 bg-[#2A2A2A] rounded-xl hover:bg-[#3A3A3A] transition-colors cursor-pointer">
-                <input
-                  type="radio"
-                  id="public"
-                  name="privacy"
-                  checked={!isPrivate}
-                  onChange={() => setIsPrivate(false)}
-                  className="h-4 w-4 text-[#C1FF2F] border-gray-600 focus:ring-[#C1FF2F] focus:ring-offset-0"
-                />
-                <label htmlFor="public" className="ml-3 text-white cursor-pointer">
-                  <span className="block font-medium">Public Event</span>
-                  <span className="block text-sm text-gray-400">Anyone can join this event</span>
-                </label>
-              </div>
-              <div className="flex items-center p-4 bg-[#2A2A2A] rounded-xl hover:bg-[#3A3A3A] transition-colors cursor-pointer">
-                <input
-                  type="radio"
-                  id="private"
-                  name="privacy"
-                  checked={isPrivate}
-                  onChange={() => setIsPrivate(true)}
-                  className="h-4 w-4 text-[#C1FF2F] border-gray-600 focus:ring-[#C1FF2F] focus:ring-offset-0"
-                />
-                <label htmlFor="private" className="ml-3 text-white cursor-pointer">
-                  <span className="block font-medium">Private Event</span>
-                  <span className="block text-sm text-gray-400">Only people with the password can join</span>
-                </label>
-              </div>
-              {isPrivate && (
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-400 mb-2">Password</label>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
-                    placeholder="Enter password for private event"
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      case 6:
-        return (
-          <div className="space-y-6">
-            <h3 className="text-xl font-semibold text-white">Invite Friends</h3>
-            
-            {/* Friend selection */}
-            <div className="space-y-4">
-              <h4 className="text-white font-medium">Select Friends</h4>
-              
-              {loadingFriends ? (
-                <div className="flex justify-center p-4">
-                  <CircularProgress size={24} style={{ color: '#C1FF2F' }} />
-                </div>
-              ) : friendsList.length === 0 ? (
-                <p className="text-gray-400">You don't have any friends yet. Add friends from your profile or invite people by email.</p>
-              ) : (
-                <div className="space-y-2">
-                  {friendsList.map(friend => (
-                    <button
-                      key={friend.id}
-                      onClick={() => handleToggleFriend(friend.id)}
-                      className={`w-full p-4 rounded-xl transition-colors flex items-center gap-3 ${
-                        selectedFriends.includes(friend.id)
-                          ? 'bg-[#C1FF2F] hover:bg-[#b1ef1f] text-black'
-                          : 'bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white'
-                      }`}
-                    >
-                      <Avatar 
-                        src={typeof friend.photoURL === 'string' && friend.photoURL.startsWith('http') 
-                          ? friend.photoURL 
-                          : `/avatars/${friend.photoURL || 'Avatar1'}.png`} 
-                        alt={friend.displayName}
-                        sx={{ width: 40, height: 40 }}
-                      />
-                      <div className="text-left overflow-hidden">
-                        <p className="font-medium truncate">{friend.displayName}</p>
-                        {friend.email && (
-                          <p className={`text-sm truncate ${selectedFriends.includes(friend.id) ? 'text-black/70' : 'text-gray-400'}`}>{friend.email}</p>
-                        )}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
+            <div className="flex items-center justify-between">
+              <label htmlFor="isPaid" className="text-sm font-medium text-white">
+                This is a paid event
+              </label>
+              <Switch
+                id="isPaid"
+                checked={isPaid}
+                onChange={(e) => setIsPaid(e.target.checked)}
+                sx={{
+                  '& .MuiSwitch-switchBase.Mui-checked': {
+                    color: '#C1FF2F',
+                    '&:hover': {
+                      backgroundColor: 'rgba(193, 255, 47, 0.08)',
+                    },
+                  },
+                  '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                    backgroundColor: '#C1FF2F',
+                  },
+                  '& .MuiSwitch-switchBase': {
+                    color: '#9CA3AF',
+                  },
+                  '& .MuiSwitch-track': {
+                    backgroundColor: '#3A3A3A',
+                  },
+                }}
+              />
             </div>
 
-            {/* Email invitations */}
-            <div className="space-y-4">
-              <h4 className="text-white font-medium">Invite by Email</h4>
-              <div className="flex gap-2">
+            {isPaid && (
+              <div>
+                <label className="block text-sm font-medium text-gray-400">Price (€)</label>
                 <input
-                  type="email"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  placeholder="Enter email address"
-                  className="flex-1 bg-[#2A2A2A] text-white rounded-xl px-4 py-2"
+                  type="number"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  min="0"
+                  step="0.01"
+                  className="mt-1 block w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
+                  required
                 />
-                <button
-                  onClick={handleAddEmail}
-                  className="px-4 py-2 bg-[#C1FF2F] text-black rounded-xl hover:bg-[#b1ef1f] transition-colors"
-                >
-                  Add
-                </button>
               </div>
-              {invitedEmails.length > 0 && (
-                <div className="space-y-2">
-                  {invitedEmails.map(email => (
-                    <div key={email} className="flex items-center justify-between bg-[#2A2A2A] rounded-xl p-3">
-                      <span className="text-white truncate max-w-[70%]">{email}</span>
-                      <button
-                        onClick={() => handleRemoveEmail(email)}
-                        className="text-red-500 hover:text-red-600 ml-2"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Warning message if needed */}
-            {selectedFriends.length >= 2 && invitedEmails.length > 1 && (
-              <p className="text-red-500">
-                When inviting 2 friends, you can only add 1 additional participant by email.
-              </p>
             )}
+
+            <div className="space-y-4 pt-2">
+              <h3 className="text-xl font-semibold text-white">Invite Friends (Optional)</h3>
+              
+              <div className="space-y-4">
+                <h4 className="text-white font-medium">Select Friends</h4>
+                {loadingFriends ? (
+                  <div className="flex justify-center p-4">
+                    <CircularProgress size={24} style={{ color: '#C1FF2F' }} />
+                  </div>
+                ) : friendsList.length === 0 ? (
+                  <p className="text-gray-400">You don't have any friends yet. Add friends from your profile or invite people by email.</p>
+                ) : (
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {friendsList.map(friend => (
+                      <button
+                        key={friend.id}
+                        onClick={() => handleToggleFriend(friend.id)}
+                        className={`w-full p-4 rounded-xl transition-colors flex items-center gap-3 ${
+                          selectedFriends.includes(friend.id)
+                            ? 'bg-[#C1FF2F] hover:bg-[#b1ef1f] text-black'
+                            : 'bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white'
+                        }`}
+                      >
+                        <Avatar 
+                          src={typeof friend.photoURL === 'string' && friend.photoURL.startsWith('http') 
+                            ? friend.photoURL 
+                            : `/avatars/${friend.photoURL || 'Avatar1'}.png`} 
+                          alt={friend.displayName}
+                          sx={{ width: 40, height: 40 }}
+                        />
+                        <div className="text-left overflow-hidden">
+                          <p className="font-medium truncate">{friend.displayName}</p>
+                          {friend.email && (
+                            <p className={`text-sm truncate ${selectedFriends.includes(friend.id) ? 'text-black/70' : 'text-gray-400'}`}>{friend.email}</p>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="text-white font-medium">Invite by Email</h4>
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    placeholder="Enter email address"
+                    className="flex-1 bg-[#2A2A2A] text-white rounded-xl px-4 py-2"
+                  />
+                  <button
+                    onClick={handleAddEmail}
+                    className="px-4 py-2 bg-[#C1FF2F] text-black rounded-xl hover:bg-[#b1ef1f] transition-colors"
+                  >
+                    Add
+                  </button>
+                </div>
+                {invitedEmails.length > 0 && (
+                  <div className="space-y-2 max-h-32 overflow-y-auto">
+                    {invitedEmails.map(email => (
+                      <div key={email} className="flex items-center justify-between bg-[#2A2A2A] rounded-xl p-3">
+                        <span className="text-white truncate max-w-[70%]">{email}</span>
+                        <button
+                          onClick={() => handleRemoveEmail(email)}
+                          className="text-red-500 hover:text-red-600 ml-2"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {selectedFriends.length >= 2 && invitedEmails.length > 1 && (
+                <p className="text-red-500">
+                  When inviting 2 friends, you can only add 1 additional participant by email.
+                </p>
+              )}
+            </div>
           </div>
         );
       default:
@@ -1310,7 +1316,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
                 </button>
               )}
               
-              {currentStep < 6 ? (
+              {currentStep < totalSteps ? (
                 <button
                   type="button"
                   onClick={handleNext}
@@ -1387,7 +1393,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
                 </button>
               )}
               
-              {currentStep < 6 ? (
+              {currentStep < totalSteps ? (
                 <button
                   type="button"
                   onClick={handleNext}

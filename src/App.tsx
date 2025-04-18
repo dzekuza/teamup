@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { MobileNavigation } from './components/MobileNavigation';
 import { EmailVerificationBanner } from './components/EmailVerificationBanner';
@@ -12,6 +12,7 @@ import EventDetails from './pages/EventDetails';
 import SingleLocation from './pages/SingleLocation';
 import LandingPage from './pages/LandingPage';
 import { useAuth } from './hooks/useAuth';
+import { AuthProvider } from './contexts/AuthContext';
 import Preloader from './components/Preloader';
 import { SavedEvents } from './pages/SavedEvents';
 import { Community } from './pages/Community';
@@ -30,7 +31,7 @@ const mobileNavStyles = `
   }
 `;
 
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
   const { user, loading } = useAuth();
   const { preferences } = useCookieContext();
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -49,36 +50,44 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#020304]">
-      {/* Add global styles */}
-      <style>{mobileNavStyles}</style>
+    <div className="min-h-screen bg-[#121212] text-white flex flex-col">
+      {!isMobile && <Navbar />}
+      <main className="flex-grow container mx-auto px-4 py-8 pt-4">
+        <Outlet />
+      </main>
+      {user && (
+        <>
+          <EmailVerificationBanner />
+        </>
+      )}
+      <Routes>
+        <Route path="/" element={user ? <Home /> : <LandingPage />} />
+        <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
+        <Route path="/register" element={!user ? <Register /> : <Navigate to="/" />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/event/:id" element={user ? <EventDetails /> : <Navigate to="/login" />} />
+        <Route path="/my-events" element={user ? <Home myEventsOnly={true} /> : <Navigate to="/login" />} />
+        <Route path="/notifications" element={user ? <Home notificationsOnly={true} /> : <Navigate to="/login" />} />
+        <Route path="/community" element={user ? <Community /> : <Navigate to="/login" />} />
+        <Route path="/saved-events" element={user ? <SavedEvents /> : <Navigate to="/login" />} />
+        <Route path="/locations" element={user ? <Locations /> : <Navigate to="/login" />} />
+        <Route path="/location/:locationId" element={user ? <SingleLocation /> : <Navigate to="/login" />} />
+      </Routes>
+      {user && isMobile && <MobileNavigation />}
       
-      <Router>
-        {user && (
-          <>
-            <EmailVerificationBanner />
-            {isMobile ? null : <Navbar />}
-          </>
-        )}
-        <Routes>
-          <Route path="/" element={user ? <Home /> : <LandingPage />} />
-          <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
-          <Route path="/register" element={!user ? <Register /> : <Navigate to="/" />} />
-          <Route path="/verify-email" element={<VerifyEmail />} />
-          <Route path="/event/:id" element={user ? <EventDetails /> : <Navigate to="/login" />} />
-          <Route path="/my-events" element={user ? <Home myEventsOnly={true} /> : <Navigate to="/login" />} />
-          <Route path="/notifications" element={user ? <Home notificationsOnly={true} /> : <Navigate to="/login" />} />
-          <Route path="/community" element={user ? <Community /> : <Navigate to="/login" />} />
-          <Route path="/saved-events" element={user ? <SavedEvents /> : <Navigate to="/login" />} />
-          <Route path="/locations" element={user ? <Locations /> : <Navigate to="/login" />} />
-          <Route path="/location/:locationId" element={user ? <SingleLocation /> : <Navigate to="/login" />} />
-        </Routes>
-        {user && isMobile && <MobileNavigation />}
-        
-        {/* Show cookie consent banner if user hasn't provided consent yet */}
-        {(!preferences || !preferences.cookieConsent) && <CookieConsentBanner />}
-      </Router>
+      {/* Show cookie consent banner if user hasn't provided consent yet */}
+      {(!preferences || !preferences.cookieConsent) && <CookieConsentBanner />}
     </div>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <AuthProvider>
+      <Router>
+        <AppContent />
+      </Router>
+    </AuthProvider>
   );
 };
 

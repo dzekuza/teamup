@@ -1,5 +1,4 @@
 import React from 'react';
-import { addToAppleWallet } from '../utils/appleWallet';
 
 interface SuccessMessageProps {
   title: string;
@@ -63,27 +62,68 @@ export const SuccessMessage: React.FC<SuccessMessageProps> = ({
     }
   };
 
-  const handleAddToAppleWallet = async () => {
+  const handleAddToAppleCalendar = () => {
     if (!eventDetails) return;
 
     try {
+      const [year, month, day] = eventDetails.date.split('-').map(Number);
       const [startHour, startMinute] = eventDetails.time.split(' - ')[0].split(':').map(Number);
-      const startDate = new Date(eventDetails.date);
-      startDate.setHours(startHour, startMinute);
+      const [endHour, endMinute] = eventDetails.time.split(' - ')[1].split(':').map(Number);
 
-      const success = await addToAppleWallet({
-        title: eventDetails.title,
-        startDate,
-        endDate: new Date(startDate.getTime() + 60 * 60 * 1000), // 1 hour duration
-        location: eventDetails.location,
-        description: `Join us for a padel game at ${eventDetails.location}`
-      });
+      // Format dates for .ics (YYYYMMDDTHHmmssZ format, UTC)
+      const formatICSDate = (date: Date) => {
+        const pad = (n: number) => n.toString().padStart(2, '0');
+        return `${date.getUTCFullYear()}${pad(date.getUTCMonth() + 1)}${pad(date.getUTCDate())}T${pad(date.getUTCHours())}${pad(date.getUTCMinutes())}00Z`;
+      };
 
-      if (success) {
-        console.log('Event added to Apple Wallet');
+      const startDate = new Date(Date.UTC(year, month - 1, day, startHour, startMinute));
+      // If endTime exists, use it, otherwise assume 1 hour duration
+      let endDate: Date | undefined;
+      if (endHour !== undefined && endMinute !== undefined) {
+        endDate = new Date(Date.UTC(year, month - 1, day, endHour, endMinute));
+        // Handle cases where end time is on the next day (simple case for now)
+        if (endDate < startDate) {
+          endDate.setDate(endDate.getUTCDate() + 1);
+        }
+      } else {
+        endDate = new Date(startDate.getTime() + 60 * 60 * 1000); // Default 1 hour duration
       }
+      
+      const startTimeICS = formatICSDate(startDate);
+      const endTimeICS = formatICSDate(endDate);
+      const nowICS = formatICSDate(new Date());
+      const uid = `${startTimeICS}-${Math.random().toString(36).substring(2, 15)}@webpadel.app`;
+
+      // Create .ics content
+      const icsContent = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//WebPadel//Event//EN',
+        'BEGIN:VEVENT',
+        `UID:${uid}`,
+        `DTSTAMP:${nowICS}`,
+        `DTSTART:${startTimeICS}`,
+        `DTEND:${endTimeICS}`,
+        `SUMMARY:${eventDetails.title}`,
+        `LOCATION:${eventDetails.location}`,
+        `DESCRIPTION:Join the event: ${shareUrl || ''}`,
+        'END:VEVENT',
+        'END:VCALENDAR'
+      ].join('\r\n');
+
+      // Create a data URI
+      const dataUri = `data:text/calendar;charset=utf8,${encodeURIComponent(icsContent)}`;
+
+      // Create a link and trigger download
+      const link = document.createElement('a');
+      link.href = dataUri;
+      link.download = `${eventDetails.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.ics`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
     } catch (error) {
-      console.error('Error adding to Apple Wallet:', error);
+      console.error('Error creating Apple Calendar event (.ics):', error);
     }
   };
 
@@ -119,10 +159,10 @@ export const SuccessMessage: React.FC<SuccessMessageProps> = ({
 
         <div className="flex flex-col gap-3">
           {eventDetails && (
-            <>
+            <div className="flex gap-3">
               <button
                 onClick={handleAddToCalendar}
-                className="px-6 py-2 bg-[#2A2A2A] text-white rounded-xl font-medium hover:bg-[#3A3A3A] transition-colors flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2 bg-[#2A2A2A] text-white rounded-xl font-medium hover:bg-[#3A3A3A] transition-colors flex items-center justify-center gap-2 text-sm"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
@@ -130,15 +170,15 @@ export const SuccessMessage: React.FC<SuccessMessageProps> = ({
                 Add to Calendar
               </button>
               <button
-                onClick={handleAddToAppleWallet}
-                className="px-6 py-2 bg-black text-white rounded-xl font-medium hover:bg-gray-900 transition-colors flex items-center justify-center gap-2"
+                onClick={handleAddToAppleCalendar}
+                className="flex-1 px-4 py-2 bg-black text-white rounded-xl font-medium hover:bg-gray-900 transition-colors flex items-center justify-center gap-2 text-sm"
               >
-                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12.1,5.8c1.2-1.1,2.7-1.7,4.3-1.7c0.2,1.9-0.5,3.8-1.7,5c-1.2,1.2-2.7,1.7-4.2,1.7C10.3,8.9,11,7,12.1,5.8z M18.4,19.5c-0.9,1.7-1.9,3.2-3.4,3.2c-1.5,0-1.9-0.9-3.6-0.9c-1.7,0-2.2,0.9-3.6,0.9c-1.5,0-2.6-1.6-3.5-3.2c-1.9-2.9-2.1-6.3-0.9-8.1c0.8-1.2,2.2-1.9,3.7-1.9c1.5,0,2.5,0.9,3.7,0.9c1.2,0,1.9-0.9,3.7-0.9c1.3,0,2.7,0.7,3.7,1.9C15.6,13.5,15.9,18.4,18.4,19.5z"/>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
                 </svg>
-                Add to Apple Wallet
+                Add to Apple Calendar
               </button>
-            </>
+            </div>
           )}
           <button
             onClick={onClose}
