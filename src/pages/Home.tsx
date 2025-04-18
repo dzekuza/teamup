@@ -1,4 +1,4 @@
-import React, { useState, type FC, useEffect, useRef } from 'react';
+import React, { useState, type FC, useEffect, useRef, useCallback } from 'react';
 import { CreateEventDialog } from '../components/CreateEventDialog';
 import { EditEventDialog } from '../components/EditEventDialog';
 import { Filters } from '../components/Filters';
@@ -115,6 +115,11 @@ export const Home: FC<HomeProps> = ({ myEventsOnly = false, notificationsOnly = 
   const mapRef = useRef<any>(null);
   const [popupPosition, setPopupPosition] = useState<{x: number; y: number} | null>(null);
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768); // State for mobile check
+
+  // State for sport filter visibility animation
+  const lastScrollY = useRef(0);
+  const [isSportFilterVisible, setIsSportFilterVisible] = useState(true);
 
   useEffect(() => {
     if (myEventsOnly) {
@@ -280,6 +285,42 @@ export const Home: FC<HomeProps> = ({ myEventsOnly = false, notificationsOnly = 
     }
   }, [hoveredEvent]);
 
+  // Mobile check effect
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Scroll listener effect for mobile sport filter
+  useEffect(() => {
+    if (!isMobile) {
+      // Ensure filter is visible on desktop and don't attach listener
+      setIsSportFilterVisible(true);
+      return;
+    }
+
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      // Hide only if scrolling down significantly
+      if (currentScrollY > lastScrollY.current && currentScrollY > 50) { 
+        setIsSportFilterVisible(false);
+      } else {
+        setIsSportFilterVisible(true);
+      }
+      lastScrollY.current = currentScrollY;
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [isMobile]); // Rerun if isMobile changes
+
   // Define initial view state centered on Lithuania
   const initialViewState = {
     longitude: 23.88, // Approx center longitude for Lithuania
@@ -293,7 +334,9 @@ export const Home: FC<HomeProps> = ({ myEventsOnly = false, notificationsOnly = 
 
   return (
     <div className="min-h-screen bg-[#121212] pb-24 md:pb-8">
-      <div className="md:hidden sticky top-0 z-30 bg-[#121212]/80 backdrop-blur-md shadow-md">
+      {/* Mobile Header - Sticky */}
+      <div className="md:hidden sticky top-0 z-30 bg-[#121212]/80 backdrop-blur-md shadow-md relative">
+        {/* Container for Title, Toggles */}
         <div className="px-4 pt-4 pb-2">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-2xl font-bold text-white">{getPageTitle()}</h1>
@@ -325,9 +368,10 @@ export const Home: FC<HomeProps> = ({ myEventsOnly = false, notificationsOnly = 
             )}
           </div>
 
+          {/* Search and Filter Toggle Button Container */} 
           {!notificationsOnly && (
-            <div className="mb-4 flex items-center gap-2">
-              <div className="relative flex-grow">
+            <div className="mb-4 flex items-center gap-2 relative z-30"> 
+              <div className="relative flex-grow"> 
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
                 </div>
@@ -348,16 +392,21 @@ export const Home: FC<HomeProps> = ({ myEventsOnly = false, notificationsOnly = 
               </button>
             </div>
           )}
-
-          {!notificationsOnly && (
-            <div className="pb-2 overflow-x-auto">
-              <SportTypeFilter
-                selectedSportType={filters.sportType}
-                onChange={handleSportTypeChange}
-              />
-            </div>
-          )}
         </div>
+        
+        {/* Sport Type Filter Container - Keep relative z-20 */}
+        {!notificationsOnly && (
+          <div 
+            className={`relative z-20 px-4 overflow-hidden transition-all duration-300 ease-in-out ${ 
+              isSportFilterVisible ? 'max-h-20 opacity-100 pb-4' : 'max-h-0 opacity-0'
+            }`}
+          >
+            <SportTypeFilter
+              selectedSportType={filters.sportType}
+              onChange={handleSportTypeChange}
+            />
+          </div>
+        )}
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-8">

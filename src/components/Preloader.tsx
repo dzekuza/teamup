@@ -32,7 +32,7 @@ const Preloader: React.FC = () => {
           },
         }}
       >
-        <img src={LogoWhite} alt="WebPadel Logo" style={{ width: '200px' }} />
+        <img src={LogoWhite} alt="WebPadel Logo" style={{ width: '120px' }} />
       </Box>
       <CircularProgress
         sx={{
