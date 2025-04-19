@@ -4,7 +4,7 @@ import { auth } from '../firebase';
 import { createUserWithEmailAndPassword, updateProfile, signInWithPopup, FacebookAuthProvider, GoogleAuthProvider } from 'firebase/auth';
 import phoneMockup from '../assets/phonemock.png';
 import logoWhite from '../assets/images/logo-white.svg';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { sendWelcomeEmail } from '../services/sendGridService';
 import { setCookie, removeCookie } from '../utils/cookieUtils';
@@ -221,8 +221,8 @@ export const Register: React.FC = () => {
           phoneNumber: formData.phoneNumber,
           photoURL: 'Avatar1',
           sports: selectedSports,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
         });
 
         await sendWelcomeEmail(formData.email, formData.displayName);
@@ -273,13 +273,13 @@ export const Register: React.FC = () => {
         // If not, create a new one using available data
         await setDoc(doc(db, 'users', result.user.uid), {
           uid: result.user.uid,
-          email: result.user.email,
-          displayName: result.user.displayName,
+          email: result.user.email || '',
+          displayName: result.user.displayName || 'Facebook User',
           phoneNumber: result.user.phoneNumber || '',
           photoURL: result.user.photoURL || 'Avatar1',
-          sports: selectedSports.length > 0 ? selectedSports : ['padel'], // Default to padel if no sports selected
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
+          sports: selectedSports,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
         }, { merge: true }); // Use merge to avoid overwriting existing data
         
         if (result.user.email) {
@@ -317,13 +317,13 @@ export const Register: React.FC = () => {
         // Create or update the user profile
         await setDoc(doc(db, 'users', result.user.uid), {
           uid: result.user.uid,
-          email: result.user.email,
-          displayName: result.user.displayName,
+          email: result.user.email || '',
+          displayName: result.user.displayName || 'Google User',
           phoneNumber: result.user.phoneNumber || '',
           photoURL: result.user.photoURL || 'Avatar1',
-          sports: selectedSports.length > 0 ? selectedSports : ['padel'], // Default to padel if no sports selected
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
+          sports: selectedSports,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
         }, { merge: true });
         
         if (result.user.email) {

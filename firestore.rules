@@ -9,7 +9,7 @@ service cloud.firestore {
 
     // Users collection
     match /users/{userId} {
-      allow read: if true;
+      allow read: if isAuthenticated();
       allow write: if isAuthenticated() && request.auth.uid == userId;
     }
 
