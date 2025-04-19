@@ -4,12 +4,16 @@ import { PADEL_LOCATIONS, Location } from '../constants/locations';
 import Map, { Marker } from 'react-map-gl/maplibre';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, Timestamp, doc, getDoc, addDoc, serverTimestamp, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Event } from '../types';
+import { useAuth } from '../contexts/AuthContext';
+import { Event, User as AuthUser } from '../types';
 import { EventCard } from '../components/EventCard';
 import { ArrowCircleUp as ArrowUpIcon, Add as AddIcon, ArrowBack as ArrowBackIcon, Star as StarIcon, StarHalf as StarHalfIcon, StarBorder as StarBorderIcon, AccessTime as TimeIcon, Info as InfoIcon, Phone as PhoneIcon } from '@mui/icons-material';
 import { CreateEventDialog } from '../components/CreateEventDialog';
+import { Box, Typography, Paper, Grid, Button, Divider, Rating, TextField, CircularProgress, Avatar } from '@mui/material';
+import { format } from 'date-fns';
+import { toast } from 'react-hot-toast';
 
 // Helper function to recursively convert Firebase Timestamp objects to strings
 const convertTimestampsToStrings = (obj: any): any => {
@@ -211,6 +215,17 @@ const MOCK_GALLERY = {
   ]
 };
 
+// Interface for Firestore Review data
+interface Review {
+    id: string;
+    userId: string;
+    userName: string;
+    userPhotoURL?: string;
+    rating: number;
+    text: string;
+    createdAt: Timestamp;
+}
+
 // Simple star rating component
 const StarRating: React.FC<{rating: number}> = ({ rating }) => {
   const fullStars = Math.floor(rating);
@@ -238,6 +253,7 @@ interface ViewState {
 
 const SingleLocation: React.FC = () => {
   const { locationId } = useParams<{locationId: string}>();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [location, setLocation] = useState<Location | null>(null);
   const [viewState, setViewState] = useState<ViewState>({
@@ -251,97 +267,114 @@ const SingleLocation: React.FC = () => {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [workingHours, setWorkingHours] = useState<any>(null);
   const [description, setDescription] = useState<string>("");
-  const [reviews, setReviews] = useState<any[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [isLoadingReviews, setIsLoadingReviews] = useState(true);
+  const [userRating, setUserRating] = useState<number | null>(null);
+  const [reviewText, setReviewText] = useState('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [reviewError, setReviewError] = useState('');
+  const [hasUserReviewed, setHasUserReviewed] = useState(false);
   const [contactInfo, setContactInfo] = useState<any>(null);
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   
-  // Find location by name (or slug if you implement proper URL slugs)
-  useEffect(() => {
-    const decodedName = decodeURIComponent(locationId || '');
-    const foundLocation = PADEL_LOCATIONS.find(loc => loc.name === decodedName);
-    
-    if (foundLocation) {
-      setLocation(foundLocation);
-      setViewState({
-        longitude: foundLocation.coordinates.lng,
-        latitude: foundLocation.coordinates.lat,
-        zoom: 14
+  // Define fetchEventsForLocation first
+  const fetchEventsForLocation = async (locationName: string) => {
+    if (!locationName) return;
+    setIsLoading(true);
+    try {
+      const eventsQuery = query(
+        collection(db, 'events'),
+        where('location', '==', locationName)
+      );
+      const querySnapshot = await getDocs(eventsQuery);
+      const events: Event[] = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        const processedData = convertTimestampsToStrings(data);
+        const event = {
+          id: doc.id,
+          ...processedData,
+          date: data.date && typeof data.date.toDate === 'function' ?
+            data.date.toDate().toISOString().split('T')[0] : processedData.date,
+        };
+        events.push(event as Event);
       });
-      
-      // Set working hours
-      const hours = MOCK_WORKING_HOURS[foundLocation.name as keyof typeof MOCK_WORKING_HOURS];
-      setWorkingHours(hours || null);
-      
-      // Set description
-      const desc = MOCK_DESCRIPTIONS[foundLocation.name as keyof typeof MOCK_DESCRIPTIONS];
-      setDescription(desc || "No description available for this location.");
-      
-      // Set reviews
-      const revs = MOCK_REVIEWS[foundLocation.name as keyof typeof MOCK_REVIEWS];
-      setReviews(revs || []);
-      
-      // Set contact info
-      const contact = MOCK_CONTACT[foundLocation.name as keyof typeof MOCK_CONTACT];
-      setContactInfo(contact || null);
-      
-      // Set gallery images
-      const gallery = MOCK_GALLERY[foundLocation.name as keyof typeof MOCK_GALLERY];
-      setGalleryImages(gallery || []);
-    } else {
-      // Location not found, redirect to locations page
-      navigate('/locations');
+      events.sort((a, b) => {
+        const dateA = new Date(a.date + 'T' + (a.time || '00:00'));
+        const dateB = new Date(b.date + 'T' + (b.time || '00:00'));
+        return dateA.getTime() - dateB.getTime();
+      });
+      setLocationEvents(events);
+    } catch (error) {
+      console.error('Error fetching events for location:', error);
+    } finally {
+      setIsLoading(false);
     }
-  }, [locationId, navigate]);
-  
-  // Fetch events for this location
-  useEffect(() => {
-    const fetchEventsForLocation = async () => {
-      if (!location) return;
-      
-      setIsLoading(true);
-      try {
-        const eventsQuery = query(
-          collection(db, 'events'),
-          where('location', '==', location.name)
-        );
-        
-        const querySnapshot = await getDocs(eventsQuery);
-        const events: Event[] = [];
-        
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
-          
-          // Apply the recursive conversion to handle all nested timestamps
-          const processedData = convertTimestampsToStrings(data);
-          
-          const event = {
-            id: doc.id,
-            ...processedData,
-            // These specific fields are crucial, ensure they're correctly formatted
-            date: data.date && typeof data.date.toDate === 'function' ? 
-              data.date.toDate().toISOString().split('T')[0] : processedData.date,
-          };
-          
-          events.push(event as Event);
-        });
-        
-        // Sort events by date (most recent first)
-        events.sort((a, b) => {
-          const dateA = new Date(a.date + 'T' + (a.time || '00:00'));
-          const dateB = new Date(b.date + 'T' + (b.time || '00:00'));
-          return dateA.getTime() - dateB.getTime();
-        });
-        
-        setLocationEvents(events);
-      } catch (error) {
-        console.error('Error fetching events for location:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  };
 
-    fetchEventsForLocation();
-  }, [location]);
+  useEffect(() => {
+    // Decode name from URL param and find the location
+    const decodedName = decodeURIComponent(locationId || '');
+    const locationData = PADEL_LOCATIONS.find(loc => loc.name === decodedName);
+
+    if (locationData) {
+      setLocation(locationData);
+      setViewState(prev => ({
+        ...prev,
+        longitude: locationData.coordinates.lng,
+        latitude: locationData.coordinates.lat
+      }));
+      // Set mock data based on found location (Re-added)
+      const hours = MOCK_WORKING_HOURS[locationData.name as keyof typeof MOCK_WORKING_HOURS];
+      setWorkingHours(hours || null);
+      const desc = MOCK_DESCRIPTIONS[locationData.name as keyof typeof MOCK_DESCRIPTIONS];
+      setDescription(desc || "No description available.");
+      const contact = MOCK_CONTACT[locationData.name as keyof typeof MOCK_CONTACT];
+      setContactInfo(contact || null);
+      const gallery = MOCK_GALLERY[locationData.name as keyof typeof MOCK_GALLERY];
+      setGalleryImages(gallery || [locationData.image]); // Fallback to main image
+
+      // Fetch real events for the location
+      fetchEventsForLocation(locationData.name);
+    } else {
+      console.error("Location not found with name:", decodedName);
+      navigate('/locations'); // Redirect if location not found
+    }
+
+    // Fetch Reviews from Firestore using the decoded name as the document ID
+    if (decodedName) {
+        setIsLoadingReviews(true);
+        const reviewsRef = collection(db, 'locations', decodedName, 'reviews'); // Use decodedName
+        const q = query(reviewsRef, orderBy('createdAt', 'desc'));
+
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+            const fetchedReviews: Review[] = [];
+            let userReviewed = false;
+            querySnapshot.forEach((doc) => {
+                const data = doc.data() as Omit<Review, 'id'>;
+                 // Ensure createdAt exists and is a Timestamp before pushing
+                 if (data.createdAt && typeof data.createdAt.toDate === 'function') {
+                    fetchedReviews.push({ ...data, id: doc.id });
+                    if (user && data.userId === user.uid) {
+                        userReviewed = true;
+                    }
+                 } else {
+                     console.warn("Review document missing or invalid createdAt:", doc.id, data);
+                 }
+            });
+            setReviews(fetchedReviews);
+            setHasUserReviewed(userReviewed);
+            setIsLoadingReviews(false);
+        }, (error) => {
+            console.error("Error fetching reviews: ", error);
+            setIsLoadingReviews(false);
+        });
+
+        // Cleanup subscription on unmount
+        return () => unsubscribe();
+    }
+
+  }, [locationId, user, navigate]); // Add navigate to dependency array
   
   const handleEventUpdated = () => {
     // Refresh events after an event is updated
@@ -409,6 +442,60 @@ const SingleLocation: React.FC = () => {
       </div>
     );
   }
+
+  // --- Review Submission Logic ---
+  const handleSubmitReview = async () => {
+      if (!user) {
+          setReviewError("You must be logged in to leave a review.");
+          return;
+      }
+      if (userRating === null || userRating === 0) {
+          setReviewError("Please select a star rating.");
+          return;
+      }
+      if (!reviewText.trim()) {
+          setReviewError("Please write your review.");
+          return;
+      }
+      // Use the decoded name for Firestore path
+      const decodedName = decodeURIComponent(locationId || '');
+      if (!decodedName) {
+          setReviewError("Location identifier is missing.");
+          return;
+      }
+      if (hasUserReviewed) {
+          setReviewError("You have already submitted a review for this location.");
+          return;
+      }
+
+      setReviewError('');
+      setIsSubmittingReview(true);
+
+      try {
+          const reviewData = {
+              userId: user.uid,
+              userName: user.displayName || "Anonymous",
+              userPhotoURL: user.photoURL || null,
+              rating: userRating,
+              text: reviewText.trim(),
+              createdAt: serverTimestamp()
+          };
+
+          const reviewsCollectionRef = collection(db, 'locations', decodedName, 'reviews'); // Use decodedName
+          await addDoc(reviewsCollectionRef, reviewData);
+
+          setUserRating(null);
+          setReviewText('');
+          toast.success("Review submitted successfully!"); // Use toast
+
+      } catch (error) {
+          console.error("Error submitting review: ", error);
+          setReviewError("Failed to submit review. Please try again.");
+          toast.error("Failed to submit review."); // Use toast
+      } finally {
+          setIsSubmittingReview(false);
+      }
+  };
 
   return (
     <div className="min-h-screen bg-[#111111] text-white pb-24 md:pb-8 relative">
@@ -505,35 +592,104 @@ const SingleLocation: React.FC = () => {
               </div>
             </div>
             
-            {/* Reviews (Moved from right column) */}
+            {/* Reviews Section - Updated Display Logic */}
             <div className="bg-[#1E1E1E] rounded-xl p-6 shadow-md">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold">Reviews</h2>
+              <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4 gap-2">
+                <h2 className="text-xl font-bold">Reviews ({reviews.length})</h2>
                 {reviews.length > 0 && (
                   <div className="flex items-center">
-                    <StarRating rating={reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length} />
-                    <span className="ml-2">
+                    <Rating // Use MUI Rating for average display
+                        name="location-average-rating"
+                        value={reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length}
+                        precision={0.5}
+                        readOnly
+                        sx={{ color: '#C1FF2F', '& .MuiRating-iconEmpty': { color: '#555' } }}
+                    />
+                    <span className="ml-2 text-lg font-semibold">
                       {(reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)}
                     </span>
                   </div>
                 )}
               </div>
-              
-              {reviews.length > 0 ? (
+
+              {/* Review Input Form (Copied from previous correct edit) */}
+              {user && !hasUserReviewed && (
+                <Box className="mb-6 border-b border-gray-700 pb-6">
+                  <Typography variant="h6" gutterBottom>Leave a Review</Typography>
+                  <Rating
+                    name="user-rating"
+                    value={userRating}
+                    onChange={(event, newValue) => {
+                      setUserRating(newValue);
+                    }}
+                    sx={{ mb: 2, color: '#C1FF2F', '& .MuiRating-iconEmpty': { color: '#555' } }}
+                  />
+                  <TextField
+                    label="Your Review"
+                    multiline
+                    rows={3}
+                    fullWidth
+                    value={reviewText}
+                    onChange={(e) => setReviewText(e.target.value)}
+                    variant="outlined"
+                    InputLabelProps={{ style: { color: '#aaa' } }}
+                    InputProps={{ style: { color: '#fff' } }}
+                    sx={{
+                        mb: 2,
+                        '& .MuiOutlinedInput-root': {
+                            '& fieldset': { borderColor: '#555' },
+                            '&:hover fieldset': { borderColor: '#777' },
+                            '&.Mui-focused fieldset': { borderColor: '#C1FF2F' },
+                        },
+                    }}
+                  />
+                  {reviewError && <Typography color="error" variant="body2" sx={{ mb: 2 }}>{reviewError}</Typography>}
+                  <Button
+                    variant="contained"
+                    onClick={handleSubmitReview}
+                    disabled={isSubmittingReview}
+                    sx={{
+                      backgroundColor: '#C1FF2F',
+                      color: '#000',
+                      '&:hover': { backgroundColor: '#aee62a' },
+                      '&.Mui-disabled': { backgroundColor: '#555', color: '#888'}
+                    }}
+                  >
+                    {isSubmittingReview ? <CircularProgress size={24} sx={{color: '#000'}}/> : 'Submit Review'}
+                  </Button>
+                </Box>
+              )}
+              {user && hasUserReviewed && (
+                  <Typography sx={{ mb: 4, color: '#aaa', fontStyle: 'italic'}}>You have already reviewed this location.</Typography>
+              )}
+
+              {/* Display Reviews List (Corrected) */}
+              {isLoadingReviews ? (
+                 <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress sx={{ color: '#C1FF2F' }} /></Box>
+              ) : reviews.length > 0 ? (
                 <div className="space-y-4">
                   {reviews.map(review => (
-                    <div key={review.id} className="border-b border-gray-800 pb-4 last:border-b-0 last:pb-0">
-                      <div className="flex justify-between items-center">
-                        <div className="font-medium">{review.author}</div>
-                        <StarRating rating={review.rating} />
+                    <div key={review.id} className="border-b border-gray-800 pb-4 last:border-b-0 last:pb-0 flex gap-4">
+                      {/* Use Avatar */}
+                      <Avatar src={review.userPhotoURL || undefined} alt={review.userName} sx={{ width: 40, height: 40, bgcolor: '#333' }} />
+                      <div className="flex-grow">
+                        <div className="flex justify-between items-start">
+                            {/* Use userName */}
+                            <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>{review.userName}</Typography>
+                            {/* Use MUI Rating for display */}
+                            <Rating name={`review-rating-${review.id}`} value={review.rating} readOnly size="small" sx={{ color: '#C1FF2F', '& .MuiRating-iconEmpty': { color: '#555' } }}/>
+                        </div>
+                        {/* Format createdAt */}
+                        <Typography variant="caption" sx={{ color: '#aaa' }}>
+                          {review.createdAt ? format(review.createdAt.toDate(), 'PP') : 'Date unavailable'}
+                        </Typography>
+                        <Typography variant="body2" sx={{ mt: 1 }}>{review.text}</Typography>
                       </div>
-                      <div className="text-gray-400 text-sm">{review.date}</div>
-                      <div className="mt-2 text-gray-300">{review.text}</div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-400">No reviews yet.</p>
+                <p className="text-gray-400 text-center py-4">No reviews yet. Be the first!</p>
               )}
             </div>
           </div>

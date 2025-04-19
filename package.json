@@ -47,6 +47,7 @@
     "react-map-gl": "^8.0.4",
     "react-router-dom": "6.22.0",
     "react-spring-bottom-sheet": "^3.4.1",
+    "recharts": "^2.15.3",
     "tailwind-merge": "2.2.1",
     "tailwindcss-animate": "^1.0.7",
     "web-vitals": "3.5.2"

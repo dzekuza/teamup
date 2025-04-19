@@ -111,6 +111,28 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && resource.data.createdBy == request.auth.uid;
     }
 
+    // Locations collection (assuming it exists or might exist)
+    match /locations/{locationId} {
+      // Allow reading location details (adjust if needed)
+      allow read: if true;
+      // Deny direct writing to location docs for now (can be adjusted)
+      allow write: if false;
+
+      // Reviews subcollection
+      match /reviews/{reviewId} {
+        // Anyone can read reviews
+        allow read: if true;
+
+        // Only authenticated users can create reviews for themselves
+        allow create: if isAuthenticated()
+                      && request.resource.data.userId == request.auth.uid;
+
+        // Only the review author can update or delete their own review
+        allow update, delete: if isAuthenticated()
+                              && resource.data.userId == request.auth.uid;
+      }
+    }
+
     // Default deny for all other collections
     match /{document=**} {
       allow read, write: if false;

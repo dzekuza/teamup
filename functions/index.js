@@ -449,3 +449,71 @@ exports.generateEventMetaTags = onRequest(async (req, res) => {
     }
   }
 });
+
+// 5. Handle new user creation - Check user profile completion - V2
+// Assuming profile completion is tracked by a specific field, e.g., 'profileComplete'
+exports.checkUserProfileCompletion = onDocumentCreated({document: "users/{userId}"}, async (event) => {
+  // ... (rest of this function seems incomplete or unrelated - keeping it for now)
+  // logger.info("New user created, checking profile completion.");
+});
+
+// --- NEW FUNCTION --- //
+// 6. HTTPS Callable Function to send feedback email
+exports.sendFeedbackEmail = onRequest({secrets: [sendgridApiKey, sendgridFromEmail]}, async (req, res) => {
+  // V2 onRequest uses req, res instead of data, context for callables
+  // We expect data in req.body
+  const { feedbackType, feedbackMessage } = req.body.data; // Data is nested under .data for callable functions
+
+  // Basic validation
+  if (!feedbackType || !feedbackMessage) {
+    logger.error("Missing feedbackType or feedbackMessage in request body.", {body: req.body});
+    // Use res.status().send() for V2 onRequest
+    res.status(400).send({ error: "Feedback type and message are required." });
+    return;
+  }
+
+  // Get authenticated user info if available (might be anonymous feedback)
+  let userInfo = "Anonymous User";
+  // For onRequest V2, auth info is not directly in context like V1 onCall.
+  // You might need to pass the ID token in the request header from the client
+  // and verify it here using admin.auth().verifyIdToken(idToken) if strict
+  // user identification is needed. For simplicity, we'll check if user info
+  // was passed in the body (less secure, but easier for this example).
+  const userId = req.body.data.userId;
+  const userEmail = req.body.data.userEmail;
+
+  if (userId && userEmail) {
+    userInfo = `User: ${userEmail} (ID: ${userId})`;
+  } else if (userId) {
+    userInfo = `User ID: ${userId}`;
+  } else if (userEmail) {
+    userInfo = `User Email: ${userEmail}`;
+  }
+
+  // Set up SendGrid
+  try {
+    sgMail.setApiKey(sendgridApiKey.value());
+    const recipientEmail = "info@teamup.lt"; // Your target email
+    const senderEmail = sendgridFromEmail.value(); // Your verified sender email
+
+    const msg = {
+      to: recipientEmail,
+      from: senderEmail,
+      subject: `New Feedback Received: [${feedbackType}]`,
+      text: `New feedback submitted:\n\nType: ${feedbackType}\n\nMessage:\n${feedbackMessage}\n\nSubmitted by: ${userInfo}`,
+      // Optionally add HTML content
+      // html: `<p>New feedback submitted:</p>...`,
+    };
+
+    await sgMail.send(msg);
+    logger.info("Feedback email sent successfully via SendGrid.", {type: feedbackType, userInfo: userInfo});
+    res.status(200).send({ success: true }); // Send success response
+  } catch (error) {
+    logger.error("Error sending feedback email via SendGrid", {
+      error: error.response ? error.response.body : error.message,
+      feedbackType: feedbackType,
+      userInfo: userInfo,
+    });
+    res.status(500).send({ error: "Failed to send feedback email." }); // Send error response
+  }
+});

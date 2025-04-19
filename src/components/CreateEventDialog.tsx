@@ -1,5 +1,5 @@
 import { FC, useState, useRef, useEffect } from 'react';
-import { addDoc, collection, getDocs, query, where, getDoc, doc, setDoc } from 'firebase/firestore';
+import { addDoc, collection, getDocs, query, where, getDoc, doc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db, storage } from '../firebase';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
@@ -365,7 +365,35 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
         coverImageURL = await getDownloadURL(uploadResult.ref);
       }
 
-      const eventData: Omit<Event, 'id'> = {
+      // Data specifically for Firestore write
+      const eventDataForFirestore = {
+        title: eventTitle,
+        date,
+        time: startTime,
+        endTime,
+        location: locationString,
+        level,
+        players,
+        maxPlayers: parseInt(maxPlayers),
+        createdBy: user.uid,
+        price: isPaid ? parseFloat(price) : 0,
+        status: 'active' as const, // Ensure literal type
+        isPrivate,
+        sportType,
+        description,
+        ...(isPrivate && { password }),
+        ...(customLocationCoordinates && { customLocationCoordinates }),
+        ...(coverImageURL && { coverImageURL }),
+        createdAt: serverTimestamp(), // Use serverTimestamp for the write
+        invitedEmails: invitedEmails,
+      };
+
+      // Write to Firestore
+      const docRef = await addDoc(collection(db, 'events'), eventDataForFirestore);
+
+      // Create the local Event object using Timestamp.now() for createdAt
+      const newEvent: Event = {
+        id: docRef.id,
         title: eventTitle,
         date,
         time: startTime,
@@ -382,20 +410,18 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
         description,
         ...(isPrivate && { password }),
         ...(customLocationCoordinates && { customLocationCoordinates }),
-        ...(coverImageURL && { coverImageURL })
+        ...(coverImageURL && { coverImageURL }),
+        createdAt: Timestamp.now(), // Use local timestamp for subsequent operations
+        invitedEmails: invitedEmails,
+        // matchResults is optional and not included here
       };
 
-      const docRef = await addDoc(collection(db, 'events'), eventData);
-      const newEvent: Event = { ...eventData, id: docRef.id };
       setEventId(docRef.id);
-      
-      // Send event creation email to the creator
+
+      // Send event creation email to the creator using the local newEvent object
       if (user.email) {
         try {
-          await sendEventCreationEmail(user.email, {
-            ...newEvent,
-            location: locationString
-          });
+          await sendEventCreationEmail(user.email, newEvent); // Pass newEvent here
         } catch (emailError) {
           console.error('Error sending event creation email:', emailError);
         }

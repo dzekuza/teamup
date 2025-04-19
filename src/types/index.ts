@@ -46,11 +46,12 @@ export interface Event {
   sportType: string;
   description?: string;
   coverImageURL?: string;
-  createdAt?: string;
+  createdAt?: Timestamp;
   customLocationCoordinates?: {
     lat: number;
     lng: number;
   };
+  invitedEmails?: string[];
 }
 
 export interface Player {

@@ -2,38 +2,63 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, TextField, Button, Typography, Paper } from '@mui/material';
 import { toast } from 'react-hot-toast';
+// Remove Firebase Auth imports
+// import { signInWithEmailAndPassword } from 'firebase/auth';
+// import { auth } from '../firebase';
 
-// Read credentials from environment variables
-const ADMIN_EMAIL = process.env.REACT_APP_ADMIN_EMAIL;
-const ADMIN_PASSWORD = process.env.REACT_APP_ADMIN_PASSWORD;
+// Define the hardcoded credentials
+const ADMIN_EMAIL = 'info@gvozdovic.com';
+const ADMIN_PASSWORD = 'letsteamupadmin12';
 
 const AdminLoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false); // Keep loading state for feedback
   const navigate = useNavigate();
 
-  const handleLogin = (event: React.FormEvent) => {
+  const handleLogin = (event: React.FormEvent) => { // No longer needs to be async
     event.preventDefault();
     setError('');
+    setIsLoading(true); // Set loading true for immediate feedback
 
-    // Check if environment variables are set
-    if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
-        setError('Admin credentials are not configured.');
-        toast.error('Admin login is not properly configured. Contact site administrator.');
-        console.error("Admin environment variables REACT_APP_ADMIN_EMAIL or REACT_APP_ADMIN_PASSWORD are not set.");
-        return;
-    }
+    // Simulate a short delay for UX
+    setTimeout(() => {
+      if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+        // Store simple login state in sessionStorage
+        // Note: This is just for this page's logic; secure route protection
+        // should still rely on the Firestore check in AdminProtectedRoute
+        sessionStorage.setItem('isAdminLoggedIn', 'true');
+        toast.success('Admin login successful');
+        navigate('/admin/dashboard'); // Redirect to the dashboard
+      } else {
+        setError('Invalid email or password');
+        toast.error('Invalid email or password');
+      }
+      setIsLoading(false); // Set loading false after check
+    }, 500); // 500ms delay
 
-    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-      // Store login state in sessionStorage (cleared when browser tab closes)
-      sessionStorage.setItem('isAdminLoggedIn', 'true');
-      toast.success('Admin login successful');
-      navigate('/admin/dashboard'); // Redirect to the dashboard
-    } else {
-      setError('Invalid email or password');
-      toast.error('Invalid email or password');
+    /* Remove Firebase Auth logic
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      toast.success('Login successful');
+      navigate('/admin/dashboard');
+    } catch (err: any) {
+      console.error("Admin login error:", err);
+      let errorMessage = 'Invalid email or password.';
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        errorMessage = 'Invalid email or password.';
+      } else if (err.code === 'auth/too-many-requests') {
+        errorMessage = 'Too many login attempts. Please try again later.';
+      } else {
+        errorMessage = 'An unexpected error occurred during login.';
+      }
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
     }
+    */
   };
 
   return (
@@ -93,9 +118,10 @@ const AdminLoginPage: React.FC = () => {
             type="submit"
             variant="contained"
             fullWidth
+            disabled={isLoading} // Disable button when loading
             sx={{ mt: 3, mb: 2, backgroundColor: '#C1FF2F', color: '#000', '&:hover': { backgroundColor: '#aee62a' } }}
           >
-            Login
+            {isLoading ? 'Logging in...' : 'Login'} {/* Show loading text */}
           </Button>
         </form>
       </Paper>
