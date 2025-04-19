@@ -7,7 +7,6 @@
     "build": "craco build",
     "test": "craco test",
     "eject": "react-scripts eject",
-    "postinstall": "patch-package",
     "update-events": "tsx src/scripts/updateEventsSportType.ts",
     "update-status": "tsx src/scripts/updateEventStatus.ts"
   },

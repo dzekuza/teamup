@@ -10,10 +10,10 @@ import Avatar2 from '../assets/avatars/Avatar2.png';
 import Avatar3 from '../assets/avatars/Avatar3.png';
 import Avatar4 from '../assets/avatars/Avatar4.png';
 import { PADEL_LOCATIONS, Location } from '../constants/locations';
-import 'mapbox-gl/dist/mapbox-gl.css';
+// import 'mapbox-gl/dist/mapbox-gl.css'; // Incorrect CSS import
 import Map, { Marker } from 'react-map-gl/maplibre';
-import * as maplibregl from 'maplibre-gl';
-import 'maplibre-gl/dist/maplibre-gl.css';
+import maplibregl from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css'; // Correct CSS import
 import { toast } from 'react-hot-toast';
 import { 
   ArrowLeft as ArrowLeftIcon, 

@@ -58,7 +58,7 @@ const AppContent: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#121212] text-white flex flex-col">
       {!isMobile && <Navbar />}
-      <main className="flex-grow container mx-auto px-4 py-8 pt-4">
+      <main className="flex-grow container mx-auto pt-4 pb-8 sm:pt-4 sm:pb-8">
         <Routes>
           <Route path="/" element={user ? <Home /> : <LandingPage />} />
           <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />

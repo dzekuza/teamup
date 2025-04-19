@@ -127,12 +127,12 @@ export const Home: FC<HomeProps> = ({ myEventsOnly = false, notificationsOnly = 
     }
   }, [myEventsOnly]);
 
-  const handleFilterChange = (newFilters: FilterOptions) => {
-    if (myEventsOnly) {
-      setFilters({ ...newFilters, showJoinedOnly: true });
-    } else {
-      setFilters(newFilters);
-    }
+  const handleFilterChange = (newFilters: Partial<FilterOptions>) => {
+    setFilters(prev => ({
+      ...prev,
+      ...newFilters,
+      showJoinedOnly: myEventsOnly ? true : (newFilters.showJoinedOnly !== undefined ? newFilters.showJoinedOnly : prev.showJoinedOnly),
+    }));
   };
 
   const handleEventClick = (eventId: string) => {
@@ -144,17 +144,11 @@ export const Home: FC<HomeProps> = ({ myEventsOnly = false, notificationsOnly = 
   };
 
   const handleSportTypeChange = (sportType: string) => {
-    setFilters(prev => ({ 
-      ...prev, 
-      sportType 
-    }));
+    handleFilterChange({ sportType });
   };
   
   const handleSearchChange = (searchTerm: string) => {
-    setFilters(prev => ({
-      ...prev,
-      searchTerm
-    }));
+    handleFilterChange({ searchTerm });
   };
 
   const getPageTitle = () => {
@@ -226,6 +220,13 @@ export const Home: FC<HomeProps> = ({ myEventsOnly = false, notificationsOnly = 
             eventsList = [];
           }
         }
+
+        // DEBUG: Log Padel event locations after fetch
+        eventsList.forEach(event => {
+          if (event.sportType === 'Padel') {
+            console.log('Fetched Padel Event Location:', event.location);
+          }
+        });
 
         setEvents(eventsList);
         setEventsError(null);
@@ -566,7 +567,6 @@ export const Home: FC<HomeProps> = ({ myEventsOnly = false, notificationsOnly = 
             onCloseMobileFilters={() => setShowMobileFilters(false)}
             isMobile
             hideSportTypeFilter={true}
-            hideSearchBar={true}
           />
         </div>
       )}
@@ -609,6 +609,18 @@ export const Home: FC<HomeProps> = ({ myEventsOnly = false, notificationsOnly = 
           open={isProfileDialogOpen}
           onClose={() => setIsProfileDialogOpen(false)}
         />
+      )}
+
+      {/* Mobile Filters Panel - Remove eventCount */}
+      {showMobileFilters && (
+         <Filters
+           onFilterChange={handleFilterChange}
+           currentFilters={filters}
+           showMobileFilters={showMobileFilters}
+           onCloseMobileFilters={() => setShowMobileFilters(false)}
+           isMobile={true}
+           hideSportTypeFilter={true} 
+         />
       )}
     </div>
   );

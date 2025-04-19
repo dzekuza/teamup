@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Event } from '../types';
@@ -24,10 +24,10 @@ interface FilterOptions {
   date: string;
   level: string;
   location: string;
+  showJoinedOnly: boolean;
   searchTerm: string;
   sportType: string;
   eventStatus: string;
-  showJoinedOnly: boolean;
 }
 
 export const SavedEvents: React.FC = () => {
@@ -43,10 +43,10 @@ export const SavedEvents: React.FC = () => {
     date: '',
     level: '',
     location: '',
+    showJoinedOnly: false,
     searchTerm: '',
     sportType: '',
-    eventStatus: 'active',
-    showJoinedOnly: false,
+    eventStatus: '',
   });
 
   const handleEventUpdated = () => {
@@ -151,16 +151,27 @@ export const SavedEvents: React.FC = () => {
     setShowCreateDialog(true);
   };
 
-  const handleFilterChange = (newFilters: FilterOptions) => {
-    setFilters(newFilters);
+  const handleFilterChange = (newFilters: Partial<FilterOptions>) => {
+    setFilters(prev => ({
+      ...prev,
+      ...newFilters
+    }));
   };
 
   const handleSportTypeChange = (sportType: string) => {
-    setFilters(prev => ({ 
-      ...prev, 
-      sportType 
-    }));
+    handleFilterChange({ sportType });
   };
+
+  const handleSearchChange = (searchTerm: string) => {
+    handleFilterChange({ searchTerm });
+  };
+
+  const filteredEvents = useMemo(() => {
+    let events = savedEvents;
+    // ... existing filter logic ...
+
+    return events;
+  }, [savedEvents, filters]);
 
   if (!user) {
     return (
@@ -213,7 +224,7 @@ export const SavedEvents: React.FC = () => {
             showMobileFilters={showMobileFilters}
             onCloseMobileFilters={() => setShowMobileFilters(false)}
             hideSportTypeFilter={true}
-            isMobile={true}
+            hideSearchBar={true}
           />
         </div>
 
@@ -238,7 +249,7 @@ export const SavedEvents: React.FC = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {savedEvents.map((event) => (
+            {filteredEvents.map((event) => (
               <div
                 key={event.id}
                 onClick={() => handleEventClick(event.id)}
@@ -250,6 +261,19 @@ export const SavedEvents: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Mobile Filters Panel */}
+      {showMobileFilters && (
+        <Filters
+          onFilterChange={handleFilterChange}
+          currentFilters={filters}
+          showMobileFilters={showMobileFilters}
+          onCloseMobileFilters={() => setShowMobileFilters(false)}
+          isMobile={true}
+          hideSportTypeFilter={true}
+          hideSearchBar={true}
+        />
+      )}
 
       {/* Create Event Dialog */}
       {showCreateDialog && (

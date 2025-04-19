@@ -33,6 +33,4 @@ yarn-error.log*
 # Firebase
 .firebase/
 firebase-debug.log
-
-# Firebase cache
 .firebase/hosting.*.cache
