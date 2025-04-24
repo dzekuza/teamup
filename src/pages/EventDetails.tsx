@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, Timestamp, deleteDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db, auth } from '../firebase';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../contexts/AuthContext';
 import { Event, Player, User } from '../types';
 import { UserProfileDialog } from '../components/UserProfileDialog';
 import Avatar1 from '../assets/avatars/Avatar1.png';
@@ -10,10 +10,12 @@ import Avatar2 from '../assets/avatars/Avatar2.png';
 import Avatar3 from '../assets/avatars/Avatar3.png';
 import Avatar4 from '../assets/avatars/Avatar4.png';
 import { PADEL_LOCATIONS, Location } from '../constants/locations';
-// import 'mapbox-gl/dist/mapbox-gl.css'; // Incorrect CSS import
-import Map, { Marker } from 'react-map-gl/maplibre';
+import { Map, Marker } from 'react-map-gl/maplibre';
+import type { MapRef } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
-import 'maplibre-gl/dist/maplibre-gl.css'; // Correct CSS import
+import 'maplibre-gl/dist/maplibre-gl.css';
+import { format } from 'date-fns';
+import { lt } from 'date-fns/locale';
 import { toast } from 'react-hot-toast';
 import { 
   ArrowLeft as ArrowLeftIcon, 
@@ -31,9 +33,27 @@ import { ShareMemoryDialog } from '../components/ShareMemoryDialog';
 import { EditEventDialog } from '../components/EditEventDialog';
 import { ShareEventDialog } from '../components/ShareEventDialog';
 import { EventStickyBar } from '../components/EventStickyBar';
-// Don't use React Icons for now - using SVG directly
-// import { FaShareAlt } from 'react-icons/fa/index.js';
-// import { FaEdit } from 'react-icons/fa/index.js';
+import { 
+  CalendarIcon as CalendarIconOutline, 
+  MapPinIcon, 
+  UserIcon, 
+  UsersIcon, 
+  StarIcon,
+  ChatBubbleLeftIcon,
+  PencilIcon,
+  TrashIcon,
+  XMarkIcon
+} from '@heroicons/react/24/outline';
+import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
+import { DEFAULT_COVER_IMAGE } from '../constants/images';
+import { addUserToEventChat } from '../services/chatService';
+
+// Define ViewState type to match what's actually being used
+type ViewState = {
+  longitude: number;
+  latitude: number;
+  zoom: number;
+};
 
 const avatars = {
   Avatar1,
@@ -58,15 +78,6 @@ const DEFAULT_COORDINATES = {
   lat: 54.6872,
   lng: 25.2797
 };
-
-// Fallback cover image
-const DEFAULT_COVER_IMAGE = "https://firebasestorage.googleapis.com/v0/b/newprojecta-36c09.firebasestorage.app/o/Locations%2Fstatic%20cover.jpg?alt=media&token=4c319254-5854-4b3c-9bc7-e67cfe1a58b1";
-
-interface ViewState {
-  longitude: number;
-  latitude: number;
-  zoom: number;
-}
 
 // Helper function to format date for display
 const formatDateForDisplay = (dateString: string): string => {
@@ -139,10 +150,12 @@ const EventDetails: React.FC = () => {
   
   // Map view state
   const [viewState, setViewState] = useState<ViewState>({
-    longitude: DEFAULT_COORDINATES.lng,
-    latitude: DEFAULT_COORDINATES.lat,
-    zoom: 14
+    longitude: locationData?.coordinates?.lng || DEFAULT_COORDINATES.lng,
+    latitude: locationData?.coordinates?.lat || DEFAULT_COORDINATES.lat,
+    zoom: 14,
   });
+  
+  const mapRef = useRef<MapRef>(null);
   
   // Update view state when location data changes
   useEffect(() => {
@@ -150,7 +163,7 @@ const EventDetails: React.FC = () => {
       setViewState({
         longitude: locationData.coordinates.lng,
         latitude: locationData.coordinates.lat,
-        zoom: 14
+        zoom: 14,
       });
     }
   }, [locationData]);
@@ -330,6 +343,9 @@ const EventDetails: React.FC = () => {
         players: arrayUnion(newPlayer)
       });
 
+      // Add user to the event's group chat
+      await addUserToEventChat(event.id, user.uid);
+
       // Update local state with accurate player list
       const updatedPlayers = [...event.players.filter(Boolean), newPlayer];
       setEvent({
@@ -496,6 +512,10 @@ const EventDetails: React.FC = () => {
     setShareMemoryDialogOpen(true);
   };
 
+  const handleMapMove = useCallback((evt: { viewState: ViewState }) => {
+    setViewState(evt.viewState);
+  }, []);
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen bg-[#161723]">
@@ -521,7 +541,7 @@ const EventDetails: React.FC = () => {
   const coordinates = locationData?.coordinates || DEFAULT_COORDINATES;
   
   // Determine which cover image to use
-  const coverImageUrl = event.coverImageURL 
+  const coverImageUrl = event?.coverImageURL 
     ? event.coverImageURL
     : event?.sportType === 'Padel' && locationData?.image
       ? locationData.image
@@ -639,8 +659,9 @@ const EventDetails: React.FC = () => {
                 src={coverImageUrl}
                 alt={event.location}
                 className="w-full h-64 md:h-96 object-cover md:rounded-t-lg md:rounded-b-lg"
+                loading="lazy"
                 onError={(e) => {
-                  e.currentTarget.src = '/default-location.jpg';
+                  e.currentTarget.src = DEFAULT_COVER_IMAGE;
                 }}
               />
             )}
@@ -742,16 +763,16 @@ const EventDetails: React.FC = () => {
                   <h3 className="text-lg font-semibold text-white mb-3">Time</h3>
                   <div className="space-y-2 text-sm text-white">
                     <div className="flex items-center">
-                      <CalendarIcon sx={{ fontSize: 18, marginRight: 1, color: '#9CA3AF' }} /> 
+                      <CalendarIconOutline className="h-5 w-5 text-gray-400 mr-2" /> 
                       {formatDateForDisplay(event.date)}
                     </div>
                     <div className="flex items-center">
-                      <ClockIcon sx={{ fontSize: 18, marginRight: 1, color: '#9CA3AF' }} /> 
+                      <ClockIcon className="h-5 w-5 text-gray-400 mr-2" /> 
                       Start: {event.time}
                     </div>
                     {event.endTime && (
                       <div className="flex items-center">
-                        <ClockIcon sx={{ fontSize: 18, marginRight: 1, color: '#9CA3AF' }} /> 
+                        <ClockIcon className="h-5 w-5 text-gray-400 mr-2" /> 
                         End: {event.endTime}
                       </div>
                     )}
@@ -762,7 +783,7 @@ const EventDetails: React.FC = () => {
                   <h3 className="text-lg font-semibold text-white mb-3">Details</h3>
                    <div className="space-y-2 text-sm text-white">
                     <div className="flex items-center">
-                       <LevelIcon sx={{ fontSize: 18, marginRight: 1, color: '#9CA3AF' }} /> 
+                       <LevelIcon className="h-5 w-5 text-gray-400 mr-2" /> 
                        Level: {event.level}
                      </div> 
                      <div className="flex items-center">
@@ -875,25 +896,32 @@ const EventDetails: React.FC = () => {
                 <div className="bg-[#1A1A1A] p-4 rounded-lg">
                   <h3 className="text-lg font-semibold text-white mb-3">Location</h3>
                   {locationData?.coordinates && (
-                    <div className="w-full h-64 rounded-lg overflow-hidden">
+                    <div className="h-[300px] w-full relative mt-6 mb-6">
                       <Map
-                        mapLib={Promise.resolve(maplibregl)}
+                        ref={mapRef}
                         initialViewState={{
                           longitude: locationData.coordinates.lng,
                           latitude: locationData.coordinates.lat,
                           zoom: 14
                         }}
                         style={{ width: '100%', height: '100%' }}
-                        mapStyle="https://api.maptiler.com/maps/streets-v2-dark/style.json?key=33rTk4pHojFrbxONf77X"
-                        attributionControl={false}
-                        onError={(e: Error) => console.error("Map error:", e)}
+                        mapStyle="https://api.maptiler.com/maps/basic-v2-dark/style.json?key=hbw4PJCpzzoJ3dKo6XQx"
                       >
                         <Marker
                           longitude={locationData.coordinates.lng}
                           latitude={locationData.coordinates.lat}
+                          anchor="center"
                         >
-                          <div className="w-6 h-6 bg-[#C1FF2F] rounded-full flex items-center justify-center transform -translate-x-3 -translate-y-3">
-                            <div className="w-3 h-3 bg-white rounded-full"></div>
+                          <div 
+                            className="bg-[#1A1A1A] rounded-full p-2 shadow-md cursor-pointer border-2 border-[#C1FF2F]"
+                            title={locationData.name}
+                          >
+                            <span className="text-xl" role="img" aria-label={locationData.sportType || 'Padel'}>
+                              {locationData.sportType === 'Tennis' ? '🎾' :
+                               locationData.sportType === 'Football' ? '⚽' :
+                               locationData.sportType === 'Basketball' ? '🏀' :
+                               locationData.sportType === 'Padel' ? '🎾' : '🎾'}
+                            </span>
                           </div>
                         </Marker>
                       </Map>

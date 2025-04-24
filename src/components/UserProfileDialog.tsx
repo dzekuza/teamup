@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { doc, getDoc, collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, arrayUnion, setDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, arrayUnion, setDoc, DocumentData, QueryDocumentSnapshot, Timestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Event } from '../types/index';
 import { useAuth } from '../hooks/useAuth';
 import { updateProfile } from 'firebase/auth';
 import { auth } from '../firebase';
+import { useNavigate } from 'react-router-dom';
 import Avatar1 from '../assets/avatars/Avatar1.png';
 import Avatar2 from '../assets/avatars/Avatar2.png';
 import Avatar3 from '../assets/avatars/Avatar3.png';
@@ -48,12 +49,37 @@ interface FriendRequest {
   };
 }
 
+interface FirestoreChatData extends DocumentData {
+  participants: string[];
+  lastMessage: string;
+  lastMessageTime: Timestamp;
+  lastMessageSender: string;
+  unreadCount: {
+    [key: string]: number;
+  };
+}
+
+interface ChatData {
+  participants: string[];
+  lastMessage: string;
+  lastMessageTime: Date;
+  lastMessageSender: string;
+  unreadCount: {
+    [key: string]: number;
+  };
+}
+
+interface Chat extends ChatData {
+  id: string;
+}
+
 export const UserProfileDialog: React.FC<UserProfileDialogProps> = ({
   userId,
   open,
   onClose,
 }) => {
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [userEvents, setUserEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -413,6 +439,75 @@ export const UserProfileDialog: React.FC<UserProfileDialogProps> = ({
     }
   };
 
+  const handleStartChat = async () => {
+    if (!user || !userProfile) return;
+
+    try {
+      console.log('Starting chat with user:', userId);
+      // Check if a chat already exists between these users
+      const chatsRef = collection(db, 'chats');
+      const q = query(
+        chatsRef,
+        where('participants', 'array-contains', user.uid)
+      );
+      const querySnapshot = await getDocs(q);
+      
+      let chatId: string | null = null;
+      
+      // Find existing chat
+      for (const doc of querySnapshot.docs) {
+        const data = doc.data();
+        if (data.participants?.includes(userId)) {
+          chatId = doc.id;
+          console.log('Found existing chat:', chatId);
+          break;
+        }
+      }
+
+      // If no existing chat, create a new one
+      if (!chatId) {
+        console.log('Creating new chat');
+        const chatData = {
+          participants: [user.uid, userId],
+          lastMessage: '',
+          lastMessageTime: Timestamp.fromDate(new Date()),
+          lastMessageSender: '',
+          unreadCount: {
+            [user.uid]: 0,
+            [userId]: 0
+          }
+        };
+        const chatRef = await addDoc(chatsRef, chatData);
+        chatId = chatRef.id;
+        console.log('Created new chat:', chatId);
+      }
+
+      // Close the profile dialog and navigate to messages
+      onClose();
+
+      // Create and dispatch the custom event before navigation
+      const event = new CustomEvent('openChat', {
+        detail: {
+          chatId,
+          otherUser: {
+            id: userId,
+            displayName: userProfile.displayName,
+            photoURL: userProfile.photoURL
+          }
+        }
+      });
+      window.dispatchEvent(event);
+      console.log('Dispatched openChat event');
+
+      // Navigate to messages page
+      navigate('/messages');
+      console.log('Navigated to messages page');
+    } catch (error) {
+      console.error('Error starting chat:', error);
+      setError('Failed to start chat.');
+    }
+  };
+
   // Profile content that will be rendered in both mobile and desktop views
   const renderProfileContent = () => {
     if (loading) {
@@ -467,21 +562,29 @@ export const UserProfileDialog: React.FC<UserProfileDialogProps> = ({
                   Edit Profile
                 </button>
               ) : (
-                friendStatus === 'none' ? (
+                <>
+                  {friendStatus === 'none' ? (
+                    <button
+                      onClick={handleSendFriendRequest}
+                      className="px-4 py-2 bg-[#C1FF2F] text-black rounded-xl hover:bg-[#B1EF1F] transition-colors"
+                    >
+                      Add Friend
+                    </button>
+                  ) : friendStatus === 'pending' ? (
+                    <button
+                      disabled
+                      className="px-4 py-2 bg-gray-600 text-white rounded-xl cursor-not-allowed"
+                    >
+                      Request Sent
+                    </button>
+                  ) : null}
                   <button
-                    onClick={handleSendFriendRequest}
-                    className="px-4 py-2 bg-[#C1FF2F] text-black rounded-xl hover:bg-[#B1EF1F] transition-colors"
+                    onClick={handleStartChat}
+                    className="px-4 py-2 bg-[#2A2A2A] text-white rounded-xl hover:bg-[#3A3A3A] transition-colors"
                   >
-                    Add Friend
+                    Message
                   </button>
-                ) : friendStatus === 'pending' ? (
-                  <button
-                    disabled
-                    className="px-4 py-2 bg-gray-600 text-white rounded-xl cursor-not-allowed"
-                  >
-                    Request Sent
-                  </button>
-                ) : null
+                </>
               )}
             </div>
           </div>

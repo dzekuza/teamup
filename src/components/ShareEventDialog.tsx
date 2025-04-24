@@ -263,14 +263,13 @@ export const ShareEventDialog: React.FC<ShareEventDialogProps> = ({
         </div>
       </div>
 
-      {/* Desktop popup dialog */}
+      {/* Desktop modal dialog */}
       <div 
-        className={`fixed inset-0 z-50 ${open ? 'md:block' : 'hidden'}`}
+        className={`hidden fixed inset-0 z-50 flex items-center justify-center p-4 ${isVisible ? 'block' : 'hidden'}`}
         style={{ 
-          backgroundColor: 'rgba(0, 0, 0, 0.5)', 
+          backgroundColor: 'rgba(0, 0, 0, 0.7)', 
           transition: 'opacity 0.3s ease',
-          opacity: open ? 1 : 0,
-          pointerEvents: open ? 'auto' : 'none'
+          opacity: open ? 1 : 0
         }}
         onClick={onClose}
       >

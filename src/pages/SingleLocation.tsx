@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PADEL_LOCATIONS, Location } from '../constants/locations';
-import Map, { Marker } from 'react-map-gl/maplibre';
-import * as maplibregl from 'maplibre-gl';
+import { Map, Marker } from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { collection, query, where, getDocs, Timestamp, doc, getDoc, addDoc, serverTimestamp, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -14,6 +13,7 @@ import { CreateEventDialog } from '../components/CreateEventDialog';
 import { Box, Typography, Paper, Grid, Button, Divider, Rating, TextField, CircularProgress, Avatar } from '@mui/material';
 import { format } from 'date-fns';
 import { toast } from 'react-hot-toast';
+import { DEFAULT_COVER_IMAGE } from '../constants/images';
 
 // Helper function to recursively convert Firebase Timestamp objects to strings
 const convertTimestampsToStrings = (obj: any): any => {
@@ -190,28 +190,28 @@ const MOCK_CONTACT = {
 const MOCK_GALLERY = {
   "Mostai | Padelio klubas": [
     "https://firebasestorage.googleapis.com/v0/b/newprojecta-36c09.firebasestorage.app/o/Locations%2F475686750_122097136736765454_5067661593843921386_n.jpg?alt=media&token=a4867d97-5c3b-449e-9275-9e8ba4e9239d",
-    "https://firebasestorage.googleapis.com/v0/b/newprojecta-36c09.firebasestorage.app/o/Locations%2Fstatic%20cover.jpg?alt=media&token=4c319254-5854-4b3c-9bc7-e67cfe1a58b1",
+    DEFAULT_COVER_IMAGE,
     "https://firebasestorage.googleapis.com/v0/b/newprojecta-36c09.firebasestorage.app/o/Locations%2FMetalo%20padelis.jpg?alt=media"
   ],
   "Vilnius Padel": [
     "https://firebasestorage.googleapis.com/v0/b/newprojecta-36c09.firebasestorage.app/o/Locations%2F480236773_122141966372439504_2950740990188221432_n.jpg?alt=media&token=40240956-8042-4100-8a95-9d6e30de22f2",
-    "https://firebasestorage.googleapis.com/v0/b/newprojecta-36c09.firebasestorage.app/o/Locations%2Fstatic%20cover.jpg?alt=media&token=4c319254-5854-4b3c-9bc7-e67cfe1a58b1"
+    DEFAULT_COVER_IMAGE
   ],
   "Fanų Padelio Arena": [
     "https://firebasestorage.googleapis.com/v0/b/newprojecta-36c09.firebasestorage.app/o/Locations%2FMetalo%20padelis.jpg?alt=media",
-    "https://firebasestorage.googleapis.com/v0/b/newprojecta-36c09.firebasestorage.app/o/Locations%2Fstatic%20cover.jpg?alt=media&token=4c319254-5854-4b3c-9bc7-e67cfe1a58b1"
+    DEFAULT_COVER_IMAGE
   ],
   "NAUJA Fanų Padelio Arena": [
     "https://firebasestorage.googleapis.com/v0/b/newprojecta-36c09.firebasestorage.app/o/Locations%2Fplunges%20padelis.jpg?alt=media",
-    "https://firebasestorage.googleapis.com/v0/b/newprojecta-36c09.firebasestorage.app/o/Locations%2Fstatic%20cover.jpg?alt=media&token=4c319254-5854-4b3c-9bc7-e67cfe1a58b1"
+    DEFAULT_COVER_IMAGE
   ],
   "Fanų lauko padelio kortai": [
     "https://firebasestorage.googleapis.com/v0/b/newprojecta-36c09.firebasestorage.app/o/Locations%2FMetalo%20padelis.jpg?alt=media",
-    "https://firebasestorage.googleapis.com/v0/b/newprojecta-36c09.firebasestorage.app/o/Locations%2Fstatic%20cover.jpg?alt=media&token=4c319254-5854-4b3c-9bc7-e67cfe1a58b1"
+    DEFAULT_COVER_IMAGE
   ],
   "Žirmūnų padelio arena": [
     "https://firebasestorage.googleapis.com/v0/b/newprojecta-36c09.firebasestorage.app/o/Locations%2FMetalo%20padelis.jpg?alt=media",
-    "https://firebasestorage.googleapis.com/v0/b/newprojecta-36c09.firebasestorage.app/o/Locations%2Fstatic%20cover.jpg?alt=media&token=4c319254-5854-4b3c-9bc7-e67cfe1a58b1"
+    DEFAULT_COVER_IMAGE
   ]
 };
 
@@ -245,11 +245,11 @@ const StarRating: React.FC<{rating: number}> = ({ rating }) => {
   );
 };
 
-interface ViewState {
+type ViewState = {
   longitude: number;
   latitude: number;
   zoom: number;
-}
+};
 
 const SingleLocation: React.FC = () => {
   const { locationId } = useParams<{locationId: string}>();
@@ -257,9 +257,9 @@ const SingleLocation: React.FC = () => {
   const navigate = useNavigate();
   const [location, setLocation] = useState<Location | null>(null);
   const [viewState, setViewState] = useState<ViewState>({
-    longitude: 25.2797, // Default to Vilnius
+    longitude: 25.2797,
     latitude: 54.6872,
-    zoom: 14
+    zoom: 11
   });
   const [locationEvents, setLocationEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -277,6 +277,10 @@ const SingleLocation: React.FC = () => {
   const [contactInfo, setContactInfo] = useState<any>(null);
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   
+  const handleMapMove = useCallback((evt: { viewState: ViewState }) => {
+    setViewState(evt.viewState);
+  }, []);
+
   // Define fetchEventsForLocation first
   const fetchEventsForLocation = async (locationName: string) => {
     if (!locationName) return;
@@ -574,18 +578,29 @@ const SingleLocation: React.FC = () => {
               <h2 className="text-xl font-bold mb-4">Location Map</h2>
               <div className="h-64 rounded-xl overflow-hidden">
                 <Map
-                  mapLib={Promise.resolve(maplibregl)}
-                  initialViewState={viewState}
+                  initialViewState={{
+                    longitude: location.coordinates.lng,
+                    latitude: location.coordinates.lat,
+                    zoom: 14
+                  }}
                   style={{ width: '100%', height: '100%' }}
-                  mapStyle="https://api.maptiler.com/maps/streets-v2-dark/style.json?key=33rTk4pHojFrbxONf77X"
-                  attributionControl={false}
+                  mapStyle="https://api.maptiler.com/maps/basic-v2-dark/style.json?key=hbw4PJCpzzoJ3dKo6XQx"
+                  onMove={handleMapMove}
                 >
                   <Marker
                     longitude={location.coordinates.lng}
                     latitude={location.coordinates.lat}
+                    anchor="center"
                   >
-                    <div className="w-6 h-6 bg-[#C1FF2F] rounded-full flex items-center justify-center transform -translate-x-3 -translate-y-3">
-                      <div className="w-3 h-3 bg-white rounded-full"></div>
+                    <div 
+                      className="bg-[#1A1A1A] rounded-full p-2 shadow-md border-2 border-white hover:border-[#C1FF2F] transition-colors"
+                    >
+                      <span className="text-xl" role="img" aria-label={location.sportType || 'Padel'}>
+                        {location.sportType === 'Tennis' ? '🎾' :
+                         location.sportType === 'Football' ? '⚽' :
+                         location.sportType === 'Basketball' ? '🏀' :
+                         location.sportType === 'Padel' ? '🎾' : '🎾'}
+                      </span>
                     </div>
                   </Marker>
                 </Map>

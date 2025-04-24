@@ -26,7 +26,8 @@ export const Register: React.FC = () => {
     email: '',
     phoneNumber: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    location: ''
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -219,6 +220,7 @@ export const Register: React.FC = () => {
           email: formData.email,
           displayName: formData.displayName,
           phoneNumber: formData.phoneNumber,
+          location: formData.location,
           photoURL: 'Avatar1',
           sports: selectedSports,
           createdAt: serverTimestamp(),
@@ -276,6 +278,7 @@ export const Register: React.FC = () => {
           email: result.user.email || '',
           displayName: result.user.displayName || 'Facebook User',
           phoneNumber: result.user.phoneNumber || '',
+          location: '',
           photoURL: result.user.photoURL || 'Avatar1',
           sports: selectedSports,
           createdAt: serverTimestamp(),
@@ -320,6 +323,7 @@ export const Register: React.FC = () => {
           email: result.user.email || '',
           displayName: result.user.displayName || 'Google User',
           phoneNumber: result.user.phoneNumber || '',
+          location: '',
           photoURL: result.user.photoURL || 'Avatar1',
           sports: selectedSports,
           createdAt: serverTimestamp(),
@@ -590,6 +594,21 @@ export const Register: React.FC = () => {
                   onChange={handleInputChange}
                   className="w-full bg-[#2A2A2A] text-white rounded-xl p-4 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
                   placeholder="Enter your phone number"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1">
+                  Location
+                </label>
+                <input
+                  type="text"
+                  name="location"
+                  value={formData.location}
+                  onChange={handleInputChange}
+                  className="w-full bg-[#2A2A2A] text-white rounded-xl p-4 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
+                  placeholder="Enter your location"
                   required
                 />
               </div>

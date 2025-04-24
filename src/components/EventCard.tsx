@@ -19,6 +19,7 @@ import { Transition } from '@headlessui/react';
 import { createNotification } from '../services/notificationService';
 import { sendEventInvitation } from '../services/sendGridService';
 import { Bookmark, BookmarkBorder } from '@mui/icons-material';
+import { DEFAULT_COVER_IMAGE } from '../constants/images';
 
 const avatars = {
   Avatar1,
@@ -131,7 +132,6 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
 
   // Get location image
   const locationData = PADEL_LOCATIONS.find(loc => loc.name === event.location);
-  const DEFAULT_COVER_IMAGE = "https://firebasestorage.googleapis.com/v0/b/newprojecta-36c09.appspot.com/o/Locations%2Fstatic%20cover.jpg?alt=media&token=4c319254-5854-4b3c-9bc7-e67cfe1a58b1";
   
   const locationImage = event.coverImageURL 
     ? event.coverImageURL
@@ -648,10 +648,13 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onEventUpdated }) =
       {/* Location image and event details section */}
       <div className="relative overflow-hidden" style={{ height: "16rem" }}>
         <img
-          src={event.coverImageURL ? event.coverImageURL : (event?.sportType === 'Padel' && locationData?.image ? locationData.image : DEFAULT_COVER_IMAGE)}
+          src={locationImage}
           alt={event.title || 'Event image'}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-          onError={(e) => (e.currentTarget.src = DEFAULT_COVER_IMAGE)}
+          loading="lazy"
+          onError={(e) => {
+            e.currentTarget.src = DEFAULT_COVER_IMAGE;
+          }}
         />
         {/* Gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent" />

@@ -27,6 +27,7 @@ import { Close as CloseIcon, Add as AddIcon, Remove as RemoveIcon } from '@mui/i
 import StyledRadio from './StyledRadio';
 import { addToAppleWallet } from '../utils/appleWallet';
 import { LocationSearch } from './LocationSearch';
+import { createEventGroupChat } from '../services/chatService';
 
 interface CreateEventDialogProps {
   open: boolean;
@@ -86,6 +87,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [friendsList, setFriendsList] = useState<FriendInfo[]>([]);
   const [loadingFriends, setLoadingFriends] = useState(false);
+  const [notificationType, setNotificationType] = useState<'friends' | 'all' | 'none'>('friends');
   
   // Mobile-specific state - moved outside conditional rendering
   const [isVisible, setIsVisible] = useState(false);
@@ -390,10 +392,11 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
 
       // Write to Firestore
       const docRef = await addDoc(collection(db, 'events'), eventDataForFirestore);
+      const newEventId = docRef.id;
 
       // Create the local Event object using Timestamp.now() for createdAt
       const newEvent: Event = {
-        id: docRef.id,
+        id: newEventId,
         title: eventTitle,
         date,
         time: startTime,
@@ -411,12 +414,22 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
         ...(isPrivate && { password }),
         ...(customLocationCoordinates && { customLocationCoordinates }),
         ...(coverImageURL && { coverImageURL }),
-        createdAt: Timestamp.now(), // Use local timestamp for subsequent operations
+        createdAt: Timestamp.now(),
         invitedEmails: invitedEmails,
-        // matchResults is optional and not included here
       };
 
-      setEventId(docRef.id);
+      setEventId(newEventId);
+      setEventDetails(newEvent);
+      setShowSuccess(true);
+
+      // Create group chat for the event
+      try {
+        await createEventGroupChat(newEventId, eventTitle, user.uid);
+        console.log('Group chat created successfully for event:', newEventId);
+      } catch (chatError) {
+        console.error('Error creating group chat:', chatError);
+        // Don't throw the error to allow event creation to complete
+      }
 
       // Send event creation email to the creator using the local newEvent object
       if (user.email) {
@@ -428,39 +441,73 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
       }
       
       // Send notifications and invitation emails to selected friends
-      if (selectedFriends.length > 0) {
-        try {
-          for (const friendId of selectedFriends) {
-            const friendDoc = await getDoc(doc(db, 'users', friendId));
-            if (friendDoc.exists()) {
-              const friendData = friendDoc.data();
-              
-              // Create notification
-              await createNotification({
-                type: 'new_event',
-                eventId: docRef.id,
-                eventTitle: eventTitle,
-                createdBy: user.uid,
-                createdAt: new Date().toISOString(),
-                read: false,
-                userId: friendId
-              });
+      if (notificationType !== 'none') {
+        if (notificationType === 'friends' && selectedFriends.length > 0) {
+          try {
+            for (const friendId of selectedFriends) {
+              const friendDoc = await getDoc(doc(db, 'users', friendId));
+              if (friendDoc.exists()) {
+                const friendData = friendDoc.data();
+                
+                // Create notification
+                await createNotification({
+                  type: 'new_event',
+                  eventId: newEventId,
+                  eventTitle: eventTitle,
+                  createdBy: user.uid,
+                  createdAt: new Date().toISOString(),
+                  read: false,
+                  userId: friendId
+                });
 
-              // Send email invitation if email is available
-              if (friendData.email) {
-                await sendEventInvitation(
-                  friendData.email,
-                  eventTitle,
-                  date,
-                  `${startTime} - ${endTime}`,
-                  location,
-                  user.displayName || user.email || 'A friend'
-                );
+                // Send email invitation if email is available
+                if (friendData.email) {
+                  await sendEventInvitation(
+                    friendData.email,
+                    eventTitle,
+                    date,
+                    `${startTime} - ${endTime}`,
+                    location,
+                    user.displayName || user.email || 'A friend'
+                  );
+                }
               }
             }
+          } catch (error) {
+            console.error('Error sending friend notifications and invitations:', error);
           }
-        } catch (error) {
-          console.error('Error sending friend notifications and invitations:', error);
+        } else if (notificationType === 'all') {
+          // Get all users and send notifications
+          try {
+            const usersSnapshot = await getDocs(collection(db, 'users'));
+            for (const userDoc of usersSnapshot.docs) {
+              const userData = userDoc.data();
+              if (userData.id !== user.uid) { // Don't notify the creator
+                await createNotification({
+                  type: 'new_event',
+                  eventId: newEventId,
+                  eventTitle: eventTitle,
+                  createdBy: user.uid,
+                  createdAt: new Date().toISOString(),
+                  read: false,
+                  userId: userDoc.id
+                });
+
+                if (userData.email) {
+                  await sendEventInvitation(
+                    userData.email,
+                    eventTitle,
+                    date,
+                    `${startTime} - ${endTime}`,
+                    location,
+                    user.displayName || user.email || 'A friend'
+                  );
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Error sending notifications to all users:', error);
+          }
         }
       }
 
@@ -481,9 +528,6 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
           console.error('Error sending email invitations:', error);
         }
       }
-      
-      setShowSuccess(true);
-      setEventDetails(newEvent);
     } catch (err) {
       setError('Failed to create event');
       console.error('Error creating event:', err);
@@ -1170,6 +1214,27 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
       case 5:
         return (
           <div className="space-y-6">
+            <div className="space-y-4">
+              <h3 className="text-xl font-semibold text-white">Notification Settings</h3>
+              <div className="space-y-2">
+                <StyledRadio
+                  label="Notify my friends"
+                  checked={notificationType === 'friends'}
+                  onChange={() => setNotificationType('friends')}
+                />
+                <StyledRadio
+                  label="Notify all"
+                  checked={notificationType === 'all'}
+                  onChange={() => setNotificationType('all')}
+                />
+                <StyledRadio
+                  label="Don't send notification"
+                  checked={notificationType === 'none'}
+                  onChange={() => setNotificationType('none')}
+                />
+              </div>
+            </div>
+
             <div className="flex items-center justify-between">
               <label htmlFor="isPaid" className="text-sm font-medium text-white">
                 This is a paid event

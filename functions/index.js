@@ -9,7 +9,7 @@
  */
 
 // Import necessary V2 modules
-const {onRequest} = require("firebase-functions/v2/https");
+const {onRequest, onCall, HttpsError} = require("firebase-functions/v2/https");
 const {onDocumentCreated, onDocumentUpdated} = require("firebase-functions/v2/firestore");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 // const {onUserCreated} = require("firebase-functions/v2/auth"); // Removed V2 Auth
@@ -459,35 +459,31 @@ exports.checkUserProfileCompletion = onDocumentCreated({document: "users/{userId
 
 // --- NEW FUNCTION --- //
 // 6. HTTPS Callable Function to send feedback email
-exports.sendFeedbackEmail = onRequest({secrets: [sendgridApiKey, sendgridFromEmail]}, async (req, res) => {
-  // V2 onRequest uses req, res instead of data, context for callables
-  // We expect data in req.body
-  const { feedbackType, feedbackMessage } = req.body.data; // Data is nested under .data for callable functions
+exports.sendFeedbackEmail = onCall({secrets: [sendgridApiKey, sendgridFromEmail]}, async (request) => {
+  // For onCall, data is in request.data, context is the second argument (implicit here or use request.auth)
+  const {feedbackType, feedbackMessage} = request.data;
 
   // Basic validation
   if (!feedbackType || !feedbackMessage) {
-    logger.error("Missing feedbackType or feedbackMessage in request body.", {body: req.body});
-    // Use res.status().send() for V2 onRequest
-    res.status(400).send({ error: "Feedback type and message are required." });
-    return;
+    logger.error("Missing feedbackType or feedbackMessage in request data.", {data: request.data});
+    // Throw HttpsError (imported from v2/https)
+    throw new HttpsError(
+        "invalid-argument",
+        "Feedback type and message are required.",
+    );
   }
 
-  // Get authenticated user info if available (might be anonymous feedback)
+  // Get authenticated user info from context
   let userInfo = "Anonymous User";
-  // For onRequest V2, auth info is not directly in context like V1 onCall.
-  // You might need to pass the ID token in the request header from the client
-  // and verify it here using admin.auth().verifyIdToken(idToken) if strict
-  // user identification is needed. For simplicity, we'll check if user info
-  // was passed in the body (less secure, but easier for this example).
-  const userId = req.body.data.userId;
-  const userEmail = req.body.data.userEmail;
+  const uid = request.auth?.uid;
+  const email = request.auth?.token.email;
 
-  if (userId && userEmail) {
-    userInfo = `User: ${userEmail} (ID: ${userId})`;
-  } else if (userId) {
-    userInfo = `User ID: ${userId}`;
-  } else if (userEmail) {
-    userInfo = `User Email: ${userEmail}`;
+  if (uid && email) {
+    userInfo = `User: ${email} (ID: ${uid})`;
+  } else if (uid) {
+    userInfo = `User ID: ${uid}`;
+  } else if (email) { // This case is unlikely without uid but included for completeness
+    userInfo = `User Email: ${email}`;
   }
 
   // Set up SendGrid
@@ -507,13 +503,19 @@ exports.sendFeedbackEmail = onRequest({secrets: [sendgridApiKey, sendgridFromEma
 
     await sgMail.send(msg);
     logger.info("Feedback email sent successfully via SendGrid.", {type: feedbackType, userInfo: userInfo});
-    res.status(200).send({ success: true }); // Send success response
+    // Return success object for onCall
+    return {success: true};
   } catch (error) {
     logger.error("Error sending feedback email via SendGrid", {
       error: error.response ? error.response.body : error.message,
       feedbackType: feedbackType,
       userInfo: userInfo,
     });
-    res.status(500).send({ error: "Failed to send feedback email." }); // Send error response
+    // Throw HttpsError (imported from v2/https)
+    throw new HttpsError(
+        "internal",
+        "Failed to send feedback email.",
+        error, // Optionally include original error details
+    );
   }
 });

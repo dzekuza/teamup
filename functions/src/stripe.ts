@@ -15,7 +15,7 @@ if (!stripeSecretKey) {
   console.error("Stripe secret key not configured. " +
     "Run 'firebase functions:config:set stripe.secret_key=YOUR_SECRET_KEY'");
   throw new functions.https.HttpsError(
-    "internal", "Stripe configuration error.");
+      "internal", "Stripe configuration error.");
 }
 const stripe = new Stripe(stripeSecretKey, {
   apiVersion: "2023-10-16", // Use a version compatible with the library/Firebase extension
@@ -40,19 +40,19 @@ export const createStripeCheckoutSession = functions.region("europe-west1").http
   // 1. Check Authentication
   if (!context.auth) {
     throw new functions.https.HttpsError(
-      "unauthenticated", "The function must be called while authenticated.");
+        "unauthenticated", "The function must be called while authenticated.");
   }
   const userId = context.auth.uid;
 
   // 2. Validate Input Data
-  const { eventId, amount, currency, successUrl, cancelUrl } = data;
+  const {eventId, amount, currency, successUrl, cancelUrl} = data;
   if (!eventId || !amount || !currency || !successUrl || !cancelUrl) {
     throw new functions.https.HttpsError(
-      "invalid-argument", "Missing required data: eventId, amount, currency, successUrl, cancelUrl.");
+        "invalid-argument", "Missing required data: eventId, amount, currency, successUrl, cancelUrl.");
   }
   if (typeof amount !== "number" || amount <= 0) {
-     throw new functions.https.HttpsError(
-      "invalid-argument", "Amount must be a positive number.");
+    throw new functions.https.HttpsError(
+        "invalid-argument", "Amount must be a positive number.");
   }
   // TODO: Add more validation - check currency code, URL formats?
 
@@ -64,13 +64,13 @@ export const createStripeCheckoutSession = functions.region("europe-west1").http
   try {
     const eventDoc = await admin.firestore().collection("events").doc(eventId).get();
     if (!eventDoc.exists) {
-       throw new functions.https.HttpsError("not-found", "Event not found.");
+      throw new functions.https.HttpsError("not-found", "Event not found.");
     }
     const eventData = eventDoc.data();
     // TODO: Verify eventData.price matches the provided amount (converted to cents)
     // TODO: Verify eventData.currency matches the provided currency
     if (eventData?.title) {
-        eventTitle = eventData.title;
+      eventTitle = eventData.title;
     }
   } catch (error) {
     console.error("Error fetching event:", error);
@@ -96,7 +96,7 @@ export const createStripeCheckoutSession = functions.region("europe-west1").http
       }],
       mode: "payment",
       success_url: successUrl, // URL to redirect to on successful payment
-      cancel_url: cancelUrl,   // URL to redirect to if payment is cancelled
+      cancel_url: cancelUrl, // URL to redirect to if payment is cancelled
       // Attach metadata to link the session back to your user and event
       metadata: {
         userId: userId,
@@ -108,10 +108,9 @@ export const createStripeCheckoutSession = functions.region("europe-west1").http
 
     // 5. Return Session ID
     if (!session.id) {
-        throw new Error("Failed to create Stripe session ID.");
+      throw new Error("Failed to create Stripe session ID.");
     }
-    return { sessionId: session.id };
-
+    return {sessionId: session.id};
   } catch (error) {
     console.error("Stripe Checkout Session creation failed:", error);
     throw new functions.https.HttpsError("internal", "Could not create payment session.");
@@ -178,19 +177,18 @@ export const stripeWebhook = functions.region("europe-west1").https.onRequest(as
         const updatedPlayers = players.map((player: any) => {
           if (player && player.id === userId) {
             playerUpdated = true;
-            return { ...player, paymentStatus: "paid" }; // Add payment status
+            return {...player, paymentStatus: "paid"}; // Add payment status
           }
           return player;
         });
 
         if (playerUpdated) {
-          await eventRef.update({ players: updatedPlayers });
+          await eventRef.update({players: updatedPlayers});
           console.log(`Firestore updated for user ${userId}, event ${eventId}`);
         } else {
-          console.warn(`User ${userId} not found in players list for event ${eventId}. Could not update payment status.`);
-          // Still might want to return 200 to Stripe if the payment itself was valid
+          console.warn(`User ${userId} not found in players list for event ${eventId}. ` +
+            `Could not update payment status.`); // Still might want to return 200 to Stripe if the payment itself was valid
         }
-
       } catch (dbError) {
         console.error("Firestore update failed:", dbError);
         // Return 500 so Stripe knows to retry the webhook later
@@ -206,4 +204,4 @@ export const stripeWebhook = functions.region("europe-west1").https.onRequest(as
 
   // 4. Acknowledge receipt of the event to Stripe
   response.status(200).send("Received");
-}); 
+});

@@ -86,4 +86,6 @@ export interface Memory {
   sportType?: string;
   date: string;
   location: string;
-} 
+}
+
+export * from './event'; 

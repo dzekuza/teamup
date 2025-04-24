@@ -8,8 +8,7 @@ import Avatar1 from '../assets/avatars/Avatar1.png';
 import Avatar2 from '../assets/avatars/Avatar2.png';
 import Avatar3 from '../assets/avatars/Avatar3.png';
 import Avatar4 from '../assets/avatars/Avatar4.png';
-import { UserProfileDialog } from './UserProfileDialog';
-import { Bookmark, LocationOn } from '@mui/icons-material';
+import { Bookmark, LocationOn, Chat } from '@mui/icons-material';
 
 const avatars = {
   Avatar1,
@@ -22,7 +21,6 @@ export const MobileNavigation: React.FC = () => {
   const { user } = useAuth();
   const location = useLocation();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [userAvatar, setUserAvatar] = useState<string>('Avatar1');
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [isHidden, setIsHidden] = useState(false);
@@ -140,6 +138,14 @@ export const MobileNavigation: React.FC = () => {
             <span className={`text-xs ${location.pathname === '/notifications' ? 'text-[#C1FF2F]' : 'text-gray-400'}`}>Notifications</span>
           </Link>
 
+          {/* Messages */}
+          <Link to="/messages" className="flex flex-col items-center space-y-1">
+            <div className={`p-1 rounded-full ${location.pathname === '/messages' ? 'text-[#C1FF2F]' : 'text-gray-400'}`}>
+              <Chat className="h-6 w-6" />
+            </div>
+            <span className={`text-xs ${location.pathname === '/messages' ? 'text-[#C1FF2F]' : 'text-gray-400'}`}>Messages</span>
+          </Link>
+
           {/* Community */}
           <Link to="/community" className="flex flex-col items-center space-y-1">
             <div className={`p-1 rounded-full ${location.pathname === '/community' ? 'text-[#C1FF2F]' : 'text-gray-400'}`}>
@@ -159,8 +165,8 @@ export const MobileNavigation: React.FC = () => {
           </Link>
 
           {/* Profile */}
-          <button 
-            onClick={() => setIsProfileDialogOpen(true)}
+          <Link 
+            to="/profile"
             className="flex flex-col items-center space-y-1"
           >
             <div className="relative">
@@ -177,8 +183,8 @@ export const MobileNavigation: React.FC = () => {
                 </div>
               )}
             </div>
-            <span className="text-xs text-gray-400">Profile</span>
-          </button>
+            <span className={`text-xs ${location.pathname === '/profile' ? 'text-[#C1FF2F]' : 'text-gray-400'}`}>Profile</span>
+          </Link>
         </div>
       </div>
 
@@ -187,12 +193,6 @@ export const MobileNavigation: React.FC = () => {
         open={isCreateDialogOpen}
         onClose={() => setIsCreateDialogOpen(false)}
         onEventCreated={handleEventCreated}
-      />
-
-      <UserProfileDialog
-        userId={user.uid}
-        open={isProfileDialogOpen}
-        onClose={() => setIsProfileDialogOpen(false)}
       />
     </>
   );

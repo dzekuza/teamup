@@ -1,155 +1,66 @@
-import React, { useState, useEffect, useRef } from 'react';
-
-interface LocationSuggestion {
-  name: string;
-  address: string;
-  coordinates: {
-    lat: number;
-    lng: number;
-  };
-  type?: string;
-}
+import React, { useEffect, useRef } from 'react';
+import { Location } from '../constants/locations';
 
 interface LocationSearchProps {
-  onLocationSelect: (location: LocationSuggestion) => void;
+  onLocationSelect: (location: Location) => void;
   placeholder?: string;
 }
 
-export const LocationSearch: React.FC<LocationSearchProps> = ({ onLocationSelect, placeholder = "Search for a location" }) => {
-  const [query, setQuery] = useState<string>('');
-  const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [showSuggestions, setShowSuggestions] = useState<boolean>(false);
-  const searchContainerRef = useRef<HTMLDivElement>(null);
+export const LocationSearch: React.FC<LocationSearchProps> = ({ onLocationSelect, placeholder = "Search for a location..." }) => {
+  const searchRef = useRef<HTMLInputElement>(null);
 
-  // MapTiler API key
-  const MAP_TILER_API_KEY = "33rTk4pHojFrbxONf77X"; // Use the same key as used elsewhere
-
-  // Fetch location suggestions
   useEffect(() => {
-    const fetchSuggestions = async () => {
-      if (query.length < 3) {
-        setSuggestions([]);
-        return;
-      }
+    if (!searchRef.current) return;
 
-      setIsLoading(true);
+    const searchInput = searchRef.current;
+    const handleSearch = async () => {
+      const query = searchInput.value;
+      if (!query) return;
+
       try {
-        // Include types parameter to search for places, addresses and POIs
-        const response = await fetch(
-          `https://api.maptiler.com/geocoding/${encodeURIComponent(query)}.json?key=${MAP_TILER_API_KEY}&limit=8&types=address,place,poi`
-        );
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch suggestions');
-        }
-        
+        const response = await fetch(`https://api.maptiler.com/geocoding/${encodeURIComponent(query)}.json?key=hbw4PJCpzzoJ3dKo6XQx&country=LT`);
         const data = await response.json();
-        const formattedSuggestions = data.features.map((feature: any) => ({
-          name: feature.text,
-          address: feature.place_name,
-          coordinates: {
-            lng: feature.center[0],
-            lat: feature.center[1]
-          },
-          type: feature.place_type?.[0] || ''
-        }));
         
-        setSuggestions(formattedSuggestions);
+        if (data.features && data.features.length > 0) {
+          const firstResult = data.features[0];
+          const location: Location = {
+            name: firstResult.place_name,
+            address: firstResult.place_name,
+            coordinates: {
+              lng: firstResult.center[0],
+              lat: firstResult.center[1]
+            },
+            image: '', // You might want to set a default image
+            sportType: 'Other'
+          };
+          onLocationSelect(location);
+        }
       } catch (error) {
-        console.error('Error fetching location suggestions:', error);
-        setSuggestions([]);
-      } finally {
-        setIsLoading(false);
+        console.error('Error searching location:', error);
       }
     };
 
-    // Debounce the API call
-    const timeoutId = setTimeout(() => {
-      if (query) {
-        fetchSuggestions();
-      }
-    }, 500);
-
-    return () => clearTimeout(timeoutId);
-  }, [query]);
-
-  // Handle clicks outside the component to close suggestions
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        searchContainerRef.current &&
-        !searchContainerRef.current.contains(event.target as Node)
-      ) {
-        setShowSuggestions(false);
-      }
+    let debounceTimer: NodeJS.Timeout;
+    const handleInput = () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(handleSearch, 500);
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    searchInput.addEventListener('input', handleInput);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      searchInput.removeEventListener('input', handleInput);
+      clearTimeout(debounceTimer);
     };
-  }, []);
-
-  const handleSuggestionClick = (suggestion: LocationSuggestion) => {
-    onLocationSelect(suggestion);
-    setQuery(suggestion.address);
-    setShowSuggestions(false);
-  };
-
-  // Get icon based on location type
-  const getLocationIcon = (type: string) => {
-    switch(type) {
-      case 'poi':
-        return '📍';
-      case 'place':
-        return '🏙️';
-      case 'address':
-        return '🏠';
-      default:
-        return '📌';
-    }
-  };
+  }, [onLocationSelect]);
 
   return (
-    <div ref={searchContainerRef} className="relative w-full">
+    <div className="relative">
       <input
+        ref={searchRef}
         type="text"
-        value={query}
-        onChange={(e) => {
-          setQuery(e.target.value);
-          setShowSuggestions(true);
-        }}
-        onFocus={() => setShowSuggestions(true)}
         placeholder={placeholder}
-        className="mt-1 block w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
+        className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
-      
-      {isLoading && (
-        <div className="absolute right-3 top-3">
-          <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-[#C1FF2F]"></div>
-        </div>
-      )}
-      
-      {showSuggestions && suggestions.length > 0 && (
-        <ul className="absolute z-10 w-full mt-1 bg-[#2A2A2A] border border-[#3A3A3A] rounded-xl shadow-lg max-h-60 overflow-auto">
-          {suggestions.map((suggestion, index) => (
-            <li
-              key={index}
-              onClick={() => handleSuggestionClick(suggestion)}
-              className="px-4 py-3 hover:bg-[#3A3A3A] cursor-pointer text-white border-b border-[#3A3A3A] last:border-b-0"
-            >
-              <div className="flex items-center gap-2">
-                <span>{getLocationIcon(suggestion.type || '')}</span>
-                <div>
-                  <div className="font-medium">{suggestion.name}</div>
-                  <div className="text-sm text-gray-400">{suggestion.address}</div>
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
     </div>
   );
 };

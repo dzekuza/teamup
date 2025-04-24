@@ -11,10 +11,10 @@ import ProfileCompletionAlert from '../components/ProfileCompletionAlert';
 import { UserProfileDialog } from '../components/UserProfileDialog';
 import { NotificationsPage } from '../components/NotificationsPage';
 import { SportTypeFilter } from '../components/SportTypeFilter';
-import Map, { Marker } from 'react-map-gl/maplibre';
+import { Map, Marker } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Event, Player } from '../types/index';
 import { PADEL_LOCATIONS, Location as PadelLocation } from '../constants/locations'; // Import and alias Location
@@ -89,6 +89,12 @@ const getEventCoordinates = (event: Event): { lat: number; lng: number } | null 
   return null;
 };
 
+type ViewState = {
+  longitude: number;
+  latitude: number;
+  zoom: number;
+};
+
 export const Home: FC<HomeProps> = ({ myEventsOnly = false, notificationsOnly = false }) => {
   const { user } = useAuth();
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
@@ -112,6 +118,11 @@ export const Home: FC<HomeProps> = ({ myEventsOnly = false, notificationsOnly = 
   const [eventsError, setEventsError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [hoveredEvent, setHoveredEvent] = useState<Event | null>(null);
+  const [viewState, setViewState] = useState<ViewState>({
+    longitude: 25.2797,
+    latitude: 54.6872,
+    zoom: 11
+  });
   const mapRef = useRef<any>(null);
   const [popupPosition, setPopupPosition] = useState<{x: number; y: number} | null>(null);
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
@@ -264,7 +275,7 @@ export const Home: FC<HomeProps> = ({ myEventsOnly = false, notificationsOnly = 
         return;
       }
       
-      // Use LngLatBounds from the maplibregl instance
+      // Use LngLatBounds from the maplibre-gl instance
       const bounds = new maplibregl.LngLatBounds();
       coordinates.forEach(coord => {
         bounds.extend([coord.lng, coord.lat]);
@@ -332,6 +343,10 @@ export const Home: FC<HomeProps> = ({ myEventsOnly = false, notificationsOnly = 
   const handleEventUpdated = () => {
     setRefreshKey(prevKey => prevKey + 1);
   };
+
+  const handleMapMove = useCallback((evt: { viewState: ViewState }) => {
+    setViewState(evt.viewState);
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#121212] pb-24 md:pb-8">
@@ -479,41 +494,39 @@ export const Home: FC<HomeProps> = ({ myEventsOnly = false, notificationsOnly = 
         ) : (
           <div className="h-[60vh] rounded-lg overflow-hidden relative">
             <Map
-              mapLib={Promise.resolve(maplibregl)}
-              initialViewState={{
-                longitude: 25.2797, // Default center (Vilnius)
-                latitude: 54.6872,
-                zoom: 11
-              }}
+              {...viewState}
+              onMove={handleMapMove}
               style={{ width: '100%', height: '100%' }}
-              mapStyle="https://api.maptiler.com/maps/streets-v2-dark/style.json?key=33rTk4pHojFrbxONf77X"
-              onError={(e: Error) => console.error("Map error:", e)}
+              mapStyle="https://api.maptiler.com/maps/basic-v2-dark/style.json?key=hbw4PJCpzzoJ3dKo6XQx"
             >
-              {events.map(event => {
-                // Use the helper function to get coordinates for the marker
+              {events.map((event) => {
                 const coordinates = getEventCoordinates(event);
+                if (!coordinates) return null;
                 
-                // Only render marker if coordinates are valid
-                return coordinates ? (
-                  <Marker 
+                return (
+                  <Marker
                     key={event.id}
                     longitude={coordinates.lng}
                     latitude={coordinates.lat}
                     anchor="center"
+                    onClick={() => handleEventClick(event.id)}
                   >
                     <div 
-                      className="bg-[#1A1A1A] rounded-full p-1.5 shadow-md cursor-pointer border-2 border-gray-700 hover:border-[#C1FF2F] transition-colors" 
-                      onClick={(e: React.MouseEvent) => { e.stopPropagation(); handleEventClick(event.id); }}
-                      onMouseEnter={() => setHoveredEvent(event)} 
-                      onMouseLeave={() => setHoveredEvent(null)} 
-                      title={event.title} 
+                      className={`bg-[#1A1A1A] rounded-full p-2 shadow-md cursor-pointer border-2 border-white hover:border-[#C1FF2F] transition-colors ${
+                        hoveredEvent?.id === event.id ? 'border-[#C1FF2F]' : 'border-gray-700'
+                      }`}
+                      onMouseEnter={() => setHoveredEvent(event)}
+                      onMouseLeave={() => setHoveredEvent(null)}
                     >
-                      <span className="text-lg" role="img" aria-label={event.sportType}>
-                        {SPORT_ICONS[event.sportType] || SPORT_ICONS['Default']}
+                      <span className="text-xl" role="img" aria-label={event.sportType || 'Padel'}>
+                        {event.sportType === 'Tennis' ? '🎾' :
+                         event.sportType === 'Football' ? '⚽' :
+                         event.sportType === 'Basketball' ? '🏀' :
+                         event.sportType === 'Padel' ? '🎾' : '🎾'}
                       </span>
                     </div>
                   </Marker>
-                ) : null;
+                );
               })}
             </Map>
             
@@ -625,3 +638,5 @@ export const Home: FC<HomeProps> = ({ myEventsOnly = false, notificationsOnly = 
     </div>
   );
 };
+
+export default Home;

@@ -4,18 +4,18 @@ import { Navbar } from './components/Navbar';
 import { MobileNavigation } from './components/MobileNavigation';
 import { EmailVerificationBanner } from './components/EmailVerificationBanner';
 import CookieConsentBanner from './components/CookieConsentBanner';
+import Footer from './components/Footer';
 import { Home } from './pages/Home';
 import Login from './pages/Login';
 import { Register } from './pages/Register';
 import { VerifyEmail } from './pages/VerifyEmail';
 import EventDetails from './pages/EventDetails';
-import SingleLocation from './pages/SingleLocation';
 import LandingPage from './pages/LandingPage';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Preloader from './components/Preloader';
 import { SavedEvents } from './pages/SavedEvents';
 import { Community } from './pages/Community';
-import Locations from './pages/Locations';
+import PrivacyPolicy from './pages/PrivacyPolicy';
 import { useCookieContext } from './contexts/CookieContext';
 import { AccessProvider, useAccess } from './contexts/AccessContext';
 import AccessCodePage from './pages/AccessCodePage';
@@ -42,11 +42,15 @@ import AdminDashboardWrapper from './components/AdminDashboardWrapper';
 import AdminLoginPage from './pages/AdminLoginPage';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 
-// Lazy load admin components
+// Lazy load components
 const AdminPage = lazy(() => import('./pages/AdminPage'));
 const AnalyticsDashboard = lazy(() => import('./components/admin/AnalyticsDashboard'));
 const UserManagement = lazy(() => import('./components/admin/UserManagement'));
 const EventManagement = lazy(() => import('./components/admin/EventManagement'));
+const LocationsPage = lazy(() => import('./pages/Locations'));
+const SingleLocationPage = lazy(() => import('./pages/SingleLocation'));
+const Messages = lazy(() => import('./pages/Messages'));
+const Profile = lazy(() => import('./pages/Profile'));
 
 // Add global styles for mobile navigation padding
 const mobileNavStyles = `
@@ -150,15 +154,17 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#121212] text-white flex flex-col relative">
-      {!isMobile && <Navbar />}
-      <main className="flex-grow container mx-auto pt-4 pb-8 sm:pt-4 sm:pb-8">
+      {!isMobile && window.location.pathname !== '/app' && <Navbar />}
+      <main className={`flex-grow container mx-auto ${window.location.pathname !== '/app' ? 'pt-4 pb-8 sm:pt-4 sm:pb-8' : ''}`}>
         <Suspense fallback={
           <Box display="flex" justifyContent="center" alignItems="center" minHeight="50vh">
             <CircularProgress sx={{ color: '#C1FF2F' }} />
           </Box>
         }>
           <Routes>
-            <Route path="/" element={user ? <Home /> : <LandingPage />} />
+            <Route path="/" element={user ? <Home /> : <Navigate to="/app" />} />
+            <Route path="/app" element={<LandingPage />} />
+            <Route path="/join" element={<LandingPage />} />
             <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
             <Route path="/register" element={!user ? <Register /> : <Navigate to="/" />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
@@ -167,8 +173,11 @@ const AppContent: React.FC = () => {
             <Route path="/notifications" element={user ? <Home notificationsOnly={true} /> : <Navigate to="/login" />} />
             <Route path="/community" element={user ? <Community /> : <Navigate to="/login" />} />
             <Route path="/saved-events" element={user ? <SavedEvents /> : <Navigate to="/login" />} />
-            <Route path="/locations" element={user ? <Locations /> : <Navigate to="/login" />} />
-            <Route path="/location/:locationId" element={user ? <SingleLocation /> : <Navigate to="/login" />} />
+            <Route path="/locations" element={<LocationsPage />} />
+            <Route path="/location/:locationId" element={<SingleLocationPage />} />
+            <Route path="/messages" element={user ? <Messages /> : <Navigate to="/login" />} />
+            <Route path="/profile" element={user ? <Profile /> : <Navigate to="/login" />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 
             {/* --- Admin Routes --- */}
             {/* Login Page Route */}
@@ -191,12 +200,15 @@ const AppContent: React.FC = () => {
           </Routes>
         </Suspense>
       </main>
+
+      {window.location.pathname !== '/app' && <Footer />}
+
       {user && (
         <>
           <EmailVerificationBanner />
         </>
       )}
-      {user && isMobile && <MobileNavigation />}
+      {isMobile && window.location.pathname !== '/app' && <MobileNavigation />}
       
       {(!preferences || !preferences.cookieConsent) && <CookieConsentBanner />}
 
@@ -209,7 +221,7 @@ const AppContent: React.FC = () => {
           right: '20px',
           backgroundColor: '#C1FF2F', // Accent color
           color: '#000', // Black icon color
-          zIndex: 1301, // Above Dialog backdrop (usually 1300)
+          zIndex: 40, // Lowered z-index to be below pop-ups (like z-50)
           '&:hover': {
             backgroundColor: '#aee62a', // Slightly darker on hover
           },

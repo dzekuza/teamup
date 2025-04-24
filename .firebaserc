@@ -1,9 +1,9 @@
 {
   "projects": {
-    "default": "newprojecta-36c09"
+    "default": "invite-to-sport"
   },
   "targets": {
-    "newprojecta-36c09": {
+    "invite-to-sport": {
       "hosting": {
         "default": [
           "teamup.lt"

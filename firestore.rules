@@ -7,6 +7,28 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Helper function to check if user is a chat participant
+    function isChatParticipant(chatId) {
+      return isAuthenticated() &&
+        request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+    }
+
+    // Helper function to check if user is in participants array
+    function isInParticipants(participants) {
+      return isAuthenticated() && request.auth.uid in participants;
+    }
+
+    // Helper function to check if user is event creator
+    function isEventCreator(eventId) {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/events/$(eventId)).data.createdBy == request.auth.uid;
+    }
+
+    // Helper function to check if chat is an event group chat
+    function isEventGroupChat() {
+      return request.resource.data.type == 'event_group';
+    }
+
     // Users collection
     match /users/{userId} {
       allow read: if isAuthenticated();
@@ -53,12 +75,40 @@ service cloud.firestore {
       }
     }
 
-    // Mail collection for email sending
-    match /mail/{document=**} {
+    // Chats collection
+    match /chats/{chatId} {
+      // Allow read if authenticated
       allow read: if isAuthenticated();
+      
+      // Allow create if authenticated
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated();
-      allow delete: if isAuthenticated();
+      
+      // Allow update if authenticated and either:
+      // 1. User is in participants
+      // 2. User is the event creator (for event group chats)
+      allow update: if isAuthenticated() && (
+        request.auth.uid in resource.data.participants ||
+        (resource.data.type == 'event_group' && 
+         isEventCreator(resource.data.eventId))
+      );
+
+      // Messages subcollection
+      match /messages/{messageId} {
+        // Allow read if authenticated
+        allow read: if isAuthenticated();
+        
+        // Allow create if authenticated
+        allow create: if isAuthenticated();
+        
+        // Allow update if authenticated and user is message sender
+        allow update: if isAuthenticated() && 
+          resource.data.sender == request.auth.uid;
+      }
+    }
+
+    // Mail collection for email sending
+    match /mail/{mailId} {
+      allow create: if isAuthenticated();
     }
 
     // Notifications collection
@@ -71,24 +121,15 @@ service cloud.firestore {
 
     // Saved Events collection
     match /savedEvents/{savedEventId} {
-      // Allow read if authenticated and userId field matches current user
-      // or if the document ID starts with the user's UID (using our userId_eventId format)
       allow read: if isAuthenticated() && (
         resource.data.userId == request.auth.uid ||
         savedEventId.matches(request.auth.uid + '_.*')
       );
-      
-      // Allow creates if authenticated and userId field matches current user
-      // or if the document ID starts with the user's UID
       allow create: if isAuthenticated() && (
         request.resource.data.userId == request.auth.uid ||
         savedEventId.matches(request.auth.uid + '_.*')
       );
-      
-      // Allow updates if authenticated and userId field matches current user
       allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
-      
-      // Allow deletes if authenticated and userId field matches current user
       allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
 

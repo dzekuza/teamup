@@ -14,6 +14,8 @@ declare module 'react-map-gl' {
     children?: ReactNode;
     reuseMaps?: boolean;
     ref?: React.RefObject<MapRef>;
+    onMove?: (evt: { viewState: { longitude: number; latitude: number; zoom: number } }) => void;
+    onError?: (error: Error) => void;
   }
 
   export interface MarkerProps {
