@@ -32,9 +32,9 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Web Cleanup
 
-- [ ] **CLEAN-01**: Legacy `AuthContext.tsx` deleted after all pages migrated
-- [ ] **CLEAN-02**: Legacy `useAuth.ts` (Firebase hook) deleted
-- [ ] **CLEAN-03**: Build compiles cleanly with no Firebase imports in migrated files
+- [x] **CLEAN-01**: Legacy `AuthContext.tsx` deleted after all pages migrated
+- [x] **CLEAN-02**: Legacy `useAuth.ts` (Firebase hook) deleted
+- [x] **CLEAN-03**: Build compiles cleanly with no Firebase imports in migrated files
 
 ### Mobile UI
 
@@ -106,9 +106,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DATA-02 | Phase 2 | Complete |
 | DATA-03 | Phase 2 | Complete |
 | DATA-04 | Phase 2 | Complete |
-| CLEAN-01 | Phase 2 | Pending |
-| CLEAN-02 | Phase 2 | Pending |
-| CLEAN-03 | Phase 2 | Pending |
+| CLEAN-01 | Phase 2 | Complete |
+| CLEAN-02 | Phase 2 | Complete |
+| CLEAN-03 | Phase 2 | Complete |
 | MOBILE-01 | Phase 3 | Complete |
 | MOBILE-02 | Phase 3 | Complete |
 | MOBILE-03 | Phase 3 | Complete |

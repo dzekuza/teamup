@@ -7,7 +7,7 @@ This milestone completes the Firebase-to-Supabase migration for the web app's re
 ## Phases
 
 - [ ] **Phase 1: Auth Provider Wiring + Auth Page Migration** - Wire SupabaseAuthProvider at app root and migrate Login/Register to Supabase auth
-- [ ] **Phase 2: Data Page Migration + Web Cleanup** - Migrate Profile, SavedEvents, Locations, SingleLocation to Supabase and remove legacy Firebase auth artifacts
+- [x] **Phase 2: Data Page Migration + Web Cleanup** - Migrate Profile, SavedEvents, Locations, SingleLocation to Supabase and remove legacy Firebase auth artifacts (completed 2026-02-23)
 - [x] **Phase 3: Mobile UI Primitives** - Build brand-consistent TextInput, Button, and bottom sheet components for the React Native Expo app (completed 2026-02-23)
 
 ## Phase Details
@@ -38,7 +38,7 @@ Plans:
   3. User can view padel venue locations loaded from Supabase instead of Firestore
   4. `AuthContext.tsx` and `useAuth.ts` contain no Firebase auth code — they are re-export shims pointing to SupabaseAuthContext
   5. `npm run build` completes with no Firebase imports in the six migrated files
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 Plans:
 - [ ] 02-01-PLAN.md — Migrate Profile + SavedEvents to Supabase (export toAppEvent, join query)
 - [ ] 02-02-PLAN.md — Migrate Locations + SingleLocation to Supabase (remove convertTimestampsToStrings)
@@ -64,5 +64,5 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Auth Provider Wiring + Auth Page Migration | 1/3 | In Progress|  |
-| 2. Data Page Migration + Web Cleanup | 2/3 | In Progress|  |
+| 2. Data Page Migration + Web Cleanup | 3/3 | Complete   | 2026-02-23 |
 | 3. Mobile UI Primitives | 2/2 | Complete    | 2026-02-23 |

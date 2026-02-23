@@ -5,37 +5,38 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** Players can quickly find partners and join padel events — event creation and joining must work reliably across web and mobile.
-**Current focus:** Phase 1 — Auth Provider Wiring and Auth Page Migration
+**Current focus:** Phase 2 — Data Page Migration Web Cleanup
 
 ## Current Position
 
-Phase: 1 of 3 (Auth Provider Wiring and Auth Page Migration)
-Plan: 1 of TBD in current phase
-Status: In progress
-Last activity: 2026-02-23 — Completed 01-01: SupabaseAuthProvider wired at root, App.tsx and EmailVerificationBanner migrated to Supabase auth
+Phase: 2 of 3 (Data Page Migration Web Cleanup)
+Plan: 3 of 3 in current phase
+Status: Complete
+Last activity: 2026-02-23 — Completed 02-03: AuthContext.tsx and useAuth.ts replaced with Supabase re-export shims; CompatUser type added for backward compatibility
 
-Progress: [████░░░░░░] 40%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2
-- Average duration: 7 min
-- Total execution time: 0.24 hours
+- Total plans completed: 5
+- Average duration: 12 min
+- Total execution time: 0.59 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 02-data-page-migration-web-cleanup | 2 | 14 min | 7 min |
+| 02-data-page-migration-web-cleanup | 3 | 35 min | 12 min |
 
 **Recent Trend:**
-- Last 5 plans: 5 min, 9 min
+- Last 5 plans: 5 min, 9 min, 21 min
 - Trend: Stable
 
 *Updated after each plan completion*
-| Phase 03-mobile-ui-primitives P01 | 3 | 2 tasks | 3 files |
-| Phase 03-mobile-ui-primitives P02 | 2 | 2 tasks | 3 files |
+| Phase 02-data-page-migration-web-cleanup P01 | 1 | 1 task | 2 files |
+| Phase 02-data-page-migration-web-cleanup P02 | 1 | 1 task | 2 files |
+| Phase 02-data-page-migration-web-cleanup P03 | 1 | 1 task | 3 files |
 
 ## Accumulated Context
 
@@ -54,6 +55,8 @@ Recent decisions affecting current work:
 - 02-02: Firebase Storage CDN URLs in MOCK_GALLERY are static assets, not Firebase SDK usage — left unchanged
 - 01-01: hooks/useAuth.ts kept as Firebase hook — must NOT be changed until Phase 2 migrates all 16+ components that use user.uid
 - 01-01: Supabase User.email_confirmed_at (string|null) replaces Firebase User.emailVerified (boolean) in EmailVerificationBanner
+- [Phase 02-data-page-migration-web-cleanup]: 02-03: CompatUser type added to SupabaseAuthContext with uid/emailVerified aliases — avoids modifying 50+ usages in unmigrated components
+- [Phase 02-data-page-migration-web-cleanup]: 02-03: Re-export shim pattern established — legacy auth path files replaced with single re-export to new location, preserving all existing imports
 - [Phase 03-mobile-ui-primitives]: Mobile directory is mobile/ not mobile/teamup/ - plan path discrepancy resolved silently
 - [Phase 03-mobile-ui-primitives]: expo-haptics was not installed despite research claiming it was - auto-installed as Rule 3 blocking fix
 - [Phase 03-mobile-ui-primitives]: Brand tokens pattern established: always import from @/constants/theme, never hardcode hex in component files
@@ -75,5 +78,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 01-01-PLAN.md — SupabaseAuthProvider wired at root, App.tsx and EmailVerificationBanner migrated to Supabase auth
+Stopped at: Completed 02-03-PLAN.md — AuthContext.tsx and useAuth.ts replaced with Supabase re-export shims; CompatUser type added for backward compatibility
 Resume file: None
