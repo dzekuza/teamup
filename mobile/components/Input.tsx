@@ -16,24 +16,51 @@ export const Input: React.FC<InputProps> = ({
   style,
   ...props
 }) => {
+  const [focused, setFocused] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  const borderColor = error
+    ? Colors.error
+    : focused
+    ? Colors.primary
+    : Colors.border;
+
+  const labelColor = error
+    ? Colors.error
+    : focused
+    ? Colors.primary
+    : Colors.textSecondary;
 
   return (
     <View style={styles.container}>
-      {label && <Text style={styles.label}>{label}</Text>}
-      <View style={[styles.inputContainer, error ? styles.inputError : null]}>
+      {label && <Text style={[styles.label, { color: labelColor }]}>{label}</Text>}
+      <View style={[styles.inputContainer, { borderColor }]}>
         <TextInput
           style={[styles.input, style]}
           placeholderTextColor={Colors.textMuted}
           secureTextEntry={isPassword && !showPassword}
+          accessibilityLabel={label}
+          onFocus={(e) => {
+            setFocused(true);
+            props.onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setFocused(false);
+            props.onBlur?.(e);
+          }}
           {...props}
         />
         {isPassword && (
-          <Pressable onPress={() => setShowPassword(!showPassword)} style={styles.eyeButton}>
+          <Pressable
+            onPress={() => setShowPassword(!showPassword)}
+            style={styles.eyeButton}
+            accessibilityRole="button"
+            accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+          >
             <Ionicons
               name={showPassword ? 'eye-off-outline' : 'eye-outline'}
               size={20}
-              color={Colors.textMuted}
+              color={focused ? Colors.primary : Colors.textMuted}
             />
           </Pressable>
         )}
@@ -48,7 +75,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   label: {
-    color: Colors.textSecondary,
     fontSize: FontSize.sm,
     marginBottom: Spacing.xs,
     fontWeight: '500',
@@ -58,11 +84,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: Colors.surface,
     borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  inputError: {
-    borderColor: Colors.error,
+    borderWidth: 1.5,
   },
   input: {
     flex: 1,

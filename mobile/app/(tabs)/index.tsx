@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,16 +12,23 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEvents } from '../../hooks/useEvents';
+import { useAuth } from '../../contexts/AuthContext';
 import { EventCard, COMPACT_CARD_WIDTH } from '../../components/EventCard';
 import { SportFilterChips } from '../../components/SportFilterChips';
 import { PlayerAvatars } from '../../components/PlayerAvatars';
 import { Colors, Spacing, BorderRadius, FontSize } from '../../constants/theme';
 import type { AppEvent } from '../../hooks/useEvents';
+import { ScreenEnter } from '../../components/ScreenEnter';
+import { useSavedEvents } from '../../hooks/useSavedEvents';
 
 export default function HomeScreen() {
   const { events, loading, refetch } = useEvents();
+  const { user, profile } = useAuth();
+  const { isSaved, toggleSave } = useSavedEvents();
   const [search, setSearch] = useState('');
+  const [searchFocused, setSearchFocused] = useState(false);
   const [selectedSport, setSelectedSport] = useState('All');
+  const [countdown, setCountdown] = useState('');
 
   const filteredEvents = useMemo(() => {
     let result = events;
@@ -47,48 +54,70 @@ export default function HomeScreen() {
       .slice(0, 5);
   }, [filteredEvents]);
 
-  // Currently playing: events happening right now
+  // Currently playing: events happening right now that the user has joined
   const currentlyPlaying = useMemo(() => {
+    if (!user) return undefined;
     const now = new Date();
     return events.find(e => {
+      const isJoined = e.players.some(p => p.user_id === user.id);
+      if (!isJoined) return false;
       const start = new Date(`${e.date}T${e.time}`);
       const end = e.endTime ? new Date(`${e.date}T${e.endTime}`) : new Date(start.getTime() + 2 * 60 * 60 * 1000);
       return now >= start && now <= end;
     });
-  }, [events]);
+  }, [events, user]);
+
+  // Countdown timer for currently playing event
+  useEffect(() => {
+    if (!currentlyPlaying) {
+      setCountdown('');
+      return;
+    }
+    const tick = () => {
+      const now = new Date();
+      const end = currentlyPlaying.endTime
+        ? new Date(`${currentlyPlaying.date}T${currentlyPlaying.endTime}`)
+        : new Date(new Date(`${currentlyPlaying.date}T${currentlyPlaying.time}`).getTime() + 2 * 60 * 60 * 1000);
+      const diff = end.getTime() - now.getTime();
+      if (diff <= 0) {
+        setCountdown('00:00:00');
+        return;
+      }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setCountdown(
+        `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+      );
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [currentlyPlaying]);
 
   const renderHeader = () => (
     <View>
-      {/* Events count */}
-      <Text style={styles.eventsCount}>
-        {filteredEvents.length} events found
-      </Text>
-
       {/* Currently playing */}
       {currentlyPlaying && (
-        <View style={styles.currentlyPlaying}>
-          <View style={styles.currentlyPlayingHeader}>
-            <View style={styles.liveDot} />
-            <Text style={styles.currentlyPlayingLabel}>Currently playing</Text>
-          </View>
+        <Pressable
+          style={styles.currentlyPlaying}
+          onPress={() => router.push(`/event/${currentlyPlaying.id}`)}
+        >
+          <Text style={styles.currentlyPlayingLabel}>Currently playing</Text>
           <Text style={styles.currentlyPlayingTitle}>{currentlyPlaying.title}</Text>
-          <View style={styles.currentlyPlayingMeta}>
-            <Ionicons name="time-outline" size={14} color={Colors.inputText} />
-            <Text style={styles.currentlyPlayingTime}>
-              {currentlyPlaying.time.slice(0, 5)}
-              {currentlyPlaying.endTime ? ` – ${currentlyPlaying.endTime.slice(0, 5)}` : ''}
-            </Text>
+          <View style={styles.currentlyPlayingBottom}>
+            <View style={styles.currentlyPlayingTimeCol}>
+              <Text style={styles.currentlyPlayingTime}>
+                {currentlyPlaying.time.slice(0, 5)}
+                {currentlyPlaying.endTime ? ` - ${currentlyPlaying.endTime.slice(0, 5)}` : ''}
+              </Text>
+              {countdown ? (
+                <Text style={styles.currentlyPlayingCountdown}>{countdown}</Text>
+              ) : null}
+            </View>
+            <PlayerAvatars players={currentlyPlaying.players} maxVisible={4} size={32} />
           </View>
-          <View style={styles.currentlyPlayingFooter}>
-            <PlayerAvatars players={currentlyPlaying.players} maxVisible={4} size={28} />
-            <Pressable
-              style={styles.previewButton}
-              onPress={() => router.push(`/event/${currentlyPlaying.id}`)}
-            >
-              <Text style={styles.previewButtonText}>Preview current match</Text>
-            </Pressable>
-          </View>
-        </View>
+        </Pressable>
       )}
 
       {/* Upcoming events carousel */}
@@ -109,6 +138,8 @@ export default function HomeScreen() {
                   event={item}
                   onPress={() => router.push(`/event/${item.id}`)}
                   variant="compact"
+                  isSaved={isSaved(item.id)}
+                  onSave={toggleSave}
                 />
               </View>
             )}
@@ -123,70 +154,86 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Search bar */}
-      <View style={styles.searchRow}>
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={18} color={Colors.inputText} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search events..."
-            placeholderTextColor={Colors.inputText}
-            value={search}
-            onChangeText={setSearch}
-          />
-          {search ? (
-            <Pressable onPress={() => setSearch('')}>
-              <Ionicons name="close-circle" size={18} color={Colors.inputText} />
-            </Pressable>
-          ) : null}
+      <ScreenEnter>
+        {/* Welcome title */}
+        <View style={styles.header}>
+          <Text style={styles.welcomeText}>
+            Welcome back, {profile?.display_name || 'Player'}
+          </Text>
         </View>
-        <Pressable style={styles.filterButton}>
-          <Ionicons name="options-outline" size={20} color={Colors.primary} />
-        </Pressable>
-      </View>
 
-      {/* Sport filter chips */}
-      <View style={styles.filtersRow}>
-        <SportFilterChips selected={selectedSport} onSelect={setSelectedSport} />
-      </View>
-
-      {/* Main content */}
-      <FlatList
-        data={filteredEvents}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.eventsList}
-        refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={refetch} tintColor={Colors.primary} />
-        }
-        ListHeaderComponent={renderHeader}
-        renderItem={({ item }) => (
-          <View style={styles.exploreCard}>
-            <EventCard
-              event={item}
-              onPress={() => router.push(`/event/${item.id}`)}
+        {/* Search bar */}
+        <View style={styles.searchRow}>
+          <View style={[
+            styles.searchContainer,
+            { borderColor: searchFocused ? Colors.primary : Colors.border },
+          ]}>
+            <Ionicons name="search" size={18} color={searchFocused ? Colors.primary : Colors.inputText} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search events..."
+              placeholderTextColor={Colors.inputText}
+              value={search}
+              onChangeText={setSearch}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
             />
+            {search ? (
+              <Pressable onPress={() => setSearch('')}>
+                <Ionicons name="close-circle" size={18} color={Colors.inputText} />
+              </Pressable>
+            ) : null}
           </View>
-        )}
-        ListEmptyComponent={
-          !loading ? (
-            <View style={styles.empty}>
-              <Ionicons name="calendar-outline" size={48} color={Colors.textMuted} />
-              <Text style={styles.emptyText}>No events found</Text>
-              <Text style={styles.emptySubtext}>
-                {search || selectedSport !== 'All'
-                  ? 'Try adjusting your filters'
-                  : 'Pull to refresh or create a new event'}
-              </Text>
-            </View>
-          ) : null
-        }
-      />
+          <Pressable style={styles.filterButton}>
+            <Ionicons name="options-outline" size={20} color={Colors.primary} />
+          </Pressable>
+        </View>
 
-      {/* Map floating button */}
-      <Pressable style={styles.mapButton} onPress={() => router.push('/map')}>
-        <Ionicons name="map-outline" size={18} color={Colors.text} />
-        <Text style={styles.mapButtonText}>Map</Text>
-      </Pressable>
+        {/* Sport filter chips */}
+        <View style={styles.filtersRow}>
+          <SportFilterChips selected={selectedSport} onSelect={setSelectedSport} />
+        </View>
+
+        {/* Main content */}
+        <FlatList
+          data={filteredEvents}
+          keyExtractor={item => item.id}
+          contentContainerStyle={styles.eventsList}
+          refreshControl={
+            <RefreshControl refreshing={loading} onRefresh={refetch} tintColor={Colors.primary} />
+          }
+          ListHeaderComponent={renderHeader}
+          renderItem={({ item }) => (
+            <View style={styles.exploreCard}>
+              <EventCard
+                event={item}
+                onPress={() => router.push(`/event/${item.id}`)}
+                isSaved={isSaved(item.id)}
+                onSave={toggleSave}
+              />
+            </View>
+          )}
+          ListEmptyComponent={
+            !loading ? (
+              <View style={styles.empty}>
+                <Ionicons name="calendar-outline" size={48} color={Colors.textMuted} />
+                <Text style={styles.emptyText}>No events found</Text>
+                <Text style={styles.emptySubtext}>
+                  {search || selectedSport !== 'All'
+                    ? 'Try adjusting your filters'
+                    : 'Pull to refresh or create a new event'}
+                </Text>
+              </View>
+            ) : null
+          }
+        />
+
+        {/* Map floating button */}
+        <Pressable style={styles.mapButton} onPress={() => router.push('/map')}>
+          <Ionicons name="map-outline" size={18} color={Colors.text} />
+          <Text style={styles.mapButtonText}>Map</Text>
+        </Pressable>
+      </ScreenEnter>
     </SafeAreaView>
   );
 }
@@ -194,23 +241,35 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
 
+  // Header
+  header: {
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.xxl,
+    paddingBottom: Spacing.lg,
+  },
+  welcomeText: {
+    color: Colors.text,
+    fontSize: FontSize.xxxl,
+    fontWeight: '800',
+  },
+
   // Search
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.md,
+    paddingBottom: Spacing.md,
     gap: Spacing.sm,
   },
   searchContainer: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.darkGreen,
+    backgroundColor: Colors.surface,
     borderRadius: BorderRadius.lg,
     paddingHorizontal: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.darkGreenBorder,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
   },
   searchInput: {
     flex: 1,
@@ -223,9 +282,9 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: BorderRadius.lg,
-    backgroundColor: Colors.darkGreen,
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: Colors.darkGreenBorder,
+    borderColor: Colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -235,14 +294,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
 
-  // Events count
-  eventsCount: {
-    color: Colors.inputText,
-    fontSize: FontSize.sm,
-    paddingHorizontal: Spacing.xl,
-    marginBottom: Spacing.lg,
-  },
-
   // Currently playing
   currentlyPlaying: {
     marginHorizontal: Spacing.xl,
@@ -250,58 +301,39 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.xl,
     padding: Spacing.lg,
     marginBottom: Spacing.xl,
-    borderWidth: 1,
-    borderColor: Colors.darkGreenBorder,
-  },
-  currentlyPlayingHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    marginBottom: Spacing.sm,
-  },
-  liveDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.primary,
   },
   currentlyPlayingLabel: {
-    color: Colors.primary,
-    fontSize: FontSize.xs,
-    fontWeight: '700',
-    textTransform: 'uppercase',
+    color: Colors.mainColor,
+    fontSize: FontSize.lg,
+    fontWeight: '400',
+    marginBottom: Spacing.sm,
   },
   currentlyPlayingTitle: {
-    color: Colors.text,
-    fontSize: FontSize.lg,
-    fontWeight: '700',
-    marginBottom: Spacing.xs,
+    color: Colors.textLight,
+    fontSize: 24,
+    fontWeight: '600',
+    lineHeight: 32,
+    marginBottom: Spacing.sm,
   },
-  currentlyPlayingMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    marginBottom: Spacing.md,
-  },
-  currentlyPlayingTime: {
-    color: Colors.inputText,
-    fontSize: FontSize.sm,
-  },
-  currentlyPlayingFooter: {
+  currentlyPlayingBottom: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-end',
   },
-  previewButton: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full,
+  currentlyPlayingTimeCol: {
+    gap: Spacing.xs,
   },
-  previewButtonText: {
-    color: Colors.textOnPrimary,
-    fontSize: FontSize.xs,
-    fontWeight: '700',
+  currentlyPlayingTime: {
+    color: Colors.textLight,
+    fontSize: FontSize.lg,
+    fontWeight: '400',
+    lineHeight: 22,
+  },
+  currentlyPlayingCountdown: {
+    color: Colors.textLight,
+    fontSize: FontSize.lg,
+    fontWeight: '400',
+    lineHeight: 22,
   },
 
   // Sections
@@ -350,7 +382,7 @@ const styles = StyleSheet.create({
   // Map button
   mapButton: {
     position: 'absolute',
-    bottom: 100,
+    bottom: 24,
     alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',

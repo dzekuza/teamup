@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { Colors, Spacing, BorderRadius, FontSize } from '../../constants/theme';
+import { ScreenEnter } from '../../components/ScreenEnter';
 
 interface Memory {
   id: string;
@@ -98,10 +99,10 @@ export default function CommunityScreen() {
       prev.map(m =>
         m.id === memory.id
           ? {
-              ...m,
-              liked_by_me: !m.liked_by_me,
-              like_count: m.liked_by_me ? m.like_count - 1 : m.like_count + 1,
-            }
+            ...m,
+            liked_by_me: !m.liked_by_me,
+            like_count: m.liked_by_me ? m.like_count - 1 : m.like_count + 1,
+          }
           : m
       )
     );
@@ -152,34 +153,36 @@ export default function CommunityScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Community</Text>
-      </View>
-      <FlatList
-        data={memories}
-        keyExtractor={item => item.id}
-        renderItem={renderMemory}
-        contentContainerStyle={styles.list}
-        refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={fetchMemories} tintColor={Colors.primary} />
-        }
-        ListEmptyComponent={
-          !loading ? (
-            <View style={styles.empty}>
-              <Ionicons name="images-outline" size={48} color={Colors.textMuted} />
-              <Text style={styles.emptyText}>No memories yet</Text>
-              <Text style={styles.emptySubtext}>Share your first post-event photo!</Text>
-            </View>
-          ) : null
-        }
-      />
+      <ScreenEnter>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Community</Text>
+        </View>
+        <FlatList
+          data={memories}
+          keyExtractor={item => item.id}
+          renderItem={renderMemory}
+          contentContainerStyle={styles.list}
+          refreshControl={
+            <RefreshControl refreshing={loading} onRefresh={fetchMemories} tintColor={Colors.primary} />
+          }
+          ListEmptyComponent={
+            !loading ? (
+              <View style={styles.empty}>
+                <Ionicons name="images-outline" size={48} color={Colors.textMuted} />
+                <Text style={styles.emptyText}>No memories yet</Text>
+                <Text style={styles.emptySubtext}>Share your first post-event photo!</Text>
+              </View>
+            ) : null
+          }
+        />
+      </ScreenEnter>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  header: { paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md },
+  header: { paddingHorizontal: Spacing.xl, paddingTop: Spacing.xxl, paddingBottom: Spacing.lg },
   headerTitle: { color: Colors.text, fontSize: FontSize.xxl, fontWeight: '800' },
   list: { paddingHorizontal: Spacing.xl, paddingBottom: 100 },
   memoryCard: {

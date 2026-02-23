@@ -21,8 +21,11 @@ import {
   Edit as EditIcon,
   Bookmark as BookmarkIcon,
   BookmarkBorder as BookmarkBorderIcon,
+  FavoriteBorder as FavoriteBorderIcon,
+  Favorite as FavoriteIcon,
   CameraAlt as CameraIcon,
-  Delete as DeleteIcon
+  Delete as DeleteIcon,
+  SportsSoccer as SportsSoccerIcon
 } from '@mui/icons-material';
 import { ShareMemoryDialog } from '../components/ShareMemoryDialog';
 import { EditEventDialog } from '../components/EditEventDialog';
@@ -83,6 +86,26 @@ const calculateEndTime = (startTime: string): string => {
   const formattedEndMinutes = endMinutes.toString().padStart(2, '0');
   
   return `${formattedEndHours}:${formattedEndMinutes}`;
+};
+
+const formatEventDayLabel = (dateString: string): string => {
+  const eventDate = new Date(dateString);
+  const today = new Date();
+  const tomorrow = new Date();
+  tomorrow.setDate(today.getDate() + 1);
+
+  const isSameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+
+  if (isSameDay(eventDate, today)) return 'Today';
+  if (isSameDay(eventDate, tomorrow)) return 'Tomorrow';
+
+  return eventDate.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+  });
 };
 
 // Player data types helper
@@ -572,94 +595,20 @@ const EventDetails: React.FC = () => {
       : DEFAULT_COVER_IMAGE;
 
   // Show players section
-  const renderPlayers = () => {
-    if (!event) return null;
-    
-    return (
-      <div className="mt-6">
-        <h3 className="text-xl font-semibold mb-4 text-white">Players ({event.players.filter(player => player && player.id).length}/{event.maxPlayers})</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {event.players.filter(player => player && player.id).map((player, index) => {
-            // Determine if player is an object or string
-            const playerId = isPlayerObject(player) ? player.id : player;
-            const playerName = isPlayerObject(player) ? (player.displayName || player.name) : 'Unknown';
-            const playerPhotoSrc = isPlayerObject(player) && player.photoURL;
-            const playerLevel = isPlayerObject(player) ? player.level : null;
-            
-            // Handle avatar sources properly
-            let avatarSrc = '/images/default-avatar.png';
-            if (playerPhotoSrc) {
-              // Check if it's a reference to one of our imported avatars
-              if (playerPhotoSrc === 'Avatar1' || playerPhotoSrc === 'Avatar2' || 
-                  playerPhotoSrc === 'Avatar3' || playerPhotoSrc === 'Avatar4') {
-                avatarSrc = avatars[playerPhotoSrc as keyof typeof avatars];
-              } else {
-                avatarSrc = playerPhotoSrc;
-              }
-            }
-            
-            return (
-              <div 
-                key={`player-${index}-${playerId || 'unknown'}`} 
-                className="flex items-center space-x-2 my-2 p-3 bg-[rgb(35_35_35/var(--tw-bg-opacity))] rounded-lg hover:bg-[rgb(40_40_40/var(--tw-bg-opacity))] cursor-pointer"
-                onClick={() => handleViewProfile(playerId)}
-              >
-                <img 
-                  src={avatarSrc}
-                  alt={`Player ${index + 1}`} 
-                  className="w-10 h-10 rounded-full object-cover"
-                  onError={(e) => { e.currentTarget.src = '/images/default-avatar.png' }}
-                />
-                <div>
-                  <p className="font-medium text-white">{playerName}</p>
-                  {playerLevel && (
-                    <p className="text-xs text-gray-400">Level: {playerLevel}</p>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
+  const getPlayerAvatarSrc = (player: Player | string) => {
+    if (!isPlayerObject(player)) return '/images/default-avatar.png';
+    if (!player.photoURL) return '/images/default-avatar.png';
 
-  // Render join/leave button
-  const renderActionButton = () => {
-    if (event.status === 'completed' || new Date() > new Date(`${event.date}T${event.time}`)) {
-      return null;
+    if (
+      player.photoURL === 'Avatar1' ||
+      player.photoURL === 'Avatar2' ||
+      player.photoURL === 'Avatar3' ||
+      player.photoURL === 'Avatar4'
+    ) {
+      return avatars[player.photoURL as keyof typeof avatars];
     }
-    
-    if (isPlayerInEvent) {
-      return (
-        <button
-          onClick={handleLeaveEvent}
-          className="w-full bg-[#FF3B3B] hover:bg-[#E02F2F] text-white font-medium py-3 px-4 rounded-lg transition duration-200"
-          disabled={isLoading || actionInProgress}
-        >
-          {actionInProgress ? <span className="animate-pulse">Processing...</span> : 'Leave Game'}
-        </button>
-      );
-    } else if (event.players && event.players.length < event.maxPlayers) {
-      return (
-        <button
-          onClick={handleJoinEvent}
-          className="w-full bg-[#C1FF2F] hover:bg-[#a4e620] text-[#161723] font-medium py-3 px-4 rounded-lg transition duration-200"
-          disabled={isLoading || actionInProgress}
-        >
-          {actionInProgress ? <span className="animate-pulse">Processing...</span> : 'Join Game'}
-        </button>
-      );
-    } else {
-      return (
-        <button
-          className="w-full bg-[#252736] text-white font-medium py-3 px-4 rounded-lg cursor-not-allowed"
-          disabled
-        >
-          Game Full
-        </button>
-      );
-    }
+
+    return player.photoURL;
   };
 
   return (
@@ -674,56 +623,275 @@ const EventDetails: React.FC = () => {
         </div>
       ) : (
         <>
-          <div className="relative max-w-4xl mx-auto mt-0 md:mt-6">
-            {coverImageUrl && (
-              <img
-                src={coverImageUrl}
-                alt={event.location}
-                className="w-full h-64 md:h-96 object-cover md:rounded-t-lg md:rounded-b-lg"
-                onError={(e) => {
-                  e.currentTarget.src = '/default-location.jpg';
-                }}
-              />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-[rgb(18_18_18/var(--tw-bg-opacity))] to-transparent md:rounded-lg"></div>
-            
-            {/* Back button for mobile */}
-            <button 
-              onClick={() => navigate(-1)} 
-              className="absolute top-4 left-4 z-10 bg-black bg-opacity-50 rounded-full p-2 md:hidden"
-              aria-label="Back"
-            >
-              <ArrowLeftIcon className="text-white" />
-            </button>
-            
-            <div className="absolute bottom-0 left-0 p-4 md:p-6">
-              <div className="text-[#C1FF2F] font-medium text-sm md:text-base mb-1">{event.sportType || 'Padel'}</div>
-              <h1 className="text-2xl md:text-3xl font-bold mb-2 text-white">{event.title}</h1>
-              <p className="text-gray-300">
-                {formatDateForDisplay(event.date)} at {event.time}
-              </p>
-            </div>
-            <div className="absolute top-4 right-4 flex space-x-2">
-              <div className="bg-[#252736] text-white text-xs rounded-full px-3 py-1 flex items-center">
-                <span>{event.players?.filter(player => player && player.id).length || 0}/{event.maxPlayers} Players</span>
-              </div>
-              {event.status === 'completed' ? (
-                <div className="bg-gray-600 text-white text-xs rounded-full px-3 py-1 flex items-center">
-                  <span>Event Finished</span>
-                </div>
-              ) : new Date() > new Date(`${event.date}T${event.time}`) ? (
-                <div className="bg-red-600 text-white text-xs rounded-full px-3 py-1 flex items-center">
-                  <span>Event Expired</span>
-                </div>
-              ) : (
-                <div className="bg-[#C1FF2F] text-[#161723] text-xs rounded-full px-3 py-1 flex items-center">
-                  <span>Active Event</span>
-                </div>
+          <div className="md:hidden bg-[#10130c] text-white">
+            <div className="relative">
+              {coverImageUrl && (
+                <img
+                  src={coverImageUrl}
+                  alt={event.location}
+                  className="w-full h-72 object-cover"
+                  onError={(e) => {
+                    e.currentTarget.src = '/default-location.jpg';
+                  }}
+                />
               )}
+              <div className="absolute inset-0 bg-gradient-to-t from-[rgb(16_19_12/var(--tw-bg-opacity))] to-transparent"></div>
+
+              <button
+                onClick={() => navigate(-1)}
+                className="absolute top-6 left-4 z-10 bg-[#b4d91e] rounded-full p-2"
+                aria-label="Back"
+              >
+                <ArrowLeftIcon className="text-[#10130c]" />
+              </button>
+
+              <div className="absolute top-6 right-4 flex items-center gap-2">
+                <button
+                  onClick={handleSaveEvent}
+                  disabled={savingEvent}
+                  className="bg-[#1e1e1e] rounded-full p-2"
+                  aria-label="Interested"
+                >
+                  {isSaved ? (
+                    <FavoriteIcon className="text-[#b4d91e]" />
+                  ) : (
+                    <FavoriteBorderIcon className="text-white" />
+                  )}
+                </button>
+                <button
+                  onClick={handleShareEvent}
+                  className="bg-[#1e1e1e] rounded-full p-2"
+                  aria-label="Share"
+                >
+                  <ShareIcon className="text-white" />
+                </button>
+              </div>
             </div>
+
+            <div className="-mt-10 rounded-t-3xl bg-[#10130c] px-5 pt-6 pb-28 relative z-10">
+              <div className="flex flex-wrap gap-2">
+                {event.sportType && (
+                  <span className="border border-[#405200] text-[#708f00] text-sm px-3 py-1 rounded-lg">
+                    {event.sportType}
+                  </span>
+                )}
+                {event.level && (
+                  <span className="border border-[#405200] text-[#708f00] text-sm px-3 py-1 rounded-lg">
+                    {event.level}
+                  </span>
+                )}
+                <span className="border border-[#405200] text-[#708f00] text-sm px-3 py-1 rounded-lg">
+                  {event.isPrivate ? 'Private' : 'Public'}
+                </span>
+              </div>
+
+              <div className="mt-4 space-y-2">
+                <p className="text-sm text-[#e1e1e1]">
+                  {formatEventDayLabel(event.date)} · {event.time} - {event.endTime || calculateEndTime(event.time)}
+                </p>
+                <h1 className="text-2xl font-semibold text-[#e1e1e1]">{event.title}</h1>
+                <p className="text-sm text-[#e1e1e1]">
+                  {event.isPrivate ? 'Private' : 'Public'} · Event by{' '}
+                  <button
+                    onClick={() => handleViewProfile(event.createdBy)}
+                    className="text-[#b4d91e] underline underline-offset-2"
+                  >
+                    {creatorInfo?.displayName || 'Unknown'}
+                  </button>
+                </p>
+              </div>
+
+              <div className="mt-4">
+                <p className="text-sm text-[#e1e1e1]">
+                  {event.players.filter(player => player && player.id).length} out of {event.maxPlayers} are going · {interestedCount} interested
+                </p>
+                <div className="mt-3 flex items-center">
+                  {event.players.filter(player => player && player.id).slice(0, 4).map((player, index) => (
+                    <div
+                      key={`player-compact-${index}`}
+                      className={`h-8 w-8 rounded-full border-2 border-[#10130c] overflow-hidden ${index > 0 ? '-ml-2' : ''}`}
+                    >
+                      <img
+                        src={getPlayerAvatarSrc(player)}
+                        alt="Player"
+                        className="h-full w-full object-cover"
+                        onError={(e) => { e.currentTarget.src = '/images/default-avatar.png'; }}
+                      />
+                    </div>
+                  ))}
+                  {event.players.filter(player => player && player.id).length > 4 && (
+                    <div className="h-8 w-8 rounded-full bg-[#b4d91e] text-[#10130c] text-xs font-semibold flex items-center justify-center -ml-2">
+                      +{event.players.filter(player => player && player.id).length - 4}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-6 border-t border-[#1d210d] pt-6">
+                <div className="flex items-start justify-between text-center">
+                  <div className="flex flex-col gap-2">
+                    <span className="text-lg font-bold text-[#e1e1e1]">{event.level}</span>
+                    <span className="text-sm text-[#8b9182]">Level</span>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <span className="text-lg font-semibold text-[#e1e1e1]">
+                      90 <span className="text-sm">min</span>
+                    </span>
+                    <span className="text-sm text-[#8b9182]">Duration</span>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <span className="text-lg font-semibold text-[#e1e1e1]">{event.players.filter(player => player && player.id).length}</span>
+                    <span className="text-sm text-[#8b9182]">Players</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 border-t border-[#1d210d] pt-6">
+                <h2 className="text-lg font-semibold text-[#e1e1e1]">Host comments</h2>
+                <p className="mt-3 text-sm text-[#8b9182] leading-relaxed">
+                  {event.description || 'No host comments yet.'}
+                </p>
+              </div>
+
+              <div className="mt-6 border-t border-[#1d210d] pt-6">
+                <h2 className="text-lg font-semibold text-[#e1e1e1]">Players</h2>
+                <div className="mt-4 space-y-2">
+                  {event.players.filter(player => player && player.id).map((player, index) => {
+                    const playerId = isPlayerObject(player) ? player.id : player;
+                    const playerName = isPlayerObject(player) ? (player.displayName || player.name) : 'Unknown';
+                    const playerLevel = isPlayerObject(player) ? player.level : null;
+                    return (
+                      <div
+                        key={`player-mobile-${index}-${playerId || 'unknown'}`}
+                        className="bg-[#151905] rounded-lg px-4 py-3 flex items-center gap-4"
+                        onClick={() => handleViewProfile(playerId)}
+                      >
+                        <img
+                          src={getPlayerAvatarSrc(player)}
+                          alt={playerName}
+                          className="h-10 w-10 rounded-full object-cover"
+                          onError={(e) => { e.currentTarget.src = '/images/default-avatar.png'; }}
+                        />
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-[#e1e1e1]">{playerName}</p>
+                          {playerLevel && (
+                            <p className="text-xs text-[#8b9182]">{event.sportType || 'Padel'} · {playerLevel}</p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="mt-6 border-t border-[#1d210d] pt-6">
+                <h2 className="text-lg font-semibold text-[#e1e1e1]">Place of the game</h2>
+                <div className="mt-4 border border-[#1d210d] rounded-2xl overflow-hidden">
+                  {locationData?.coordinates && (
+                    <div className="relative h-60">
+                      <Map
+                        mapLib={Promise.resolve(maplibregl)}
+                        initialViewState={{
+                          longitude: locationData.coordinates.lng,
+                          latitude: locationData.coordinates.lat,
+                          zoom: 14
+                        }}
+                        style={{ width: '100%', height: '100%' }}
+                        mapStyle="https://api.maptiler.com/maps/streets-v2-dark/style.json?key=33rTk4pHojFrbxONf77X"
+                        attributionControl={false}
+                        onError={(e: Error) => console.error("Map error:", e)}
+                      >
+                        <Marker
+                          longitude={locationData.coordinates.lng}
+                          latitude={locationData.coordinates.lat}
+                        >
+                          <div className="w-12 h-12 bg-[#1d210d] border border-[#b4d91e] rounded-full flex items-center justify-center shadow-[0px_0px_30px_0px_rgba(180,217,30,0.6)]">
+                            <SportsSoccerIcon className="text-[#b4d91e]" fontSize="small" />
+                          </div>
+                        </Marker>
+                      </Map>
+                    </div>
+                  )}
+                  <div className="bg-[#151905] px-4 py-3 text-sm text-[#e1e1e1]">
+                    {locationData?.address || event.location}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {event.status !== 'completed' && new Date() < new Date(`${event.date}T${event.time}`) && (
+              <div className="fixed bottom-0 left-0 right-0 bg-[#10130c] border-t border-[#1d210d] p-4">
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleSaveEvent}
+                    disabled={savingEvent}
+                    className="flex-1 bg-[#1d2615] text-white font-semibold py-3 rounded-lg"
+                  >
+                    Interested
+                  </button>
+                  <button
+                    onClick={isPlayerInEvent ? handleLeaveEvent : handleJoinEvent}
+                    disabled={isLoading || actionInProgress}
+                    className={`flex-1 font-semibold py-3 rounded-lg ${isPlayerInEvent ? 'bg-[#FF3B3B] text-white' : 'bg-[#b4d91e] text-[#10130c]'}`}
+                  >
+                    {actionInProgress ? 'Processing...' : isPlayerInEvent ? 'Leave game' : 'Join game'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
-          <div className="max-w-4xl mx-auto px-4 md:px-6 mt-4 md:mt-10 pb-24 md:pb-0">
+          <div className="hidden md:block">
+            <div className="relative max-w-4xl mx-auto mt-0 md:mt-6">
+              {coverImageUrl && (
+                <img
+                  src={coverImageUrl}
+                  alt={event.location}
+                  className="w-full h-64 md:h-96 object-cover md:rounded-t-lg md:rounded-b-lg"
+                  onError={(e) => {
+                    e.currentTarget.src = '/default-location.jpg';
+                  }}
+                />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-[rgb(18_18_18/var(--tw-bg-opacity))] to-transparent md:rounded-lg"></div>
+              
+              {/* Back button for mobile */}
+              <button 
+                onClick={() => navigate(-1)} 
+                className="absolute top-4 left-4 z-10 bg-black bg-opacity-50 rounded-full p-2 md:hidden"
+                aria-label="Back"
+              >
+                <ArrowLeftIcon className="text-white" />
+              </button>
+              
+              <div className="absolute bottom-0 left-0 p-4 md:p-6">
+                <div className="text-[#C1FF2F] font-medium text-sm md:text-base mb-1">{event.sportType || 'Padel'}</div>
+                <h1 className="text-2xl md:text-3xl font-bold mb-2 text-white">{event.title}</h1>
+                <p className="text-gray-300">
+                  {formatDateForDisplay(event.date)} at {event.time}
+                </p>
+              </div>
+              <div className="absolute top-4 right-4 flex space-x-2">
+                <div className="bg-[#252736] text-white text-xs rounded-full px-3 py-1 flex items-center">
+                  <span>{event.players?.filter(player => player && player.id).length || 0}/{event.maxPlayers} Players</span>
+                </div>
+                {event.status === 'completed' ? (
+                  <div className="bg-gray-600 text-white text-xs rounded-full px-3 py-1 flex items-center">
+                    <span>Event Finished</span>
+                  </div>
+                ) : new Date() > new Date(`${event.date}T${event.time}`) ? (
+                  <div className="bg-red-600 text-white text-xs rounded-full px-3 py-1 flex items-center">
+                    <span>Event Expired</span>
+                  </div>
+                ) : (
+                  <div className="bg-[#C1FF2F] text-[#161723] text-xs rounded-full px-3 py-1 flex items-center">
+                    <span>Active Event</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="max-w-4xl mx-auto px-4 md:px-6 mt-4 md:mt-10 pb-24 md:pb-0">
             <div className="flex justify-end space-x-2 mb-6">
               <button
                 onClick={handleShareEvent}
@@ -1031,16 +1199,8 @@ const EventDetails: React.FC = () => {
                 </div>
               </div>
             </div>
-          </div>
-
-          {/* Mobile sticky button */}
-          {event.status !== 'completed' && new Date() < new Date(`${event.date}T${event.time}`) && (
-            <div className="md:hidden fixed bottom-0 left-0 right-0 p-4 bg-[#121212] shadow-lg border-t border-gray-800 z-30">
-              <div className="max-w-4xl mx-auto">
-                {renderActionButton()}
-              </div>
             </div>
-          )}
+          </div>
         </>
       )}
 

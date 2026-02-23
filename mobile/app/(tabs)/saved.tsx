@@ -8,11 +8,20 @@ import { useAuth } from '../../contexts/AuthContext';
 import { EventCard } from '../../components/EventCard';
 import type { AppEvent } from '../../hooks/useEvents';
 import { Colors, Spacing, FontSize } from '../../constants/theme';
+import { ScreenEnter } from '../../components/ScreenEnter';
+import { useSavedEvents } from '../../hooks/useSavedEvents';
 
 export default function SavedEventsScreen() {
   const { user } = useAuth();
   const [events, setEvents] = useState<AppEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const { isSaved, toggleSave } = useSavedEvents();
+
+  // When an event is unsaved, remove it from this list immediately
+  const handleUnsave = useCallback(async (eventId: string) => {
+    setEvents(prev => prev.filter(e => e.id !== eventId));
+    await toggleSave(eventId);
+  }, [toggleSave]);
 
   const fetchSavedEvents = useCallback(async () => {
     if (!user) return;
@@ -91,36 +100,43 @@ export default function SavedEventsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Saved Events</Text>
-      </View>
-      <FlatList
-        data={events}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.list}
-        refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={fetchSavedEvents} tintColor={Colors.primary} />
-        }
-        renderItem={({ item }) => (
-          <EventCard event={item} onPress={() => router.push(`/event/${item.id}`)} />
-        )}
-        ListEmptyComponent={
-          !loading ? (
-            <View style={styles.empty}>
-              <Ionicons name="bookmark-outline" size={48} color={Colors.textMuted} />
-              <Text style={styles.emptyText}>No saved events</Text>
-              <Text style={styles.emptySubtext}>Bookmark events to find them here</Text>
-            </View>
-          ) : null
-        }
-      />
+      <ScreenEnter>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Saved Events</Text>
+        </View>
+        <FlatList
+          data={events}
+          keyExtractor={item => item.id}
+          contentContainerStyle={styles.list}
+          refreshControl={
+            <RefreshControl refreshing={loading} onRefresh={fetchSavedEvents} tintColor={Colors.primary} />
+          }
+          renderItem={({ item }) => (
+            <EventCard
+              event={item}
+              onPress={() => router.push(`/event/${item.id}`)}
+              isSaved={isSaved(item.id)}
+              onSave={handleUnsave}
+            />
+          )}
+          ListEmptyComponent={
+            !loading ? (
+              <View style={styles.empty}>
+                <Ionicons name="bookmark-outline" size={48} color={Colors.textMuted} />
+                <Text style={styles.emptyText}>No saved events</Text>
+                <Text style={styles.emptySubtext}>Bookmark events to find them here</Text>
+              </View>
+            ) : null
+          }
+        />
+      </ScreenEnter>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  header: { paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md },
+  header: { paddingHorizontal: Spacing.xl, paddingTop: Spacing.xxl, paddingBottom: Spacing.lg },
   headerTitle: { color: Colors.text, fontSize: FontSize.xxl, fontWeight: '800' },
   list: { paddingHorizontal: Spacing.xl, paddingBottom: 100 },
   empty: { alignItems: 'center', paddingTop: 60, gap: Spacing.md },

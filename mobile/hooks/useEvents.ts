@@ -52,15 +52,19 @@ export const useEvents = () => {
 
       const eventIds = eventsData.map(e => e.id);
 
-      const { data: playersData, error: playersError } = await supabase
-        .from('event_players')
-        .select('*')
-        .in('event_id', eventIds);
+      let playersData: any[] = [];
+      if (eventIds.length > 0) {
+        const { data, error: playersError } = await supabase
+          .from('event_players')
+          .select('*')
+          .in('event_id', eventIds);
 
-      if (playersError) throw playersError;
+        if (playersError) throw playersError;
+        playersData = data || [];
+      }
 
       const playersByEvent: Record<string, EventPlayer[]> = {};
-      for (const p of playersData || []) {
+      for (const p of playersData) {
         if (!playersByEvent[p.event_id]) playersByEvent[p.event_id] = [];
         playersByEvent[p.event_id].push({
           id: p.id,

@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     textAlign: 'center',
     marginBottom: Spacing.lg,
-    backgroundColor: 'rgba(255, 68, 68, 0.1)',
+    backgroundColor: Colors.errorBg,
     padding: Spacing.md,
     borderRadius: 8,
   },

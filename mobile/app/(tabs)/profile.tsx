@@ -1,10 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { Colors, Spacing, BorderRadius, FontSize } from '../../constants/theme';
+import { ScreenEnter } from '../../components/ScreenEnter';
 
 export default function ProfileScreen() {
   const { user, profile, signOut } = useAuth();
@@ -24,83 +26,93 @@ export default function ProfileScreen() {
   };
 
   const menuItems = [
-    { icon: 'person-outline' as const, label: 'Edit Profile', onPress: () => {} },
-    { icon: 'calendar-outline' as const, label: 'My Events', onPress: () => {} },
-    { icon: 'people-outline' as const, label: 'Friends', onPress: () => {} },
-    { icon: 'notifications-outline' as const, label: 'Notifications', onPress: () => {} },
-    { icon: 'settings-outline' as const, label: 'Settings', onPress: () => {} },
-    { icon: 'help-circle-outline' as const, label: 'Help & Support', onPress: () => {} },
+    { icon: 'person-outline' as const, label: 'Edit Profile', onPress: () => router.push('/edit-profile') },
+    { icon: 'calendar-outline' as const, label: 'My Events', onPress: () => { } },
+    { icon: 'people-outline' as const, label: 'Friends', onPress: () => { } },
+    { icon: 'notifications-outline' as const, label: 'Notifications', onPress: () => { } },
+    { icon: 'settings-outline' as const, label: 'Settings', onPress: () => { } },
+    { icon: 'help-circle-outline' as const, label: 'Help & Support', onPress: () => { } },
   ];
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        {/* Profile Header */}
-        <View style={styles.profileHeader}>
-          <View style={styles.avatar}>
-            <Ionicons name="person" size={40} color={Colors.primary} />
-          </View>
-          <Text style={styles.displayName}>
-            {profile?.display_name || user?.email?.split('@')[0] || 'User'}
-          </Text>
-          <Text style={styles.email}>{user?.email}</Text>
-          {profile?.level ? (
-            <View style={styles.levelBadge}>
-              <Text style={styles.levelText}>{profile.level}</Text>
+      <ScreenEnter>
+        <ScrollView contentContainerStyle={styles.scroll}>
+          {/* Profile Header */}
+          <View style={styles.profileHeader}>
+            <View style={styles.avatar}>
+              {profile?.photo_url?.startsWith('http') ? (
+                <Image
+                  source={{ uri: profile.photo_url }}
+                  style={styles.avatarImage}
+                  contentFit="cover"
+                />
+              ) : (
+                <Ionicons name="person" size={40} color={Colors.primary} />
+              )}
             </View>
-          ) : null}
-          {profile?.sports && profile.sports.length > 0 && (
-            <View style={styles.sportsRow}>
-              {profile.sports.map(sport => (
-                <View key={sport} style={styles.sportChip}>
-                  <Text style={styles.sportChipText}>{sport}</Text>
-                </View>
-              ))}
+            <Text style={styles.displayName}>
+              {profile?.display_name || user?.email?.split('@')[0] || 'User'}
+            </Text>
+            <Text style={styles.email}>{user?.email}</Text>
+            {profile?.level ? (
+              <View style={styles.levelBadge}>
+                <Text style={styles.levelText}>{profile.level}</Text>
+              </View>
+            ) : null}
+            {profile?.sports && profile.sports.length > 0 && (
+              <View style={styles.sportsRow}>
+                {profile.sports.map(sport => (
+                  <View key={sport} style={styles.sportChip}>
+                    <Text style={styles.sportChipText}>{sport}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+
+          {/* Stats */}
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>0</Text>
+              <Text style={styles.statLabel}>Events</Text>
             </View>
-          )}
-        </View>
-
-        {/* Stats */}
-        <View style={styles.statsRow}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>0</Text>
-            <Text style={styles.statLabel}>Events</Text>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>0</Text>
+              <Text style={styles.statLabel}>Friends</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>0</Text>
+              <Text style={styles.statLabel}>Memories</Text>
+            </View>
           </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>0</Text>
-            <Text style={styles.statLabel}>Friends</Text>
+
+          {/* Menu */}
+          <View style={styles.menu}>
+            {menuItems.map((item, index) => (
+              <Pressable
+                key={index}
+                style={styles.menuItem}
+                onPress={item.onPress}
+              >
+                <Ionicons name={item.icon} size={22} color={Colors.textSecondary} />
+                <Text style={styles.menuLabel}>{item.label}</Text>
+                <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+              </Pressable>
+            ))}
           </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>0</Text>
-            <Text style={styles.statLabel}>Memories</Text>
-          </View>
-        </View>
 
-        {/* Menu */}
-        <View style={styles.menu}>
-          {menuItems.map((item, index) => (
-            <Pressable
-              key={index}
-              style={styles.menuItem}
-              onPress={item.onPress}
-            >
-              <Ionicons name={item.icon} size={22} color={Colors.textSecondary} />
-              <Text style={styles.menuLabel}>{item.label}</Text>
-              <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
-            </Pressable>
-          ))}
-        </View>
+          {/* Sign Out */}
+          <Pressable style={styles.signOutButton} onPress={handleSignOut}>
+            <Ionicons name="log-out-outline" size={22} color={Colors.error} />
+            <Text style={styles.signOutText}>Sign Out</Text>
+          </Pressable>
 
-        {/* Sign Out */}
-        <Pressable style={styles.signOutButton} onPress={handleSignOut}>
-          <Ionicons name="log-out-outline" size={22} color={Colors.error} />
-          <Text style={styles.signOutText}>Sign Out</Text>
-        </Pressable>
-
-        <Text style={styles.version}>TeamUp v1.0.0</Text>
-      </ScrollView>
+          <Text style={styles.version}>TeamUp v1.0.0</Text>
+        </ScrollView>
+      </ScreenEnter>
     </SafeAreaView>
   );
 }
@@ -115,6 +127,10 @@ const styles = StyleSheet.create({
     width: 88, height: 88, borderRadius: 44,
     backgroundColor: Colors.surface, borderWidth: 2, borderColor: Colors.primary,
     alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.md,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%', height: '100%',
   },
   displayName: { color: Colors.text, fontSize: FontSize.xxl, fontWeight: '800' },
   email: { color: Colors.textSecondary, fontSize: FontSize.md, marginTop: Spacing.xs },

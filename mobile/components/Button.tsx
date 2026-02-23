@@ -7,6 +7,12 @@ import {
   ViewStyle,
   TextStyle,
 } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { Colors, Spacing, BorderRadius, FontSize } from '../constants/theme';
 
 interface ButtonProps {
@@ -33,40 +39,64 @@ export const Button: React.FC<ButtonProps> = ({
   icon,
 }) => {
   const isDisabled = disabled || loading;
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const handlePressIn = () => {
+    if (isDisabled) return;
+    scale.value = withSpring(0.96, { damping: 15, stiffness: 300 });
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const handlePressOut = () => {
+    scale.value = withSpring(1, { damping: 15, stiffness: 300 });
+  };
 
   return (
     <Pressable
-      style={({ pressed }) => [
-        styles.base,
-        styles[variant],
-        styles[`size_${size}`],
-        pressed && styles.pressed,
-        isDisabled && styles.disabled,
-        style,
-      ]}
-      onPress={onPress}
+      onPress={isDisabled ? undefined : onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
       disabled={isDisabled}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
+      style={{ minHeight: 44, minWidth: 44 }}
     >
-      {loading ? (
-        <ActivityIndicator
-          size="small"
-          color={variant === 'primary' ? Colors.textOnPrimary : Colors.primary}
-        />
-      ) : (
-        <>
-          {icon}
-          <Text
-            style={[
-              styles.text,
-              styles[`text_${variant}`],
-              styles[`textSize_${size}`],
-              textStyle,
-            ]}
-          >
-            {title}
-          </Text>
-        </>
-      )}
+      <Animated.View
+        style={[
+          styles.base,
+          styles[variant],
+          styles[`size_${size}`],
+          isDisabled && styles.disabled,
+          animatedStyle,
+          style,
+        ]}
+      >
+        {loading ? (
+          <ActivityIndicator
+            size="small"
+            color={variant === 'primary' ? Colors.textOnPrimary : Colors.primary}
+          />
+        ) : (
+          <>
+            {icon}
+            <Text
+              style={[
+                styles.text,
+                styles[`text_${variant}`],
+                styles[`textSize_${size}`],
+                textStyle,
+              ]}
+            >
+              {title}
+            </Text>
+          </>
+        )}
+      </Animated.View>
     </Pressable>
   );
 };
@@ -86,7 +116,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surfaceLight,
   },
   outline: {
-    backgroundColor: 'transparent',
+    backgroundColor: Colors.background,
     borderWidth: 1,
     borderColor: Colors.border,
   },
@@ -96,18 +126,17 @@ const styles = StyleSheet.create({
   size_sm: {
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
+    minHeight: 36,
   },
   size_md: {
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.md,
+    minHeight: 44,
   },
   size_lg: {
     paddingHorizontal: Spacing.xxl,
     paddingVertical: Spacing.lg,
     minHeight: 52,
-  },
-  pressed: {
-    opacity: 0.85,
   },
   disabled: {
     opacity: 0.5,

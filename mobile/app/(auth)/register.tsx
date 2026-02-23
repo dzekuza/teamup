@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
   form: { marginBottom: Spacing.xxl },
   errorText: {
     color: Colors.error, fontSize: FontSize.sm, textAlign: 'center',
-    marginBottom: Spacing.lg, backgroundColor: 'rgba(255, 68, 68, 0.1)',
+    marginBottom: Spacing.lg, backgroundColor: Colors.errorBg,
     padding: Spacing.md, borderRadius: 8,
   },
   sportsLabel: {
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
     borderRadius: 12, borderWidth: 1, borderColor: Colors.border,
     alignItems: 'center', justifyContent: 'center', gap: Spacing.sm,
   },
-  sportCardActive: { borderColor: Colors.primary, backgroundColor: 'rgba(193, 255, 47, 0.08)' },
+  sportCardActive: { borderColor: Colors.primary, backgroundColor: Colors.primaryBgSubtle },
   sportCardIcon: { fontSize: 28 },
   sportCardText: { color: Colors.textSecondary, fontSize: FontSize.sm, fontWeight: '500' },
   sportCardTextActive: { color: Colors.primary },

@@ -8,6 +8,7 @@ export type Json =
 
 export interface Database {
   public: {
+    PostgrestVersion: "12";
     Tables: {
       profiles: {
         Row: {
@@ -64,6 +65,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [];
       };
       events: {
         Row: {
@@ -129,6 +131,7 @@ export interface Database {
           custom_location_lng?: number | null;
           created_at?: string;
         };
+        Relationships: [];
       };
       event_players: {
         Row: {
@@ -158,6 +161,7 @@ export interface Database {
           level?: string | null;
           joined_at?: string;
         };
+        Relationships: [];
       };
       match_results: {
         Row: {
@@ -184,6 +188,7 @@ export interface Database {
           winner?: 'Team A' | 'Team B';
           created_at?: string;
         };
+        Relationships: [];
       };
       friends: {
         Row: {
@@ -201,6 +206,7 @@ export interface Database {
           friend_id?: string;
           created_at?: string;
         };
+        Relationships: [];
       };
       friend_requests: {
         Row: {
@@ -224,6 +230,7 @@ export interface Database {
           status?: 'pending' | 'accepted' | 'rejected';
           created_at?: string;
         };
+        Relationships: [];
       };
       notifications: {
         Row: {
@@ -256,6 +263,7 @@ export interface Database {
           read?: boolean;
           created_at?: string;
         };
+        Relationships: [];
       };
       saved_events: {
         Row: {
@@ -276,6 +284,7 @@ export interface Database {
           event_id?: string;
           saved_at?: string;
         };
+        Relationships: [];
       };
       memories: {
         Row: {
@@ -314,6 +323,7 @@ export interface Database {
           location?: string | null;
           created_at?: string;
         };
+        Relationships: [];
       };
       memory_likes: {
         Row: {
@@ -331,6 +341,7 @@ export interface Database {
           user_id?: string;
           created_at?: string;
         };
+        Relationships: [];
       };
     };
     Views: {
@@ -357,10 +368,18 @@ export interface Database {
           created_at: string;
           player_count: number;
         };
+        Relationships: [];
       };
     };
-    Functions: Record<string, never>;
-    Enums: Record<string, never>;
+    Functions: {
+      [_ in never]: never;
+    };
+    Enums: {
+      [_ in never]: never;
+    };
+    CompositeTypes: {
+      [_ in never]: never;
+    };
   };
 }
 

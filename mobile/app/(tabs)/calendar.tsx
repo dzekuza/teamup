@@ -18,9 +18,12 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useEvents } from '../../hooks/useEvents';
+import { useAuth } from '../../contexts/AuthContext';
 import { EventCard } from '../../components/EventCard';
 import { SportFilterChips } from '../../components/SportFilterChips';
 import { Colors, Spacing, BorderRadius, FontSize, Typography } from '../../constants/theme';
+import { ScreenEnter } from '../../components/ScreenEnter';
+import { useSavedEvents } from '../../hooks/useSavedEvents';
 
 const TABS = ['All', 'Joined', 'Interested'] as const;
 type Tab = typeof TABS[number];
@@ -44,9 +47,11 @@ const SHORT_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export default function CalendarScreen() {
   const { events, loading, refetch } = useEvents();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('All');
   const [selectedSport, setSelectedSport] = useState('All');
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const { savedIds, isSaved, toggleSave } = useSavedEvents();
 
   // Animated tab indicator
   const [containerWidth, setContainerWidth] = useState(0);
@@ -81,15 +86,26 @@ export default function CalendarScreen() {
   const filteredEvents = useMemo(() => {
     let result = events;
 
+    // 1. Tab filter
+    if (activeTab === 'Joined') {
+      result = result.filter(e =>
+        e.players.some(p => p.user_id === user?.id)
+      );
+    } else if (activeTab === 'Interested') {
+      result = result.filter(e => savedIds.has(e.id));
+    }
+
+    // 2. Sport filter
     if (selectedSport !== 'All') {
       result = result.filter(e => e.sportType === selectedSport);
     }
 
+    // 3. Date filter
     const dateStr = selectedDate.toISOString().split('T')[0];
     result = result.filter(e => e.date === dateStr);
 
     return result;
-  }, [events, selectedSport, selectedDate]);
+  }, [events, activeTab, selectedSport, selectedDate, user?.id, savedIds]);
 
   const isSameDay = (a: Date, b: Date) =>
     a.getFullYear() === b.getFullYear() &&
@@ -100,107 +116,111 @@ export default function CalendarScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Title */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Events calendar</Text>
-      </View>
+      <ScreenEnter>
+        {/* Title */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Events calendar</Text>
+        </View>
 
-      {/* Animated tab slider */}
-      <View
-        style={styles.tabSlider}
-        onLayout={onContainerLayout}
-      >
-        {/* Sliding indicator */}
-        {tabWidth > 0 && (
-          <Animated.View
-            style={[
-              styles.tabIndicator,
-              { width: tabWidth, height: '100%' },
-              indicatorStyle,
-            ]}
-          />
-        )}
-        {/* Tab labels */}
-        {TABS.map(tab => (
-          <Pressable
-            key={tab}
-            style={({ pressed }) => [styles.tab, pressed && { opacity: 0.7 }]}
-            onPress={() => handleTabPress(tab)}
-          >
-            <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-              {tab}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-
-      {/* Sport filters */}
-      <View style={styles.filtersRow}>
-        <SportFilterChips selected={selectedSport} onSelect={handleSportSelect} />
-      </View>
-
-      {/* Month/year context label */}
-      <Text style={styles.monthLabel}>{monthYearLabel}</Text>
-
-      {/* Date picker slider — 2 weeks */}
-      <FlatList
-        horizontal
-        data={twoWeeks}
-        keyExtractor={(_, i) => i.toString()}
-        showsHorizontalScrollIndicator={false}
-        style={styles.weekPickerList}
-        contentContainerStyle={styles.weekPicker}
-        renderItem={({ item: day }) => {
-          const active = isSameDay(day, selectedDate);
-          const isToday = isSameDay(day, new Date());
-          return (
+        {/* Animated tab slider */}
+        <View
+          style={styles.tabSlider}
+          onLayout={onContainerLayout}
+        >
+          {/* Sliding indicator */}
+          {tabWidth > 0 && (
+            <Animated.View
+              style={[
+                styles.tabIndicator,
+                { width: tabWidth, height: '100%' },
+                indicatorStyle,
+              ]}
+            />
+          )}
+          {/* Tab labels */}
+          {TABS.map(tab => (
             <Pressable
-              style={({ pressed }) => [styles.dayButton, active && styles.dayButtonActive, pressed && { opacity: 0.7 }]}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setSelectedDate(new Date(day));
-              }}
+              key={tab}
+              style={({ pressed }) => [styles.tab, pressed && { opacity: 0.7 }]}
+              onPress={() => handleTabPress(tab)}
             >
-              <Text style={[styles.dayName, active && styles.dayNameActive]}>
-                {isToday ? 'Today' : SHORT_DAYS[day.getDay()]}
+              <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
+                {tab}
               </Text>
-              <Text style={[styles.dayNumber, active && styles.dayNumberActive]}>
-                {day.getDate()}
-              </Text>
-              {isToday && !active ? (
-                <View style={styles.todayDot} />
-              ) : (
-                <View style={styles.todayDotPlaceholder} />
-              )}
             </Pressable>
-          );
-        }}
-      />
+          ))}
+        </View>
 
-      {/* Event list */}
-      <FlatList
-        data={filteredEvents}
-        keyExtractor={item => item.id}
-        style={styles.eventsListContainer}
-        contentContainerStyle={styles.eventsList}
-        refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={refetch} tintColor={Colors.primary} />
-        }
-        renderItem={({ item }) => (
-          <EventCard
-            event={item}
-            onPress={() => router.push(`/event/${item.id}`)}
-          />
-        )}
-        ListEmptyComponent={
-          !loading ? (
-            <View style={styles.empty}>
-              <Text style={styles.emptyText}>No events on this day</Text>
-              <Text style={styles.emptySubtext}>Try selecting a different date</Text>
-            </View>
-          ) : null
-        }
-      />
+        {/* Sport filters */}
+        <View style={styles.filtersRow}>
+          <SportFilterChips selected={selectedSport} onSelect={handleSportSelect} />
+        </View>
+
+        {/* Month/year context label */}
+        <Text style={styles.monthLabel}>{monthYearLabel}</Text>
+
+        {/* Date picker slider — 2 weeks */}
+        <FlatList
+          horizontal
+          data={twoWeeks}
+          keyExtractor={(_, i) => i.toString()}
+          showsHorizontalScrollIndicator={false}
+          style={styles.weekPickerList}
+          contentContainerStyle={styles.weekPicker}
+          renderItem={({ item: day }) => {
+            const active = isSameDay(day, selectedDate);
+            const isToday = isSameDay(day, new Date());
+            return (
+              <Pressable
+                style={({ pressed }) => [styles.dayButton, active && styles.dayButtonActive, pressed && { opacity: 0.7 }]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setSelectedDate(new Date(day));
+                }}
+              >
+                <Text style={[styles.dayName, active && styles.dayNameActive]}>
+                  {isToday ? 'Today' : SHORT_DAYS[day.getDay()]}
+                </Text>
+                <Text style={[styles.dayNumber, active && styles.dayNumberActive]}>
+                  {day.getDate()}
+                </Text>
+                {isToday && !active ? (
+                  <View style={styles.todayDot} />
+                ) : (
+                  <View style={styles.todayDotPlaceholder} />
+                )}
+              </Pressable>
+            );
+          }}
+        />
+
+        {/* Event list */}
+        <FlatList
+          data={filteredEvents}
+          keyExtractor={item => item.id}
+          style={styles.eventsListContainer}
+          contentContainerStyle={styles.eventsList}
+          refreshControl={
+            <RefreshControl refreshing={loading} onRefresh={refetch} tintColor={Colors.primary} />
+          }
+          renderItem={({ item }) => (
+            <EventCard
+              event={item}
+              onPress={() => router.push(`/event/${item.id}`)}
+              isSaved={isSaved(item.id)}
+              onSave={toggleSave}
+            />
+          )}
+          ListEmptyComponent={
+            !loading ? (
+              <View style={styles.empty}>
+                <Text style={styles.emptyText}>No events on this day</Text>
+                <Text style={styles.emptySubtext}>Try selecting a different date</Text>
+              </View>
+            ) : null
+          }
+        />
+      </ScreenEnter>
     </SafeAreaView>
   );
 }
@@ -209,8 +229,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   header: {
     paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.sm,
-    paddingBottom: Spacing.sm,
+    paddingTop: Spacing.xxl,
+    paddingBottom: Spacing.lg,
   },
   headerTitle: {
     color: Colors.text,

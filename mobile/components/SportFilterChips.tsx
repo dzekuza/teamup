@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, FlatList, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { Colors, Spacing, BorderRadius, FontSize } from '../constants/theme';
 
 const SPORTS = [
@@ -33,7 +34,13 @@ export const SportFilterChips: React.FC<SportFilterChipsProps> = ({ selected, on
         return (
           <Pressable
             style={({ pressed }) => [styles.chip, active && styles.chipActive, pressed && { opacity: 0.7 }]}
-            onPress={() => onSelect(item.key)}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onSelect(item.key);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={`Filter by ${item.label}`}
+            accessibilityState={{ selected: active }}
           >
             <Ionicons
               name={item.icon}

@@ -3,28 +3,19 @@ import { View, Text, StyleSheet, Pressable, Dimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, BorderRadius, FontSize, LineHeight, FontWeight } from '../constants/theme';
+import * as Haptics from 'expo-haptics';
+import { Colors, Spacing, BorderRadius, FontSize, LineHeight as ThemeLineHeight, FontWeight } from '../constants/theme';
 import { PlayerAvatars } from './PlayerAvatars';
 import type { AppEvent } from '../hooks/useEvents';
 
 // ── Constants ────────────────────────────────────────────────────────
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const DEFAULT_IMAGE_HEIGHT = 220;
-const COMPACT_IMAGE_HEIGHT = 120;
+const COMPACT_IMAGE_HEIGHT = 100;
 
-export const COMPACT_CARD_WIDTH = SCREEN_WIDTH * 0.72;
+export const COMPACT_CARD_WIDTH = SCREEN_WIDTH * 0.55;
 
-// ── Sport icon maps ─────────────────────────────────────────────────
-const SPORT_EMOJI: Record<string, string> = {
-  Padel: '🎾',
-  Tennis: '🎾',
-  Running: '🏃',
-  Soccer: '⚽',
-  Basketball: '🏀',
-  Cycling: '🚴',
-  Volleyball: '🏐',
-};
-
+// ── Sport icon map ──────────────────────────────────────────────────
 const SPORT_IONICONS: Record<string, string> = {
   Padel: 'tennisball',
   Tennis: 'tennisball-outline',
@@ -49,18 +40,48 @@ const formatDate = (dateStr: string) => {
 
 const formatTime = (time: string) => time.slice(0, 5);
 
+const LineHeight = ThemeLineHeight ?? {
+  xs: 14,
+  sm: 16,
+  md: 20,
+  lg: 22,
+  xl: 24,
+  xxl: 28,
+  xxxl: 36,
+  hero: 42,
+};
+
 // ── Props ───────────────────────────────────────────────────────────
 interface EventCardProps {
   event: AppEvent;
   onPress: () => void;
   variant?: 'default' | 'compact';
+  isSaved?: boolean;
+  onSave?: (eventId: string) => void;
 }
 
 // ── Component ───────────────────────────────────────────────────────
-export const EventCard: React.FC<EventCardProps> = ({ event, onPress, variant = 'default' }) => {
+export const EventCard: React.FC<EventCardProps> = ({ event, onPress, variant = 'default', isSaved = false, onSave }) => {
+  const handlePress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onPress();
+  };
+
+  const handleSave = (e: any) => {
+    // Stop event from bubbling to the card press
+    e.stopPropagation?.();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    onSave?.(event.id);
+  };
+
   if (variant === 'compact') {
     return (
-      <Pressable style={compactStyles.card} onPress={onPress}>
+      <Pressable
+        style={compactStyles.card}
+        onPress={handlePress}
+        accessibilityRole="button"
+        accessibilityLabel={`${event.title}, ${event.sportType}, ${event.playerCount} of ${event.maxPlayers} players`}
+      >
         {/* Image area */}
         <View style={compactStyles.imageContainer}>
           {event.coverImageUrl ? (
@@ -107,16 +128,10 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onPress, variant = 
 
         {/* Bottom info */}
         <View style={compactStyles.content}>
-          <View style={compactStyles.metaRow}>
-            <Ionicons name="calendar-outline" size={13} color={Colors.inputText} />
-            <Text style={compactStyles.metaText}>
-              {formatDate(event.date)} at {formatTime(event.time)}
-            </Text>
-          </View>
-          <View style={compactStyles.metaRow}>
-            <Ionicons name="location-outline" size={13} color={Colors.inputText} />
-            <Text style={compactStyles.metaText} numberOfLines={1}>{event.location}</Text>
-          </View>
+          <Text style={compactStyles.metaText}>
+            {formatDate(event.date)} at {formatTime(event.time)}
+          </Text>
+          <Text style={compactStyles.metaText} numberOfLines={1}>{event.location}</Text>
         </View>
       </Pressable>
     );
@@ -124,7 +139,12 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onPress, variant = 
 
   // Default variant (replaces MainEventCard)
   return (
-    <Pressable style={defaultStyles.card} onPress={onPress}>
+    <Pressable
+      style={defaultStyles.card}
+      onPress={handlePress}
+      accessibilityRole="button"
+      accessibilityLabel={`${event.title}, ${event.sportType}, ${event.playerCount} of ${event.maxPlayers} players`}
+    >
       {/* Cover image */}
       <View style={defaultStyles.imageContainer}>
         {event.coverImageUrl ? (
@@ -136,9 +156,11 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onPress, variant = 
           />
         ) : (
           <View style={defaultStyles.coverPlaceholder}>
-            <Text style={defaultStyles.coverPlaceholderIcon}>
-              {SPORT_EMOJI[event.sportType] || '🏅'}
-            </Text>
+            <Ionicons
+              name={(SPORT_IONICONS[event.sportType] || 'trophy') as any}
+              size={48}
+              color={Colors.inputText}
+            />
           </View>
         )}
 
@@ -152,11 +174,27 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onPress, variant = 
 
         {/* Like + Share buttons — bottom right */}
         <View style={defaultStyles.imageActions}>
-          <Pressable style={defaultStyles.actionButton}>
-            <Ionicons name="heart-outline" size={24} color={Colors.text} />
+          <Pressable
+            style={[
+              defaultStyles.actionButton,
+              isSaved && defaultStyles.actionButtonSaved,
+            ]}
+            onPress={handleSave}
+            accessibilityRole="button"
+            accessibilityLabel={isSaved ? 'Remove from saved' : 'Save event'}
+          >
+            <Ionicons
+              name={isSaved ? 'heart' : 'heart-outline'}
+              size={22}
+              color={isSaved ? Colors.primary : Colors.text}
+            />
           </Pressable>
-          <Pressable style={defaultStyles.actionButton}>
-            <Ionicons name="share-outline" size={24} color={Colors.text} />
+          <Pressable
+            style={defaultStyles.actionButton}
+            accessibilityRole="button"
+            accessibilityLabel="Share event"
+          >
+            <Ionicons name="share-outline" size={22} color={Colors.text} />
           </Pressable>
         </View>
       </View>
@@ -199,7 +237,7 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onPress, variant = 
 // ── Default variant styles (MainEventCard) ──────────────────────────
 const defaultStyles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.darkGreen,
+    backgroundColor: Colors.surface,
     borderRadius: 16,
     marginBottom: Spacing.lg,
     overflow: 'hidden',
@@ -222,10 +260,6 @@ const defaultStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  coverPlaceholderIcon: {
-    fontSize: 48,
-  },
-
   // Joined badge — top left, mainColor bg
   joinedBadge: {
     position: 'absolute',
@@ -241,16 +275,16 @@ const defaultStyles = StyleSheet.create({
   },
   joinedBadgeText: {
     color: Colors.surface,
-    fontSize: FontSize.md,
+    fontSize: FontSize.sm,
     fontWeight: '600',
-    lineHeight: FontSize.md,
+    lineHeight: FontSize.sm,
   },
 
   // Action buttons — bottom right of image
   imageActions: {
     position: 'absolute',
     right: 16,
-    top: 164,
+    bottom: 12,
     flexDirection: 'row',
     gap: 8,
   },
@@ -262,13 +296,18 @@ const defaultStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  actionButtonSaved: {
+    backgroundColor: Colors.darkGreen,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+  },
 
   // Content below image
   content: {
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 20,
-    gap: 12,
+    paddingHorizontal: 14,
+    paddingTop: 14,
+    paddingBottom: 14,
+    gap: 10,
   },
 
   // Tags
@@ -279,25 +318,25 @@ const defaultStyles = StyleSheet.create({
   tag: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
     borderWidth: 1,
-    borderColor: Colors.darkGreenBorder,
+    borderColor: Colors.border,
   },
   tagText: {
     color: Colors.inputText,
-    fontSize: FontSize.md,
+    fontSize: FontSize.sm,
     fontWeight: '400',
-    lineHeight: LineHeight.md,
+    lineHeight: LineHeight.sm,
   },
 
   // Title
   title: {
     color: Colors.textLight,
-    fontSize: FontSize.xxl,
+    fontSize: FontSize.lg,
     fontWeight: '600',
-    lineHeight: LineHeight.xxl,
+    lineHeight: LineHeight.lg,
   },
 
   // Bottom row: meta + avatars
@@ -312,9 +351,9 @@ const defaultStyles = StyleSheet.create({
   },
   metaText: {
     color: Colors.inputText,
-    fontSize: FontSize.lg,
+    fontSize: FontSize.sm,
     fontWeight: '400',
-    lineHeight: LineHeight.lg,
+    lineHeight: LineHeight.sm,
   },
 });
 

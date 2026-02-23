@@ -21,16 +21,96 @@ export default function RootLayout() {
           screenOptions={{
             headerShown: false,
             contentStyle: { backgroundColor: Colors.background },
+            // Default for push navigation: native iOS-style right slide
             animation: 'slide_from_right',
+            // Smooth gesture-driven feel
+            gestureEnabled: true,
+            gestureDirection: 'horizontal',
+            // Custom transition spec — faster than default, feels snappier
+            animationDuration: 320,
           }}
         >
-          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          {/* Auth flow — fade in so it doesn't "slide from" somewhere */}
+          <Stack.Screen
+            name="(auth)"
+            options={{
+              headerShown: false,
+              animation: 'fade',
+              animationDuration: 280,
+            }}
+          />
+
+          {/* Tab root — no animation (already inside, just show instantly) */}
+          <Stack.Screen
+            name="(tabs)"
+            options={{
+              headerShown: false,
+              animation: 'none',
+            }}
+          />
+
+          {/* Event detail — slides up like a native card */}
           <Stack.Screen
             name="event/[id]"
             options={{
               headerShown: false,
               presentation: 'card',
+              animation: 'slide_from_right',
+              animationDuration: 300,
+              gestureEnabled: true,
+              gestureDirection: 'horizontal',
+            }}
+          />
+
+          {/* Map — slides in from right, swiped back horizontally */}
+          <Stack.Screen
+            name="map"
+            options={{
+              headerShown: false,
+              presentation: 'card',
+              animation: 'slide_from_right',
+              animationDuration: 300,
+              gestureEnabled: true,
+              gestureDirection: 'horizontal',
+            }}
+          />
+
+          {/* Edit event — slides up as modal sheet */}
+          <Stack.Screen
+            name="edit-event/[id]"
+            options={{
+              headerShown: false,
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+              animationDuration: 340,
+              gestureEnabled: true,
+              gestureDirection: 'vertical',
+            }}
+          />
+
+          {/* Edit profile — slides up as modal sheet */}
+          <Stack.Screen
+            name="edit-profile"
+            options={{
+              headerShown: false,
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+              animationDuration: 340,
+              gestureEnabled: true,
+              gestureDirection: 'vertical',
+            }}
+          />
+
+          {/* Create event — slides up as modal sheet */}
+          <Stack.Screen
+            name="create-event"
+            options={{
+              headerShown: false,
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+              animationDuration: 340,
+              gestureEnabled: true,
+              gestureDirection: 'vertical',
             }}
           />
         </Stack>

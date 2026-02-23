@@ -64,7 +64,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [location, setLocation] = useState('');
-  const [customLocationCoordinates, setCustomLocationCoordinates] = useState<{lat: number; lng: number} | null>(null);
+  const [customLocationCoordinates, setCustomLocationCoordinates] = useState<{ lat: number; lng: number } | null>(null);
   const [date, setDate] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [startTime, setStartTime] = useState('');
@@ -90,7 +90,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [friendsList, setFriendsList] = useState<FriendInfo[]>([]);
   const [loadingFriends, setLoadingFriends] = useState(false);
-  
+
   // Mobile-specific state - moved outside conditional rendering
   const [isVisible, setIsVisible] = useState(false);
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -113,7 +113,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
+
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -200,22 +200,22 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
     setTouchStart(e.targetTouches[0].clientY);
     setTouchEnd(null);
   };
-  
+
   const handleTouchMove = (e: React.TouchEvent) => {
     setTouchEnd(e.targetTouches[0].clientY);
   };
-  
+
   const handleTouchEnd = () => {
     if (!touchStart || !touchEnd) return;
-    
+
     // Determine distance of swipe
     const distance = touchEnd - touchStart;
-    
+
     // If distance is greater than 100px, consider it a swipe down
     if (distance > 100) {
       onClose();
     }
-    
+
     // Reset touch values
     setTouchStart(null);
     setTouchEnd(null);
@@ -225,21 +225,21 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
   const getPresetDates = () => {
     const dates = [];
     const today = new Date();
-    
+
     // Add next 4 days
     for (let i = 0; i < 4; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
       dates.push({
         value: date.toISOString().split('T')[0],
-        label: i === 0 
+        label: i === 0
           ? 'Today'
-          : i === 1 
-            ? 'Tomorrow' 
+          : i === 1
+            ? 'Tomorrow'
             : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
       });
     }
-    
+
     return dates;
   };
 
@@ -269,7 +269,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
   const handleStartTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newStartTime = e.target.value;
     setStartTime(newStartTime);
-    
+
     // If end time is not set or is earlier than start time, set it to start time + 1 hour
     if (!endTime || endTime <= newStartTime) {
       const [hours, minutes] = newStartTime.split(':');
@@ -300,8 +300,8 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
         // Also enforce the rule that if 2 friends are selected, only 1 additional participant is allowed
         const totalParticipants = selectedFriends.length + invitedEmails.length;
         const maxAllowedParticipants = parseInt(maxPlayers) - 1; // -1 for the event creator
-        return totalParticipants <= maxAllowedParticipants && 
-               (selectedFriends.length < 2 || invitedEmails.length <= 1);
+        return totalParticipants <= maxAllowedParticipants &&
+          (selectedFriends.length < 2 || invitedEmails.length <= 1);
       default:
         return false;
     }
@@ -400,26 +400,27 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
       }
 
       const eventInsert: EventInsert = {
-          title: eventTitle,
-          date,
-          time: startTime,
-          end_time: endTime,
-          location: locationString,
-          level,
-          max_players: parseInt(maxPlayers),
-          created_by: user.id,
-          price: isPaid ? parseFloat(price) : 0,
-          status: 'active',
-          is_private: isPrivate,
-          password: isPrivate ? password : null,
-          sport_type: sportType,
-          description: description || null,
-          cover_image_url: coverImageURL || null,
-          custom_location_lat: customLocationCoordinates?.lat ?? null,
-          custom_location_lng: customLocationCoordinates?.lng ?? null,
-        };
+        title: eventTitle,
+        date,
+        time: startTime,
+        end_time: endTime,
+        location: locationString,
+        level,
+        max_players: parseInt(maxPlayers),
+        created_by: user.id,
+        price: isPaid ? parseFloat(price) : 0,
+        status: 'active',
+        is_private: isPrivate,
+        password: isPrivate ? password : null,
+        sport_type: sportType,
+        description: description || null,
+        cover_image_url: coverImageURL || null,
+        custom_location_lat: customLocationCoordinates?.lat ?? null,
+        custom_location_lng: customLocationCoordinates?.lng ?? null,
+      };
 
-      const { data: createdEvent, error: createError } = await (supabase.from('events') as any)
+      const { data: createdEvent, error: createError } = await supabase
+        .from('events')
         .insert(eventInsert)
         .select('*')
         .single();
@@ -436,7 +437,8 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
         level: player.level || null,
       }));
 
-      const { error: playersInsertError } = await (supabase.from('event_players') as any)
+      const { error: playersInsertError } = await supabase
+        .from('event_players')
         .insert(eventPlayersInserts);
 
       if (playersInsertError) throw playersInsertError;
@@ -467,7 +469,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
       };
 
       setEventId(createdEventRow.id);
-      
+
       // Send event creation email to the creator
       if (user.email) {
         try {
@@ -479,7 +481,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
           console.error('Error sending event creation email:', emailError);
         }
       }
-      
+
       // Send notifications and invitation emails to selected friends
       if (selectedFriends.length > 0) {
         try {
@@ -525,7 +527,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
           console.error('Error sending email invitations:', error);
         }
       }
-      
+
       setShowSuccess(true);
       setEventDetails(newEvent);
     } catch (err) {
@@ -575,7 +577,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
             }
           }
         }
-        
+
         setInvitedEmails([...invitedEmails, inviteEmail]);
         setInviteEmail('');
       }
@@ -587,8 +589,8 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
   };
 
   const handleToggleFriend = (friendId: string) => {
-    setSelectedFriends(prev => 
-      prev.includes(friendId) 
+    setSelectedFriends(prev =>
+      prev.includes(friendId)
         ? prev.filter(id => id !== friendId)
         : [...prev, friendId]
     );
@@ -645,18 +647,18 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
   // Handle opening the time picker
   const handleOpenTimePicker = (field: 'start' | 'end') => {
     setActiveTimeField(field);
-    
+
     // Parse current time from startTime or endTime
     const timeValue = field === 'start' ? startTime : endTime;
     if (timeValue) {
       const [hourStr, minuteStr] = timeValue.split(':');
       let hour = parseInt(hourStr, 10);
       const minute = parseInt(minuteStr, 10);
-      
+
       // Convert from 24-hour to 12-hour format
       const amPm = hour >= 12 ? 'PM' : 'AM';
       hour = hour % 12 || 12; // Convert 0 to 12
-      
+
       setSelectedHour(hour);
       setSelectedMinute(minute);
       setSelectedSecond(0);
@@ -668,7 +670,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
       setSelectedSecond(0);
       setSelectedAmPm('PM');
     }
-    
+
     setShowTimePicker(true);
   };
 
@@ -681,14 +683,14 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
     } else if (selectedAmPm === 'AM' && selectedHour === 12) {
       hour24 = 0;
     }
-    
+
     // Format time as HH:MM
     const formattedTime = `${hour24.toString().padStart(2, '0')}:${selectedMinute.toString().padStart(2, '0')}`;
-    
+
     // Update the appropriate time field
     if (activeTimeField === 'start') {
       setStartTime(formattedTime);
-      
+
       // Update end time if necessary
       if (!endTime || endTime <= formattedTime) {
         // Set end time to start time + 1 hour
@@ -700,7 +702,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
     } else {
       setEndTime(formattedTime);
     }
-    
+
     setShowTimePicker(false);
   };
 
@@ -711,14 +713,14 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
   // Format 24h time to 12h format for display
   const formatTimeFor12hDisplay = (time24h: string) => {
     if (!time24h) return '';
-    
+
     const [hourStr, minuteStr] = time24h.split(':');
     let hour = parseInt(hourStr, 10);
     const minute = parseInt(minuteStr, 10);
-    
+
     const amPm = hour >= 12 ? 'PM' : 'AM';
     hour = hour % 12 || 12; // Convert 0 to 12
-    
+
     return `${hour}:${minute.toString().padStart(2, '0')} ${amPm}`;
   };
 
@@ -726,7 +728,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
   const renderProgressBar = () => {
     const totalSteps = 6;
     const stepPercent = (currentStep / totalSteps) * 100;
-    
+
     return (
       <div className="mb-6">
         <div className="flex justify-between text-xs text-gray-500 mb-1">
@@ -734,7 +736,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
           <span>{Math.round(stepPercent)}% Complete</span>
         </div>
         <div className="w-full bg-[#2A2A2A] h-2 rounded-full overflow-hidden">
-          <div 
+          <div
             className="bg-[#C1FF2F] h-full rounded-full transition-all duration-300 ease-out"
             style={{ width: `${stepPercent}%` }}
           ></div>
@@ -804,17 +806,16 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
           <div className="space-y-6">
             <h3 className="text-xl font-semibold text-white">Select Sport Type</h3>
             <p className="text-gray-400">Choose the type of sport for your event</p>
-            
+
             <div className="grid grid-cols-2 gap-4">
               {SPORTS.map((sport) => (
                 <button
                   key={sport.id}
                   onClick={() => handleSportTypeChange(sport.id)}
-                  className={`p-4 rounded-xl transition-colors ${
-                    sportType === sport.id
+                  className={`p-4 rounded-xl transition-colors ${sportType === sport.id
                       ? 'bg-[#C1FF2F] text-black'
                       : 'bg-[#2A2A2A] text-white hover:bg-[#3A3A3A]'
-                  }`}
+                    }`}
                 >
                   <span className="text-2xl">{sport.icon}</span>
                   <p className="mt-2 font-medium">{sport.name}</p>
@@ -836,7 +837,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
                 className="mt-1 block w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F]"
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-400">Event Description</label>
               <textarea
@@ -846,7 +847,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
                 className="w-full bg-[#2A2A2A] text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#C1FF2F] min-h-[100px] resize-y"
               />
             </div>
-            
+
             {/* Cover Image Upload */}
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-2">Cover Image</label>
@@ -857,12 +858,12 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
                 className="hidden"
                 ref={fileInputRef}
               />
-              
+
               {imagePreview ? (
                 <div className="relative rounded-xl overflow-hidden mb-2 h-40">
-                  <img 
-                    src={imagePreview} 
-                    alt="Cover Preview" 
+                  <img
+                    src={imagePreview}
+                    alt="Cover Preview"
                     className="w-full h-full object-cover"
                   />
                   <button
@@ -874,7 +875,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
                   </button>
                 </div>
               ) : (
-                <div 
+                <div
                   onClick={triggerFileInput}
                   className="border-2 border-dashed border-gray-700 rounded-xl h-40 flex flex-col items-center justify-center cursor-pointer hover:border-gray-500 transition-colors"
                 >
@@ -886,7 +887,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
                 </div>
               )}
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-400">Date</label>
               <div className="mt-1 grid grid-cols-2 gap-2">
@@ -895,11 +896,10 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
                     key={presetDate.value}
                     type="button"
                     onClick={() => setDate(presetDate.value)}
-                    className={`p-2 rounded-xl text-center ${
-                      date === presetDate.value
+                    className={`p-2 rounded-xl text-center ${date === presetDate.value
                         ? 'bg-[#C1FF2F] text-black'
                         : 'bg-[#2A2A2A] text-white hover:bg-[#3A3A3A]'
-                    }`}
+                      }`}
                   >
                     {presetDate.label}
                   </button>
@@ -948,10 +948,10 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
 
             {/* Time picker */}
             {showTimePicker && (
-              <div 
+              <div
                 className="absolute z-50 bg-[#1E1E1E] rounded-xl shadow-lg overflow-hidden w-[calc(100%-2rem)]"
                 ref={timePickerRef}
-                style={{ 
+                style={{
                   top: '50%',
                   left: '50%',
                   transform: 'translate(-50%, -50%)',
@@ -959,9 +959,9 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
                 }}
               >
                 <div className="p-4 flex items-center justify-between bg-[#121212] border-b border-gray-800">
-                  <button 
-                    type="button" 
-                    className="text-gray-400 hover:text-gray-200" 
+                  <button
+                    type="button"
+                    className="text-gray-400 hover:text-gray-200"
                     onClick={handleCancelTimePicker}
                   >
                     CANCEL
@@ -969,68 +969,64 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
                   <div className="text-lg font-medium text-white">
                     {`${selectedHour}:${selectedMinute.toString().padStart(2, '0')} ${selectedAmPm}`}
                   </div>
-                  <button 
-                    type="button" 
-                    className="text-[#C1FF2F] hover:text-[#a4e620] font-medium" 
+                  <button
+                    type="button"
+                    className="text-[#C1FF2F] hover:text-[#a4e620] font-medium"
                     onClick={handleTimeConfirm}
                   >
                     OK
                   </button>
                 </div>
-                
+
                 <div className="flex text-center h-40 overflow-hidden">
                   {/* Hours */}
                   <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700">
                     {hours.map((hour) => (
-                      <div 
+                      <div
                         key={`hour-${hour}`}
-                        className={`py-3 cursor-pointer hover:bg-[#2A2A2A] ${
-                          selectedHour === hour 
-                            ? 'bg-[#2A2A2A] text-[#C1FF2F] font-bold' 
+                        className={`py-3 cursor-pointer hover:bg-[#2A2A2A] ${selectedHour === hour
+                            ? 'bg-[#2A2A2A] text-[#C1FF2F] font-bold'
                             : 'text-gray-300'
-                        }`}
+                          }`}
                         onClick={() => setSelectedHour(hour)}
                       >
                         {hour}
                       </div>
                     ))}
                   </div>
-                  
+
                   {/* Minutes */}
                   <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700">
                     {minutes.map((minute) => (
-                      <div 
+                      <div
                         key={`minute-${minute}`}
-                        className={`py-3 cursor-pointer hover:bg-[#2A2A2A] ${
-                          selectedMinute === minute 
-                            ? 'bg-[#2A2A2A] text-[#C1FF2F] font-bold' 
+                        className={`py-3 cursor-pointer hover:bg-[#2A2A2A] ${selectedMinute === minute
+                            ? 'bg-[#2A2A2A] text-[#C1FF2F] font-bold'
                             : 'text-gray-300'
-                        }`}
+                          }`}
                         onClick={() => setSelectedMinute(minute)}
                       >
                         {minute.toString().padStart(2, '0')}
                       </div>
                     ))}
                   </div>
-                  
+
                   {/* AM/PM */}
                   <div className="flex-1 flex flex-col justify-center">
-                    <div 
-                      className={`py-3 cursor-pointer hover:bg-[#2A2A2A] ${
-                        selectedAmPm === 'AM' 
-                          ? 'bg-[#2A2A2A] text-[#C1FF2F] font-bold' 
+                    <div
+                      className={`py-3 cursor-pointer hover:bg-[#2A2A2A] ${selectedAmPm === 'AM'
+                          ? 'bg-[#2A2A2A] text-[#C1FF2F] font-bold'
                           : 'text-gray-300'
-                      }`}
+                        }`}
                       onClick={() => setSelectedAmPm('AM')}
                     >
                       AM
                     </div>
-                    <div 
-                      className={`py-3 cursor-pointer hover:bg-[#2A2A2A] ${
-                        selectedAmPm === 'PM' 
-                          ? 'bg-[#2A2A2A] text-[#C1FF2F] font-bold' 
+                    <div
+                      className={`py-3 cursor-pointer hover:bg-[#2A2A2A] ${selectedAmPm === 'PM'
+                          ? 'bg-[#2A2A2A] text-[#C1FF2F] font-bold'
                           : 'text-gray-300'
-                      }`}
+                        }`}
                       onClick={() => setSelectedAmPm('PM')}
                     >
                       PM
@@ -1080,11 +1076,10 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
                     key={loc.name}
                     type="button"
                     onClick={() => setLocation(loc.name)}
-                    className={`w-full rounded-xl overflow-hidden ${
-                      location === loc.name 
-                        ? 'ring-2 ring-[#C1FF2F]' 
+                    className={`w-full rounded-xl overflow-hidden ${location === loc.name
+                        ? 'ring-2 ring-[#C1FF2F]'
                         : 'hover:ring-2 hover:ring-gray-500'
-                    }`}
+                      }`}
                   >
                     <div className="relative h-36">
                       <img
@@ -1104,7 +1099,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
               </div>
             ) : (
               <div>
-                <LocationSearch 
+                <LocationSearch
                   onLocationSelect={handleLocationSelect}
                   placeholder="Search for places, venues or addresses"
                 />
@@ -1254,11 +1249,11 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
         return (
           <div className="space-y-6">
             <h3 className="text-xl font-semibold text-white">Invite Friends</h3>
-            
+
             {/* Friend selection */}
             <div className="space-y-4">
               <h4 className="text-white font-medium">Select Friends</h4>
-              
+
               {loadingFriends ? (
                 <div className="flex justify-center p-4">
                   <CircularProgress size={24} style={{ color: '#C1FF2F' }} />
@@ -1271,16 +1266,15 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
                     <button
                       key={friend.id}
                       onClick={() => handleToggleFriend(friend.id)}
-                      className={`w-full p-4 rounded-xl transition-colors flex items-center gap-3 ${
-                        selectedFriends.includes(friend.id)
+                      className={`w-full p-4 rounded-xl transition-colors flex items-center gap-3 ${selectedFriends.includes(friend.id)
                           ? 'bg-[#C1FF2F] hover:bg-[#b1ef1f] text-black'
                           : 'bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white'
-                      }`}
+                        }`}
                     >
-                      <Avatar 
-                        src={typeof friend.photoURL === 'string' && friend.photoURL.startsWith('http') 
-                          ? friend.photoURL 
-                          : `/avatars/${friend.photoURL || 'Avatar1'}.png`} 
+                      <Avatar
+                        src={typeof friend.photoURL === 'string' && friend.photoURL.startsWith('http')
+                          ? friend.photoURL
+                          : `/avatars/${friend.photoURL || 'Avatar1'}.png`}
                         alt={friend.displayName}
                         sx={{ width: 40, height: 40 }}
                       />
@@ -1347,16 +1341,16 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
   // Replace the conditional rendering for mobile with this:
   if (isMobile) {
     return (
-      <div 
+      <div
         className={`fixed inset-0 z-50 ${isVisible ? 'block' : 'hidden'}`}
-        style={{ 
-          backgroundColor: 'rgba(0, 0, 0, 0.5)', 
+        style={{
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
           transition: 'background-color 0.3s ease, opacity 0.3s ease',
           opacity: open ? 1 : 0
         }}
         onClick={onClose}
       >
-        <div 
+        <div
           className={`fixed inset-x-0 bottom-0 z-50 bg-[#1E1E1E] rounded-t-xl max-h-[90vh] overflow-auto transform transition-transform duration-300 ease-out ${open ? 'translate-y-0' : 'translate-y-full'}`}
           style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
           onClick={(e) => e.stopPropagation()}
@@ -1370,9 +1364,9 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
           <div className="p-4">
             {renderProgressBar()}
             {renderStepContent()}
-            
+
             {error && <p className="text-red-500 mt-4">{error}</p>}
-            
+
             <div className="flex justify-between mt-6">
               {currentStep > 1 && (
                 <button
@@ -1383,17 +1377,16 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
                   Back
                 </button>
               )}
-              
+
               {currentStep < 6 ? (
                 <button
                   type="button"
                   onClick={handleNext}
                   disabled={!canProceedToNextStep()}
-                  className={`px-4 py-2 rounded-lg ml-auto ${
-                    canProceedToNextStep()
+                  className={`px-4 py-2 rounded-lg ml-auto ${canProceedToNextStep()
                       ? 'bg-[#C1FF2F] text-black'
                       : 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                  }`}
+                    }`}
                 >
                   Next
                 </button>
@@ -1402,11 +1395,10 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
                   type="button"
                   onClick={handleSubmit}
                   disabled={isLoading || !canProceedToNextStep()}
-                  className={`px-4 py-2 rounded-lg ml-auto ${
-                    !isLoading && canProceedToNextStep()
+                  className={`px-4 py-2 rounded-lg ml-auto ${!isLoading && canProceedToNextStep()
                       ? 'bg-[#C1FF2F] text-black'
                       : 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                  }`}
+                    }`}
                 >
                   {isLoading ? 'Creating...' : 'Create Event'}
                 </button>
@@ -1420,15 +1412,15 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
 
   // Regular desktop dialog
   return (
-    <Dialog 
-      open={open} 
+    <Dialog
+      open={open}
       onClose={onClose}
       className="relative z-50"
     >
       <div className="fixed inset-0 bg-black/70" aria-hidden="true" />
-      
+
       <div className="fixed inset-0 flex items-center justify-center p-4">
-        <Dialog.Panel 
+        <Dialog.Panel
           className="bg-[#121212] rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto"
           ref={dialogRef}
         >
@@ -1444,12 +1436,12 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
                 <CloseIcon />
               </button>
             </div>
-            
+
             {renderProgressBar()}
             {renderStepContent()}
-            
+
             {error && <p className="text-red-500 mt-4">{error}</p>}
-            
+
             <div className="flex justify-between mt-6">
               {currentStep > 1 && (
                 <button
@@ -1460,17 +1452,16 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
                   Back
                 </button>
               )}
-              
+
               {currentStep < 6 ? (
                 <button
                   type="button"
                   onClick={handleNext}
                   disabled={!canProceedToNextStep()}
-                  className={`px-4 py-2 rounded-lg ml-auto ${
-                    canProceedToNextStep()
+                  className={`px-4 py-2 rounded-lg ml-auto ${canProceedToNextStep()
                       ? 'bg-[#C1FF2F] text-black'
                       : 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                  }`}
+                    }`}
                 >
                   Next
                 </button>
@@ -1479,11 +1470,10 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
                   type="button"
                   onClick={handleSubmit}
                   disabled={isLoading || !canProceedToNextStep()}
-                  className={`px-4 py-2 rounded-lg ml-auto ${
-                    !isLoading && canProceedToNextStep()
+                  className={`px-4 py-2 rounded-lg ml-auto ${!isLoading && canProceedToNextStep()
                       ? 'bg-[#C1FF2F] text-black'
                       : 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                  }`}
+                    }`}
                 >
                   {isLoading ? 'Creating...' : 'Create Event'}
                 </button>
