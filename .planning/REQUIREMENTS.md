@@ -25,8 +25,8 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Data Page Migration
 
-- [ ] **DATA-01**: Profile page reads/writes user data via `supabase.from('profiles')` instead of Firestore
-- [ ] **DATA-02**: SavedEvents page queries via `supabase.from('saved_events')` instead of Firestore
+- [x] **DATA-01**: Profile page reads/writes user data via `supabase.from('profiles')` instead of Firestore
+- [x] **DATA-02**: SavedEvents page queries via `supabase.from('saved_events')` instead of Firestore
 - [ ] **DATA-03**: Locations page queries location data via Supabase instead of Firestore
 - [ ] **DATA-04**: SingleLocation page queries single location detail via Supabase instead of Firestore
 
@@ -102,8 +102,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-08 | Phase 1 | Pending |
 | AUTH-09 | Phase 1 | Pending |
 | AUTH-10 | Phase 1 | Pending |
-| DATA-01 | Phase 2 | Pending |
-| DATA-02 | Phase 2 | Pending |
+| DATA-01 | Phase 2 | Complete |
+| DATA-02 | Phase 2 | Complete |
 | DATA-03 | Phase 2 | Pending |
 | DATA-04 | Phase 2 | Pending |
 | CLEAN-01 | Phase 2 | Pending |

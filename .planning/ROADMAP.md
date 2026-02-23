@@ -38,7 +38,7 @@ Plans:
   3. User can view padel venue locations loaded from Supabase instead of Firestore
   4. `AuthContext.tsx` and `useAuth.ts` contain no Firebase auth code — they are re-export shims pointing to SupabaseAuthContext
   5. `npm run build` completes with no Firebase imports in the six migrated files
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 Plans:
 - [ ] 02-01-PLAN.md — Migrate Profile + SavedEvents to Supabase (export toAppEvent, join query)
 - [ ] 02-02-PLAN.md — Migrate Locations + SingleLocation to Supabase (remove convertTimestampsToStrings)
@@ -64,5 +64,5 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Auth Provider Wiring + Auth Page Migration | 0/3 | Not started | - |
-| 2. Data Page Migration + Web Cleanup | 0/3 | Not started | - |
+| 2. Data Page Migration + Web Cleanup | 1/3 | In Progress|  |
 | 3. Mobile UI Primitives | 0/2 | Not started | - |
