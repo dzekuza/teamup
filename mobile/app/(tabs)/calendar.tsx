@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,48 +6,85 @@ import {
   FlatList,
   Pressable,
   RefreshControl,
-  ScrollView,
+  LayoutChangeEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { useEvents } from '../../hooks/useEvents';
 import { EventCard } from '../../components/EventCard';
 import { SportFilterChips } from '../../components/SportFilterChips';
-import { Colors, Spacing, BorderRadius, FontSize } from '../../constants/theme';
+import { Colors, Spacing, BorderRadius, FontSize, Typography } from '../../constants/theme';
 
 const TABS = ['All', 'Joined', 'Interested'] as const;
+type Tab = typeof TABS[number];
 
-function getWeekDays(baseDate: Date) {
-  const start = new Date(baseDate);
-  start.setDate(start.getDate() - start.getDay() + 1); // Monday
+const TAB_PADDING = 4;
+const ANIM_CONFIG = { duration: 250, easing: Easing.out(Easing.cubic) };
+
+function getTwoWeeks(baseDate: Date) {
+  const today = new Date(baseDate);
+  today.setHours(0, 0, 0, 0);
   const days = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(start);
-    d.setDate(start.getDate() + i);
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
     days.push(d);
   }
   return days;
 }
 
-const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const SHORT_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export default function CalendarScreen() {
   const { events, loading, refetch } = useEvents();
-  const [activeTab, setActiveTab] = useState<typeof TABS[number]>('All');
+  const [activeTab, setActiveTab] = useState<Tab>('All');
   const [selectedSport, setSelectedSport] = useState('All');
   const [selectedDate, setSelectedDate] = useState(new Date());
 
-  const weekDays = useMemo(() => getWeekDays(selectedDate), [selectedDate]);
+  // Animated tab indicator
+  const [containerWidth, setContainerWidth] = useState(0);
+  const tabWidth = containerWidth > 0 ? (containerWidth - TAB_PADDING * 2) / TABS.length : 0;
+  const translateX = useSharedValue(0);
+
+  const onContainerLayout = useCallback((e: LayoutChangeEvent) => {
+    const w = e.nativeEvent.layout.width;
+    setContainerWidth(w);
+    const tw = (w - TAB_PADDING * 2) / TABS.length;
+    translateX.value = TABS.indexOf(activeTab) * tw;
+  }, [activeTab]);
+
+  const handleTabPress = useCallback((tab: Tab) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setActiveTab(tab);
+    const idx = TABS.indexOf(tab);
+    translateX.value = withTiming(idx * tabWidth, ANIM_CONFIG);
+  }, [tabWidth]);
+
+  const handleSportSelect = useCallback((sport: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSelectedSport(sport);
+  }, []);
+
+  const indicatorStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  const twoWeeks = useMemo(() => getTwoWeeks(new Date()), []);
 
   const filteredEvents = useMemo(() => {
     let result = events;
 
-    // Filter by sport
     if (selectedSport !== 'All') {
       result = result.filter(e => e.sportType === selectedSport);
     }
 
-    // Filter by selected date
     const dateStr = selectedDate.toISOString().split('T')[0];
     result = result.filter(e => e.date === dateStr);
 
@@ -59,6 +96,8 @@ export default function CalendarScreen() {
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate();
 
+  const monthYearLabel = selectedDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Title */}
@@ -66,13 +105,27 @@ export default function CalendarScreen() {
         <Text style={styles.headerTitle}>Events calendar</Text>
       </View>
 
-      {/* Tab slider */}
-      <View style={styles.tabSlider}>
+      {/* Animated tab slider */}
+      <View
+        style={styles.tabSlider}
+        onLayout={onContainerLayout}
+      >
+        {/* Sliding indicator */}
+        {tabWidth > 0 && (
+          <Animated.View
+            style={[
+              styles.tabIndicator,
+              { width: tabWidth, height: '100%' },
+              indicatorStyle,
+            ]}
+          />
+        )}
+        {/* Tab labels */}
         {TABS.map(tab => (
           <Pressable
             key={tab}
-            style={[styles.tab, activeTab === tab && styles.tabActive]}
-            onPress={() => setActiveTab(tab)}
+            style={({ pressed }) => [styles.tab, pressed && { opacity: 0.7 }]}
+            onPress={() => handleTabPress(tab)}
           >
             <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
               {tab}
@@ -83,38 +136,52 @@ export default function CalendarScreen() {
 
       {/* Sport filters */}
       <View style={styles.filtersRow}>
-        <SportFilterChips selected={selectedSport} onSelect={setSelectedSport} />
+        <SportFilterChips selected={selectedSport} onSelect={handleSportSelect} />
       </View>
 
-      {/* Week day picker */}
-      <ScrollView
+      {/* Month/year context label */}
+      <Text style={styles.monthLabel}>{monthYearLabel}</Text>
+
+      {/* Date picker slider — 2 weeks */}
+      <FlatList
         horizontal
+        data={twoWeeks}
+        keyExtractor={(_, i) => i.toString()}
         showsHorizontalScrollIndicator={false}
+        style={styles.weekPickerList}
         contentContainerStyle={styles.weekPicker}
-      >
-        {weekDays.map((day, index) => {
+        renderItem={({ item: day }) => {
           const active = isSameDay(day, selectedDate);
+          const isToday = isSameDay(day, new Date());
           return (
             <Pressable
-              key={index}
-              style={[styles.dayButton, active && styles.dayButtonActive]}
-              onPress={() => setSelectedDate(new Date(day))}
+              style={({ pressed }) => [styles.dayButton, active && styles.dayButtonActive, pressed && { opacity: 0.7 }]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setSelectedDate(new Date(day));
+              }}
             >
               <Text style={[styles.dayName, active && styles.dayNameActive]}>
-                {DAY_NAMES[index]}
+                {isToday ? 'Today' : SHORT_DAYS[day.getDay()]}
               </Text>
               <Text style={[styles.dayNumber, active && styles.dayNumberActive]}>
                 {day.getDate()}
               </Text>
+              {isToday && !active ? (
+                <View style={styles.todayDot} />
+              ) : (
+                <View style={styles.todayDotPlaceholder} />
+              )}
             </Pressable>
           );
-        })}
-      </ScrollView>
+        }}
+      />
 
       {/* Event list */}
       <FlatList
         data={filteredEvents}
         keyExtractor={item => item.id}
+        style={styles.eventsListContainer}
         contentContainerStyle={styles.eventsList}
         refreshControl={
           <RefreshControl refreshing={loading} onRefresh={refetch} tintColor={Colors.primary} />
@@ -142,30 +209,38 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   header: {
     paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.md,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.sm,
   },
   headerTitle: {
     color: Colors.text,
     fontSize: FontSize.xxxl,
     fontWeight: '800',
   },
+
+  // Animated tab slider
   tabSlider: {
     flexDirection: 'row',
     marginHorizontal: Spacing.xl,
     backgroundColor: Colors.surface,
     borderRadius: BorderRadius.full,
-    padding: 4,
-    marginBottom: Spacing.md,
+    padding: TAB_PADDING,
+    marginBottom: Spacing.sm,
+    position: 'relative',
+  },
+  tabIndicator: {
+    position: 'absolute',
+    top: TAB_PADDING,
+    left: TAB_PADDING,
+    backgroundColor: Colors.primary,
+    borderRadius: BorderRadius.full,
   },
   tab: {
     flex: 1,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.full,
     alignItems: 'center',
-  },
-  tabActive: {
-    backgroundColor: Colors.primary,
+    zIndex: 1,
   },
   tabText: {
     color: Colors.textMuted,
@@ -175,17 +250,26 @@ const styles = StyleSheet.create({
   tabTextActive: {
     color: Colors.textOnPrimary,
   },
+
   filtersRow: {
+    marginBottom: Spacing.sm,
+  },
+  monthLabel: {
+    ...Typography.captionSemibold,
+    paddingHorizontal: Spacing.xl,
+    marginBottom: Spacing.xs,
+  },
+  weekPickerList: {
+    flexGrow: 0,
     marginBottom: Spacing.md,
   },
   weekPicker: {
     paddingHorizontal: Spacing.xl,
     gap: Spacing.sm,
-    marginBottom: Spacing.lg,
   },
   dayButton: {
     width: 48,
-    height: 64,
+    height: 70,
     borderRadius: BorderRadius.lg,
     alignItems: 'center',
     justifyContent: 'center',
@@ -210,6 +294,21 @@ const styles = StyleSheet.create({
   },
   dayNumberActive: {
     color: Colors.textOnPrimary,
+  },
+  todayDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: Colors.primary,
+    marginTop: 2,
+  },
+  todayDotPlaceholder: {
+    width: 5,
+    height: 5,
+    marginTop: 2,
+  },
+  eventsListContainer: {
+    flex: 1,
   },
   eventsList: {
     paddingHorizontal: Spacing.xl,
