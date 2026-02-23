@@ -20,5 +20,5 @@
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 1. Auth Provider Wiring + Auth Page Migration | v1.0 | 3/3 | Complete | 2026-02-23 |
-| 2. Data Page Migration + Web Cleanup | v1.0 | 3/3 | Complete | 2026-02-23 |
+| 2. Data Page Migration + Web Cleanup | v1.0 | Complete    | 2026-02-23 | 2026-02-23 |
 | 3. Mobile UI Primitives | v1.0 | 2/2 | Complete | 2026-02-23 |
