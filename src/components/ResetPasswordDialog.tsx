@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { auth } from '../firebase';
-import { sendPasswordResetEmail } from 'firebase/auth';
+import { supabase } from '../lib/supabase';
 
 interface ResetPasswordDialogProps {
   isOpen: boolean;
@@ -25,19 +24,13 @@ const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({ isOpen, onClo
     setError('');
 
     try {
-      await sendPasswordResetEmail(auth, emailInput);
+      const { error } = await supabase.auth.resetPasswordForEmail(emailInput, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
       setSuccess(true);
     } catch (error: any) {
-      switch (error.code) {
-        case 'auth/invalid-email':
-          setError('Please enter a valid email address');
-          break;
-        case 'auth/user-not-found':
-          setError('No account found with this email address');
-          break;
-        default:
-          setError('An error occurred. Please try again later');
-      }
+      setError(error.message ?? 'An error occurred. Please try again later');
     } finally {
       setIsLoading(false);
     }
@@ -136,4 +129,4 @@ const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({ isOpen, onClo
   );
 };
 
-export default ResetPasswordDialog; 
+export default ResetPasswordDialog;
