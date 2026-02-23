@@ -35,6 +35,7 @@ Progress: [████░░░░░░] 40%
 
 *Updated after each plan completion*
 | Phase 03-mobile-ui-primitives P01 | 3 | 2 tasks | 3 files |
+| Phase 03-mobile-ui-primitives P02 | 2 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -54,6 +55,9 @@ Recent decisions affecting current work:
 - [Phase 03-mobile-ui-primitives]: Mobile directory is mobile/ not mobile/teamup/ - plan path discrepancy resolved silently
 - [Phase 03-mobile-ui-primitives]: expo-haptics was not installed despite research claiming it was - auto-installed as Rule 3 blocking fix
 - [Phase 03-mobile-ui-primitives]: Brand tokens pattern established: always import from @/constants/theme, never hardcode hex in component files
+- [Phase 03-mobile-ui-primitives]: 03-02: Used Modal + Reanimated 4 for BottomSheet instead of gorhom (broken on Expo 54 + Reanimated 4)
+- [Phase 03-mobile-ui-primitives]: 03-02: KeyboardProvider as outermost wrapper in RootLayout enables global KeyboardAwareScrollView support
+- [Phase 03-mobile-ui-primitives]: 03-02: runOnJS delayed unmount pattern prevents modal flash on dismiss
 
 ### Pending Todos
 
