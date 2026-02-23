@@ -36,7 +36,7 @@ Plans:
   1. User can view and edit their profile and the changes persist in the Supabase `profiles` table
   2. User can view their saved events list populated from `supabase.from('saved_events')` with a real test account — no empty-array RLS silent failures
   3. User can view padel venue locations loaded from Supabase instead of Firestore
-  4. `AuthContext.tsx` and `useAuth.ts` (Firebase versions) no longer exist in the codebase
+  4. `AuthContext.tsx` and `useAuth.ts` contain no Firebase auth code — they are re-export shims pointing to SupabaseAuthContext
   5. `npm run build` completes with no Firebase imports in the six migrated files
 **Plans:** 3 plans
 Plans:
