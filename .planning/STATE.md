@@ -37,6 +37,7 @@ Progress: [████████░░] 80%
 | Phase 02-data-page-migration-web-cleanup P01 | 1 | 1 task | 2 files |
 | Phase 02-data-page-migration-web-cleanup P02 | 1 | 1 task | 2 files |
 | Phase 02-data-page-migration-web-cleanup P03 | 1 | 1 task | 3 files |
+| Phase 01 P02 | 4 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -63,6 +64,8 @@ Recent decisions affecting current work:
 - [Phase 03-mobile-ui-primitives]: 03-02: Used Modal + Reanimated 4 for BottomSheet instead of gorhom (broken on Expo 54 + Reanimated 4)
 - [Phase 03-mobile-ui-primitives]: 03-02: KeyboardProvider as outermost wrapper in RootLayout enables global KeyboardAwareScrollView support
 - [Phase 03-mobile-ui-primitives]: 03-02: runOnJS delayed unmount pattern prevents modal flash on dismiss
+- [Phase 01]: Remove rememberMe checkbox — its only function was gating plaintext password cookie writes (security bug)
+- [Phase 01]: signInWithGoogle handler does not call navigate() — Supabase OAuth triggers browser redirect, post-call code unreachable
 
 ### Pending Todos
 
@@ -78,5 +81,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 02-03-PLAN.md — AuthContext.tsx and useAuth.ts replaced with Supabase re-export shims; CompatUser type added for backward compatibility
+Stopped at: Completed 01-02-PLAN.md — Login.tsx and ResetPasswordDialog.tsx migrated to Supabase auth; Facebook OAuth and plaintext password cookie removed
 Resume file: None

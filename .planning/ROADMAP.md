@@ -22,7 +22,7 @@ This milestone completes the Firebase-to-Supabase migration for the web app's re
   3. No plaintext password is stored in any cookie — the savedPassword cookie logic is gone
   4. Facebook OAuth buttons are absent from Login and Register pages
   5. `grep "SupabaseAuthProvider" src/index.tsx` returns a match; `useAuth()` in App.tsx returns a Supabase user object (`.id` not `.uid`)
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 Plans:
 - [ ] 01-01-PLAN.md — Wire SupabaseAuthProvider at root + App.tsx import swap + EmailVerificationBanner patch
 - [ ] 01-02-PLAN.md — Migrate Login page + ResetPasswordDialog to Supabase
@@ -63,6 +63,6 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Auth Provider Wiring + Auth Page Migration | 1/3 | In Progress|  |
+| 1. Auth Provider Wiring + Auth Page Migration | 2/3 | In Progress|  |
 | 2. Data Page Migration + Web Cleanup | 3/3 | Complete   | 2026-02-23 |
 | 3. Mobile UI Primitives | 2/2 | Complete    | 2026-02-23 |

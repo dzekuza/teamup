@@ -1,13 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { auth } from '../firebase';
-import { createUserWithEmailAndPassword, updateProfile, signInWithPopup, FacebookAuthProvider, GoogleAuthProvider } from 'firebase/auth';
+import { useAuth } from '../contexts/SupabaseAuthContext';
 import phoneMockup from '../assets/phonemock.png';
 import logoWhite from '../assets/images/logo-white.svg';
-import { doc, setDoc } from 'firebase/firestore';
-import { db } from '../firebase';
-import { sendWelcomeEmail } from '../services/sendGridService';
-import { setCookie, removeCookie } from '../utils/cookieUtils';
 import logoGoogle from '../assets/google.svg';
 
 const SPORTS = [
@@ -19,6 +14,7 @@ const SPORTS = [
 
 export const Register: React.FC = () => {
   const navigate = useNavigate();
+  const { register, signInWithGoogle } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedSports, setSelectedSports] = useState<string[]>([]);
   const [formData, setFormData] = useState({
@@ -38,41 +34,12 @@ export const Register: React.FC = () => {
     hasSpecial: false
   });
   const [passwordStrength, setPasswordStrength] = useState(0); // 0-100 strength score
-  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Initialize Facebook SDK
-  useEffect(() => {
-    // Initialize Facebook SDK
-    window.fbAsyncInit = function() {
-      if (window.FB) {
-        window.FB.init({
-          appId: '1551008789077882', // Replace with your actual Facebook App ID
-          cookie: true,
-          xfbml: true,
-          version: 'v18.0'
-        });
-      }
-    };
-
-    // Load Facebook SDK
-    const loadFacebookSDK = () => {
-      const script = document.createElement('script');
-      script.id = 'facebook-jssdk';
-      script.src = "https://connect.facebook.net/en_US/sdk.js";
-      const firstScript = document.getElementsByTagName('script')[0];
-      if (firstScript && firstScript.parentNode) {
-        firstScript.parentNode.insertBefore(script, firstScript);
-      }
-    };
-
-    loadFacebookSDK();
-  }, []);
-
   const handleSportToggle = (sportId: string) => {
-    setSelectedSports(prev => 
-      prev.includes(sportId) 
+    setSelectedSports(prev =>
+      prev.includes(sportId)
         ? prev.filter(id => id !== sportId)
         : [...prev, sportId]
     );
@@ -122,7 +89,7 @@ export const Register: React.FC = () => {
     if (/[^A-Za-z0-9]/.test(password)) score += 15;
 
     // Bonus for combination of character types
-    const charTypes = [/[A-Z]/, /[a-z]/, /[0-9]/, /[^A-Za-z0-9]/].filter(regex => 
+    const charTypes = [/[A-Z]/, /[a-z]/, /[0-9]/, /[^A-Za-z0-9]/].filter(regex =>
       regex.test(password)
     ).length;
     if (charTypes >= 3) score += 10;
@@ -160,7 +127,7 @@ export const Register: React.FC = () => {
       hasNumber: /[0-9]/.test(value),
       hasSpecial: /[^A-Za-z0-9]/.test(value),
     };
-    
+
     setPasswordRequirements({
       ...requirements
     });
@@ -171,28 +138,13 @@ export const Register: React.FC = () => {
     checkPasswordRequirements(formData.password);
   }, [formData.password]);
 
-  const getFirebaseErrorMessage = (error: any) => {
-    switch (error.code) {
-      case 'auth/email-already-in-use':
-        return 'This email is already registered. Please try logging in instead.';
-      case 'auth/invalid-email':
-        return 'Please enter a valid email address.';
-      case 'auth/operation-not-allowed':
-        return 'Unable to register at this time. Please try again later.';
-      case 'auth/weak-password':
-        return 'Please choose a stronger password.';
-      default:
-        return 'An error occurred during registration. Please try again.';
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       return;
     }
-    
+
     const allRequirementsMet = Object.values(passwordRequirements).every(req => req);
     if (!allRequirementsMet) {
       setError('Please meet all password requirements');
@@ -203,103 +155,10 @@ export const Register: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        formData.email,
-        formData.password
-      );
-
-      if (userCredential.user) {
-        await updateProfile(userCredential.user, {
-          displayName: formData.displayName
-        });
-
-        await setDoc(doc(db, 'users', userCredential.user.uid), {
-          uid: userCredential.user.uid,
-          email: formData.email,
-          displayName: formData.displayName,
-          phoneNumber: formData.phoneNumber,
-          photoURL: 'Avatar1',
-          sports: selectedSports,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        });
-
-        await sendWelcomeEmail(formData.email, formData.displayName);
-        
-        // Save credentials if remember me is checked
-        if (rememberMe) {
-          // Use cookies instead of localStorage for better security and persistence
-          setCookie('savedEmail', formData.email, { expires: 30 });
-          setCookie('savedPassword', formData.password, { expires: 30 });
-          
-          // Store user data in a cookie
-          const userData = {
-            uid: userCredential.user.uid,
-            email: formData.email,
-            displayName: formData.displayName
-          };
-          
-          setCookie('userData', userData, { expires: 30 });
-        } else {
-          // Remove any previously saved credentials
-          removeCookie('savedEmail');
-          removeCookie('savedPassword');
-          removeCookie('userData');
-        }
-        
-        navigate('/');
-      }
-    } catch (error: any) {
-      setError(getFirebaseErrorMessage(error));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleFacebookRegister = async () => {
-    setError('');
-    setIsLoading(true);
-
-    try {
-      const provider = new FacebookAuthProvider();
-      provider.addScope('email'); // Request email permission
-      provider.addScope('public_profile'); // Request basic profile info
-      
-      const result = await signInWithPopup(auth, provider);
-      
-      if (result.user) {
-        // Check if a profile document already exists for this user
-        // If not, create a new one using available data
-        await setDoc(doc(db, 'users', result.user.uid), {
-          uid: result.user.uid,
-          email: result.user.email,
-          displayName: result.user.displayName,
-          phoneNumber: result.user.phoneNumber || '',
-          photoURL: result.user.photoURL || 'Avatar1',
-          sports: selectedSports.length > 0 ? selectedSports : ['padel'], // Default to padel if no sports selected
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }, { merge: true }); // Use merge to avoid overwriting existing data
-        
-        if (result.user.email) {
-          await sendWelcomeEmail(result.user.email, result.user.displayName || 'New User');
-        }
-        
-        // Store user data in cookie if remember me is checked
-        if (rememberMe && result.user) {
-          const userData = {
-            uid: result.user.uid,
-            email: result.user.email,
-            displayName: result.user.displayName
-          };
-          setCookie('userData', userData, { expires: 30 });
-        }
-        
-        navigate('/');
-      }
-    } catch (error: any) {
-      setError(getFirebaseErrorMessage(error));
+      await register(formData.email, formData.password, formData.displayName);
+      navigate('/');
+    } catch (err: any) {
+      setError(err.message ?? 'An error occurred during registration. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -310,41 +169,10 @@ export const Register: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      
-      if (result.user) {
-        // Create or update the user profile
-        await setDoc(doc(db, 'users', result.user.uid), {
-          uid: result.user.uid,
-          email: result.user.email,
-          displayName: result.user.displayName,
-          phoneNumber: result.user.phoneNumber || '',
-          photoURL: result.user.photoURL || 'Avatar1',
-          sports: selectedSports.length > 0 ? selectedSports : ['padel'], // Default to padel if no sports selected
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }, { merge: true });
-        
-        if (result.user.email) {
-          await sendWelcomeEmail(result.user.email, result.user.displayName || 'New User');
-        }
-        
-        // Store user data in cookie if remember me is checked
-        if (rememberMe && result.user) {
-          const userData = {
-            uid: result.user.uid,
-            email: result.user.email,
-            displayName: result.user.displayName
-          };
-          setCookie('userData', userData, { expires: 30 });
-        }
-        
-        navigate('/');
-      }
-    } catch (error: any) {
-      setError(getFirebaseErrorMessage(error));
-    } finally {
+      await signInWithGoogle();
+      // signInWithGoogle triggers a browser redirect — no navigate() call needed
+    } catch (err: any) {
+      setError(err.message ?? 'An error occurred during registration. Please try again.');
       setIsLoading(false);
     }
   };
@@ -358,25 +186,25 @@ export const Register: React.FC = () => {
 
   const renderPasswordStrengthMeter = () => {
     if (!formData.password) return null;
-    
+
     const strengthLabel = getPasswordStrengthLabel(passwordStrength);
     const strengthColor = getPasswordStrengthColor(passwordStrength);
-    
+
     return (
       <div className="mt-2">
         <div className="flex justify-between items-center mb-1">
           <span className="text-xs text-gray-400">Password Strength</span>
-          <span className="text-xs font-medium" style={{color: strengthColor === 'bg-red-500' ? '#ef4444' : 
+          <span className="text-xs font-medium" style={{color: strengthColor === 'bg-red-500' ? '#ef4444' :
                                                       strengthColor === 'bg-orange-500' ? '#f97316' :
                                                       strengthColor === 'bg-yellow-500' ? '#eab308' :
-                                                      strengthColor === 'bg-lime-500' ? '#84cc16' : 
+                                                      strengthColor === 'bg-lime-500' ? '#84cc16' :
                                                       '#22c55e'}}>
             {strengthLabel}
           </span>
         </div>
         <div className="w-full h-1.5 bg-gray-700 rounded-full overflow-hidden">
-          <div 
-            className={`h-full ${strengthColor} transition-all duration-300`} 
+          <div
+            className={`h-full ${strengthColor} transition-all duration-300`}
             style={{ width: `${passwordStrength}%` }}
           ></div>
         </div>
@@ -471,8 +299,8 @@ export const Register: React.FC = () => {
                   type="button"
                   onClick={() => handleSportToggle(sport.id)}
                   className={`flex items-center p-4 rounded-xl transition-colors ${
-                    selectedSports.includes(sport.id) 
-                      ? 'bg-[#C1FF2F] text-black' 
+                    selectedSports.includes(sport.id)
+                      ? 'bg-[#C1FF2F] text-black'
                       : 'bg-[#2A2A2A] text-white hover:bg-[#3A3A3A]'
                   }`}
                 >
@@ -521,29 +349,11 @@ export const Register: React.FC = () => {
                   'Sign up with Google'
                 )}
               </button>
-
-              <button
-                onClick={handleFacebookRegister}
-                disabled={isLoading}
-                className="w-full bg-[#1877F2] text-white rounded-xl p-4 font-medium hover:bg-[#166FE5] transition-colors flex items-center justify-center gap-2"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M9.19795 21.5H13.198V13.4901H16.8021L17.198 9.50977H13.198V7.5C13.198 6.94772 13.6457 6.5 14.198 6.5H17.198V2.5H14.198C11.4365 2.5 9.19795 4.73858 9.19795 7.5V9.50977H7.19795L6.80206 13.4901H9.19795V21.5Z" />
-                </svg>
-                {isLoading ? (
-                  <>
-                    <LoadingSpinner />
-                    <span>Signing up with Facebook...</span>
-                  </>
-                ) : (
-                  'Sign up with Facebook'
-                )}
-              </button>
             </div>
 
             <p className="text-center">
               <span className="text-gray-400">Already have an account? </span>
-              <button 
+              <button
                 onClick={() => navigate('/login')}
                 className="text-[#C1FF2F] hover:underline font-medium"
               >
@@ -710,20 +520,6 @@ export const Register: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-center">
-                <input
-                  id="remember-me"
-                  name="remember-me"
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="h-4 w-4 text-[#C1FF2F] border-gray-600 rounded focus:ring-[#C1FF2F] bg-[#2A2A2A]"
-                />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-400">
-                  Remember me
-                </label>
-              </div>
-
               {error && (
                 <p className="text-red-500 text-sm">{error}</p>
               )}
@@ -755,8 +551,8 @@ export const Register: React.FC = () => {
       {/* Left Column - Form */}
       <div className="flex flex-col p-8">
         <div className="flex items-center mb-12">
-          <button 
-            onClick={() => navigate('/')} 
+          <button
+            onClick={() => navigate('/')}
             className="flex items-center gap-2 text-white hover:text-[#C1FF2F] transition-colors"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -782,4 +578,4 @@ export const Register: React.FC = () => {
       </div>
     </div>
   );
-}; 
+};
