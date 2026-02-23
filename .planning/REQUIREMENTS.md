@@ -9,9 +9,9 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Auth Wiring
 
-- [ ] **AUTH-01**: SupabaseAuthProvider mounted at app root in index.tsx
-- [ ] **AUTH-02**: App.tsx imports useAuth from SupabaseAuthContext (not Firebase)
-- [ ] **AUTH-03**: Auth flow validated end-to-end (login, session persist, logout)
+- [x] **AUTH-01**: SupabaseAuthProvider mounted at app root in index.tsx
+- [x] **AUTH-02**: App.tsx imports useAuth from SupabaseAuthContext (not Firebase)
+- [x] **AUTH-03**: Auth flow validated end-to-end (login, session persist, logout)
 
 ### Auth Page Migration
 
@@ -92,9 +92,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | Phase 1 | Pending |
-| AUTH-02 | Phase 1 | Pending |
-| AUTH-03 | Phase 1 | Pending |
+| AUTH-01 | Phase 1 | Complete |
+| AUTH-02 | Phase 1 | Complete |
+| AUTH-03 | Phase 1 | Complete |
 | AUTH-04 | Phase 1 | Pending |
 | AUTH-05 | Phase 1 | Pending |
 | AUTH-06 | Phase 1 | Pending |
