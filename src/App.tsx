@@ -11,7 +11,7 @@ import { VerifyEmail } from './pages/VerifyEmail';
 import EventDetails from './pages/EventDetails';
 import SingleLocation from './pages/SingleLocation';
 import LandingPage from './pages/LandingPage';
-import { useAuth } from './hooks/useAuth';
+import { useAuth } from './contexts/SupabaseAuthContext';
 import Preloader from './components/Preloader';
 import { SavedEvents } from './pages/SavedEvents';
 import { Community } from './pages/Community';

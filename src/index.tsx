@@ -6,6 +6,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 import { CookieProvider } from './contexts/CookieContext';
+import { SupabaseAuthProvider } from './contexts/SupabaseAuthContext';
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
@@ -13,7 +14,9 @@ const root = ReactDOM.createRoot(
 root.render(
   <React.StrictMode>
     <CookieProvider>
-      <App />
+      <SupabaseAuthProvider>
+        <App />
+      </SupabaseAuthProvider>
     </CookieProvider>
   </React.StrictMode>
 );
