@@ -27,8 +27,8 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 - [x] **DATA-01**: Profile page reads/writes user data via `supabase.from('profiles')` instead of Firestore
 - [x] **DATA-02**: SavedEvents page queries via `supabase.from('saved_events')` instead of Firestore
-- [ ] **DATA-03**: Locations page queries location data via Supabase instead of Firestore
-- [ ] **DATA-04**: SingleLocation page queries single location detail via Supabase instead of Firestore
+- [x] **DATA-03**: Locations page queries location data via Supabase instead of Firestore
+- [x] **DATA-04**: SingleLocation page queries single location detail via Supabase instead of Firestore
 
 ### Web Cleanup
 
@@ -104,8 +104,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-10 | Phase 1 | Pending |
 | DATA-01 | Phase 2 | Complete |
 | DATA-02 | Phase 2 | Complete |
-| DATA-03 | Phase 2 | Pending |
-| DATA-04 | Phase 2 | Pending |
+| DATA-03 | Phase 2 | Complete |
+| DATA-04 | Phase 2 | Complete |
 | CLEAN-01 | Phase 2 | Pending |
 | CLEAN-02 | Phase 2 | Pending |
 | CLEAN-03 | Phase 2 | Pending |

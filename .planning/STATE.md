@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 2 of 3 (Data Page Migration Web Cleanup)
-Plan: 1 of TBD in current phase
+Plan: 2 of TBD in current phase
 Status: In progress
-Last activity: 2026-02-23 — Completed 02-01: Profile.tsx and SavedEvents.tsx migrated to Supabase
+Last activity: 2026-02-23 — Completed 02-02: Locations.tsx and SingleLocation.tsx migrated to Supabase
 
-Progress: [██░░░░░░░░] 20%
+Progress: [████░░░░░░] 40%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 5 min
-- Total execution time: 0.08 hours
+- Total plans completed: 2
+- Average duration: 7 min
+- Total execution time: 0.24 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 02-data-page-migration-web-cleanup | 1 | 5 min | 5 min |
+| 02-data-page-migration-web-cleanup | 2 | 14 min | 7 min |
 
 **Recent Trend:**
-- Last 5 plans: 5 min
-- Trend: Baseline established
+- Last 5 plans: 5 min, 9 min
+- Trend: Stable
 
 *Updated after each plan completion*
 | Phase 03-mobile-ui-primitives P01 | 3 | 2 tasks | 3 files |
@@ -49,6 +49,8 @@ Recent decisions affecting current work:
 - Roadmap: Facebook OAuth removed entirely; Supabase does not have it configured
 - 02-01: toAppEvent exported (not duplicated) — single source of truth for Supabase row transformation
 - 02-01: SavedEvents passes empty players [] to toAppEvent — list view does not render player avatars, acceptable tradeoff
+- 02-02: Location pages pass empty players [] to toAppEvent — Locations/SingleLocation do not render player lists, correct behavior
+- 02-02: Firebase Storage CDN URLs in MOCK_GALLERY are static assets, not Firebase SDK usage — left unchanged
 - [Phase 03-mobile-ui-primitives]: Mobile directory is mobile/ not mobile/teamup/ - plan path discrepancy resolved silently
 - [Phase 03-mobile-ui-primitives]: expo-haptics was not installed despite research claiming it was - auto-installed as Rule 3 blocking fix
 - [Phase 03-mobile-ui-primitives]: Brand tokens pattern established: always import from @/constants/theme, never hardcode hex in component files
@@ -67,5 +69,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 02-01-PLAN.md — Profile.tsx and SavedEvents.tsx migrated to Supabase
+Stopped at: Completed 02-02-PLAN.md — Locations.tsx and SingleLocation.tsx migrated to Supabase
 Resume file: None
