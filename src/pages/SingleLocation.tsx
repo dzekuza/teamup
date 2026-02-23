@@ -4,51 +4,12 @@ import { PADEL_LOCATIONS, Location } from '../constants/locations';
 import Map, { Marker } from 'react-map-gl/maplibre';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
-import { db } from '../firebase';
+import { supabase } from '../lib/supabase';
+import { toAppEvent } from '../hooks/useSupabaseEvents';
 import { Event } from '../types';
 import { EventCard } from '../components/EventCard';
 import { ArrowCircleUp as ArrowUpIcon, Add as AddIcon, ArrowBack as ArrowBackIcon, Star as StarIcon, StarHalf as StarHalfIcon, StarBorder as StarBorderIcon, AccessTime as TimeIcon, Info as InfoIcon, Phone as PhoneIcon } from '@mui/icons-material';
 import { CreateEventDialog } from '../components/CreateEventDialog';
-
-// Helper function to recursively convert Firebase Timestamp objects to strings
-const convertTimestampsToStrings = (obj: any): any => {
-  if (obj === null || obj === undefined) {
-    return obj;
-  }
-  
-  // If it's a Timestamp or has toDate function, convert to ISO string
-  if (obj instanceof Timestamp || (obj && typeof obj.toDate === 'function')) {
-    try {
-      if (obj.toDate) {
-        return obj.toDate().toISOString();
-      }
-      return obj;
-    } catch (error) {
-      console.error('Error converting timestamp:', error);
-      return obj;
-    }
-  }
-  
-  // If it's an array, convert each item
-  if (Array.isArray(obj)) {
-    return obj.map(item => convertTimestampsToStrings(item));
-  }
-  
-  // If it's an object, convert each property
-  if (typeof obj === 'object') {
-    const newObj: any = {};
-    for (const key in obj) {
-      if (Object.prototype.hasOwnProperty.call(obj, key)) {
-        newObj[key] = convertTimestampsToStrings(obj[key]);
-      }
-    }
-    return newObj;
-  }
-  
-  // Return primitive values as is
-  return obj;
-};
 
 // Mock working hours data (in a real app, this would come from a database)
 const MOCK_WORKING_HOURS = {
@@ -297,41 +258,19 @@ const SingleLocation: React.FC = () => {
   useEffect(() => {
     const fetchEventsForLocation = async () => {
       if (!location) return;
-      
+
       setIsLoading(true);
       try {
-        const eventsQuery = query(
-          collection(db, 'events'),
-          where('location', '==', location.name)
-        );
-        
-        const querySnapshot = await getDocs(eventsQuery);
-        const events: Event[] = [];
-        
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
-          
-          // Apply the recursive conversion to handle all nested timestamps
-          const processedData = convertTimestampsToStrings(data);
-          
-          const event = {
-            id: doc.id,
-            ...processedData,
-            // These specific fields are crucial, ensure they're correctly formatted
-            date: data.date && typeof data.date.toDate === 'function' ? 
-              data.date.toDate().toISOString().split('T')[0] : processedData.date,
-          };
-          
-          events.push(event as Event);
-        });
-        
-        // Sort events by date (most recent first)
-        events.sort((a, b) => {
-          const dateA = new Date(a.date + 'T' + (a.time || '00:00'));
-          const dateB = new Date(b.date + 'T' + (b.time || '00:00'));
-          return dateA.getTime() - dateB.getTime();
-        });
-        
+        const { data: eventsData, error } = await supabase
+          .from('events')
+          .select('*')
+          .eq('location', location.name)
+          .order('date', { ascending: true })
+          .order('time', { ascending: true });
+
+        if (error) throw error;
+
+        const events = (eventsData ?? []).map(row => toAppEvent(row, []));
         setLocationEvents(events);
       } catch (error) {
         console.error('Error fetching events for location:', error);
@@ -344,47 +283,24 @@ const SingleLocation: React.FC = () => {
   }, [location]);
   
   const handleEventUpdated = () => {
-    // Refresh events after an event is updated
     if (location) {
       const fetchEvents = async () => {
         try {
-          const eventsQuery = query(
-            collection(db, 'events'),
-            where('location', '==', location.name)
-          );
-          
-          const querySnapshot = await getDocs(eventsQuery);
-          const events: Event[] = [];
-          
-          querySnapshot.forEach((doc) => {
-            const data = doc.data();
-            
-            // Apply the recursive conversion to handle all nested timestamps
-            const processedData = convertTimestampsToStrings(data);
-            
-            const event = {
-              id: doc.id,
-              ...processedData,
-              // These specific fields are crucial, ensure they're correctly formatted
-              date: data.date && typeof data.date.toDate === 'function' ? 
-                data.date.toDate().toISOString().split('T')[0] : processedData.date,
-            };
-            
-            events.push(event as Event);
-          });
-          
-          events.sort((a, b) => {
-            const dateA = new Date(a.date + 'T' + (a.time || '00:00'));
-            const dateB = new Date(b.date + 'T' + (b.time || '00:00'));
-            return dateA.getTime() - dateB.getTime();
-          });
-          
+          const { data: eventsData, error } = await supabase
+            .from('events')
+            .select('*')
+            .eq('location', location.name)
+            .order('date', { ascending: true })
+            .order('time', { ascending: true });
+
+          if (error) throw error;
+
+          const events = (eventsData ?? []).map(row => toAppEvent(row, []));
           setLocationEvents(events);
         } catch (error) {
           console.error('Error refreshing events:', error);
         }
       };
-      
       fetchEvents();
     }
   };
