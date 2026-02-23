@@ -34,6 +34,7 @@ Progress: [██░░░░░░░░] 20%
 - Trend: Baseline established
 
 *Updated after each plan completion*
+| Phase 03-mobile-ui-primitives P01 | 3 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -48,6 +49,9 @@ Recent decisions affecting current work:
 - Roadmap: Facebook OAuth removed entirely; Supabase does not have it configured
 - 02-01: toAppEvent exported (not duplicated) — single source of truth for Supabase row transformation
 - 02-01: SavedEvents passes empty players [] to toAppEvent — list view does not render player avatars, acceptable tradeoff
+- [Phase 03-mobile-ui-primitives]: Mobile directory is mobile/ not mobile/teamup/ - plan path discrepancy resolved silently
+- [Phase 03-mobile-ui-primitives]: expo-haptics was not installed despite research claiming it was - auto-installed as Rule 3 blocking fix
+- [Phase 03-mobile-ui-primitives]: Brand tokens pattern established: always import from @/constants/theme, never hardcode hex in component files
 
 ### Pending Todos
 

@@ -38,13 +38,13 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Mobile UI
 
-- [ ] **MOBILE-01**: Styled TextInput component with label, focus state, error state, and disabled state
-- [ ] **MOBILE-02**: Primary Button variant with loading state and haptic feedback
-- [ ] **MOBILE-03**: Secondary Button variant with loading state and haptic feedback
+- [x] **MOBILE-01**: Styled TextInput component with label, focus state, error state, and disabled state
+- [x] **MOBILE-02**: Primary Button variant with loading state and haptic feedback
+- [x] **MOBILE-03**: Secondary Button variant with loading state and haptic feedback
 - [ ] **MOBILE-04**: Custom bottom sheet component using Modal + Reanimated (not gorhom)
 - [ ] **MOBILE-05**: Keyboard handling installed and configured via react-native-keyboard-controller
-- [ ] **MOBILE-06**: All mobile UI components use consistent dark theme (#111111) with #C1FF2F accent
-- [ ] **MOBILE-07**: Mobile UI components handle accessibility basics (labels, roles, hit targets)
+- [x] **MOBILE-06**: All mobile UI components use consistent dark theme (#111111) with #C1FF2F accent
+- [x] **MOBILE-07**: Mobile UI components handle accessibility basics (labels, roles, hit targets)
 
 ## v2 Requirements
 
@@ -109,13 +109,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CLEAN-01 | Phase 2 | Pending |
 | CLEAN-02 | Phase 2 | Pending |
 | CLEAN-03 | Phase 2 | Pending |
-| MOBILE-01 | Phase 3 | Pending |
-| MOBILE-02 | Phase 3 | Pending |
-| MOBILE-03 | Phase 3 | Pending |
+| MOBILE-01 | Phase 3 | Complete |
+| MOBILE-02 | Phase 3 | Complete |
+| MOBILE-03 | Phase 3 | Complete |
 | MOBILE-04 | Phase 3 | Pending |
 | MOBILE-05 | Phase 3 | Pending |
-| MOBILE-06 | Phase 3 | Pending |
-| MOBILE-07 | Phase 3 | Pending |
+| MOBILE-06 | Phase 3 | Complete |
+| MOBILE-07 | Phase 3 | Complete |
 
 **Coverage:**
 - v1 requirements: 24 total
