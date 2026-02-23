@@ -1,37 +1,5 @@
-import React, { createContext, useContext, ReactNode } from 'react';
-import { useAuth as useAuthHook } from '../hooks/useAuth';
-import { User } from 'firebase/auth';
-
-// Define the shape of the context
-interface AuthContextType {
-  user: User | null;
-  loading: boolean;
-  userFriends: string[];
-  login: (email: string, password: string) => Promise<User>;
-  register: (email: string, password: string, displayName: string) => Promise<User>;
-  signInWithGoogle: () => Promise<User>;
-  signOut: () => Promise<void>;
-}
-
-// Create the context with a default value
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-// Provider component that wraps parts of the app that need the context
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const auth = useAuthHook();
-  
-  return (
-    <AuthContext.Provider value={auth}>
-      {children}
-    </AuthContext.Provider>
-  );
-};
-
-// Custom hook to use the context
-export const useAuth = (): AuthContextType => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-}; 
+// Legacy AuthContext — re-exports from SupabaseAuthContext for backward compatibility.
+// All Firebase auth code has been removed. Components importing from this path
+// now transparently use Supabase auth.
+// TODO: Update remaining importers to use SupabaseAuthContext directly, then delete this file.
+export { SupabaseAuthProvider as AuthProvider, useAuth } from './SupabaseAuthContext';
