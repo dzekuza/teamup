@@ -1,24 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { supabase } from '../lib/supabase';
 import { Event } from '../types';
 import { EventCard } from '../components/EventCard';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../contexts/SupabaseAuthContext';
 import { useNavigate } from 'react-router-dom';
 import { SportTypeFilter } from '../components/SportTypeFilter';
 import { CreateEventDialog } from '../components/CreateEventDialog';
 import { FunnelIcon } from '@heroicons/react/24/outline';
 import { Filters } from '../components/Filters';
-
-interface SavedEventRecord {
-  userId: string;
-  eventId: string;
-  savedAt: string;
-  eventTitle: string;
-  eventDate: string;
-  eventLocation: string;
-  sportType: string;
-}
+import { toAppEvent } from '../hooks/useSupabaseEvents';
 
 interface FilterOptions {
   date: string;
@@ -63,74 +53,47 @@ export const SavedEvents: React.FC = () => {
 
       try {
         setLoading(true);
-        
-        // Query saved events for the current user
-        const savedEventsQuery = query(
-          collection(db, 'savedEvents'),
-          where('userId', '==', user.uid)
-        );
-        
-        const savedEventsSnapshot = await getDocs(savedEventsQuery);
-        const savedEventRecords = savedEventsSnapshot.docs.map(doc => doc.data() as SavedEventRecord);
-        
-        if (savedEventRecords.length === 0) {
-          setSavedEvents([]);
-          setLoading(false);
-          return;
-        }
-        
-        // Fetch full event details for each saved event
-        const eventPromises = savedEventRecords.map(async record => {
-          try {
-            const eventDoc = await getDoc(doc(db, 'events', record.eventId));
-            if (eventDoc.exists()) {
-              return { id: eventDoc.id, ...eventDoc.data() } as Event;
-            }
-            return null;
-          } catch (err) {
-            console.error(`Error fetching event ${record.eventId}:`, err);
-            return null;
-          }
-        });
-        
-        const events = (await Promise.all(eventPromises)).filter(Boolean) as Event[];
-        
+
+        // Single join query replaces N+1 Firestore fetches
+        const { data, error: fetchError } = await supabase
+          .from('saved_events')
+          .select(`
+            id,
+            saved_at,
+            event_id,
+            events (*)
+          `)
+          .eq('user_id', user.id);
+
+        if (fetchError) throw fetchError;
+
+        // Transform to app Event shape, filtering out null events (deleted)
+        let events = (data ?? [])
+          .map(row => (row.events ? toAppEvent(row.events, []) : null))
+          .filter(Boolean) as Event[];
+
         // Apply filters
-        let filteredEvents = events;
-        
         if (filters.sportType) {
-          filteredEvents = filteredEvents.filter(event => 
-            event.sportType === filters.sportType
-          );
+          events = events.filter(event => event.sportType === filters.sportType);
         }
-        
         if (filters.location) {
-          filteredEvents = filteredEvents.filter(event => 
-            event.location === filters.location
-          );
+          events = events.filter(event => event.location === filters.location);
         }
-        
         if (filters.level) {
-          filteredEvents = filteredEvents.filter(event => 
-            event.level === filters.level
-          );
+          events = events.filter(event => event.level === filters.level);
         }
-        
         if (filters.eventStatus) {
-          filteredEvents = filteredEvents.filter(event => 
-            event.status === filters.eventStatus
-          );
+          events = events.filter(event => event.status === filters.eventStatus);
         }
-        
         if (filters.searchTerm) {
-          const searchTerm = filters.searchTerm.toLowerCase();
-          filteredEvents = filteredEvents.filter(event =>
-            event.title.toLowerCase().includes(searchTerm) ||
-            event.location.toLowerCase().includes(searchTerm)
+          const searchLower = filters.searchTerm.toLowerCase();
+          events = events.filter(event =>
+            event.title.toLowerCase().includes(searchLower) ||
+            event.location.toLowerCase().includes(searchLower)
           );
         }
-        
-        setSavedEvents(filteredEvents);
+
+        setSavedEvents(events);
         setError(null);
       } catch (err) {
         console.error('Error fetching saved events:', err);
@@ -156,9 +119,9 @@ export const SavedEvents: React.FC = () => {
   };
 
   const handleSportTypeChange = (sportType: string) => {
-    setFilters(prev => ({ 
-      ...prev, 
-      sportType 
+    setFilters(prev => ({
+      ...prev,
+      sportType
     }));
   };
 
@@ -186,7 +149,7 @@ export const SavedEvents: React.FC = () => {
         {/* Header with title and mobile filter button */}
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-white">Saved Events</h1>
-          
+
           <button
             type="button"
             className="md:hidden inline-flex items-center gap-x-2 rounded-md bg-[#1A1A1A] px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#2A2A2A] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C1FF2F]"
@@ -273,4 +236,4 @@ export const SavedEvents: React.FC = () => {
       )}
     </div>
   );
-}; 
+};
