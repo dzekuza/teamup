@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import type { Event as AppEvent, Player, MatchResult } from '../types/index';
 
 // Transform Supabase event row + players into the app's Event shape
-function toAppEvent(row: any, players: any[]): AppEvent {
+export function toAppEvent(row: any, players: any[]): AppEvent {
   return {
     id: row.id,
     title: row.title,

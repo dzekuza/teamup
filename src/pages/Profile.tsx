@@ -1,15 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
-import { updateProfile } from 'firebase/auth';
-import { auth } from '../firebase';
+import { useAuth } from '../contexts/SupabaseAuthContext';
+import { supabase } from '../lib/supabase';
 import { AvatarSelector } from '../components/AvatarSelector';
 import Avatar1 from '../assets/avatars/Avatar1.png';
 import Avatar2 from '../assets/avatars/Avatar2.png';
 import Avatar3 from '../assets/avatars/Avatar3.png';
 import Avatar4 from '../assets/avatars/Avatar4.png';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { db } from '../firebase';
 
 const avatars = {
   Avatar1,
@@ -36,16 +33,19 @@ const Profile = () => {
   useEffect(() => {
     const loadUserData = async () => {
       if (user) {
-        setDisplayName(user.displayName || '');
         setEmail(user.email || '');
-        
-        // Load user data from Firestore
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          setSelectedAvatar(userData.photoURL || 'Avatar1');
-          setPhoneNumber(userData.phoneNumber || '');
-          setLevel(userData.level || '');
+
+        // Load user data from Supabase profiles table
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('display_name, photo_url, phone_number, level')
+          .eq('id', user.id)
+          .single();
+        if (profile) {
+          setDisplayName(profile.display_name || '');
+          setSelectedAvatar(profile.photo_url || 'Avatar1');
+          setPhoneNumber(profile.phone_number || '');
+          setLevel(profile.level || '');
         }
       }
     };
@@ -62,21 +62,18 @@ const Profile = () => {
     setSuccess('');
 
     try {
-      // Update Firebase Auth profile
-      await updateProfile(auth.currentUser!, {
-        displayName: displayName,
-        photoURL: selectedAvatar
-      });
-
-      // Update Firestore user document
-      await setDoc(doc(db, 'users', user.uid), {
-        displayName,
-        email: user.email,
-        photoURL: selectedAvatar,
-        phoneNumber,
-        level,
-        updatedAt: new Date().toISOString()
-      }, { merge: true });
+      // Update Supabase profiles table
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          display_name: displayName,
+          photo_url: selectedAvatar,
+          phone_number: phoneNumber,
+          level: level,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', user.id);
+      if (updateError) throw updateError;
 
       setSuccess('Profile updated successfully!');
     } catch (error) {
@@ -214,4 +211,4 @@ const Profile = () => {
   );
 };
 
-export default Profile; 
+export default Profile;
