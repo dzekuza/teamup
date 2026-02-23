@@ -11,12 +11,12 @@ TeamUp (branded as "WebPadel" / "We Team Up") is a web application for padel and
 - **Frontend:** React 18.2 + TypeScript (strict mode), bootstrapped with Create React App via CRACO
 - **Styling:** Tailwind CSS 3.4 + Material-UI 5 + custom CSS variables (shadcn/ui-style HSL theming)
 - **Routing:** React Router DOM 6
-- **Backend/Database:** Firebase (Firestore, Auth, Storage, Cloud Functions, Hosting)
-- **Email:** SendGrid (via Express server) + MailerLite (via Cloud Functions) + Firestore Send Email extension
+- **Backend/Database:** Supabase (PostgreSQL, Auth, Storage, Realtime) — migrating from Firebase
+- **Email:** SendGrid (via Vercel API route at `api/send-email.ts`)
 - **Maps:** MapLibre GL / React Map GL with MapTiler geocoding
 - **i18n:** i18next (minimal setup, English only currently)
 - **Build tool:** CRACO (wraps react-scripts)
-- **Deployment:** Firebase Hosting + VPS (Nginx + PM2) via GitHub Actions
+- **Deployment:** Vercel (static build + serverless API routes)
 
 ## Commands
 
@@ -41,67 +41,106 @@ teamup/
 │   ├── components/       # Reusable UI components (flat structure, ~40 files)
 │   │   └── ui/           # Primitive UI components (button, card, input, etc. - shadcn-style)
 │   ├── constants/        # Static data (locations.ts with venue coords, avatars.ts)
-│   ├── contexts/         # React Context providers (Auth, Cookie, Theme, Toastify)
-│   ├── hooks/            # Custom React hooks (useAuth, useEvents, useCookies, etc.)
-│   ├── lib/              # Utility library (utils.ts with cn() helper)
+│   ├── contexts/         # React Context providers
+│   │   ├── SupabaseAuthContext.tsx  # Supabase auth provider (NEW)
+│   │   ├── AuthContext.tsx          # Legacy Firebase auth provider
+│   │   ├── CookieContext.tsx
+│   │   └── ThemeContext.tsx
+│   ├── hooks/
+│   │   ├── useSupabaseAuth.ts       # Supabase auth hook (NEW)
+│   │   ├── useSupabaseEvents.ts     # Supabase events hook (NEW)
+│   │   ├── useAuth.ts              # Legacy Firebase auth hook
+│   │   ├── useEvents.ts            # Legacy Firebase events hook
+│   │   └── ...
+│   ├── lib/
+│   │   ├── supabase.ts             # Supabase client init (NEW)
+│   │   └── utils.ts                # cn() helper
 │   ├── pages/            # Route-level page components (~12 pages)
-│   ├── scripts/          # One-off admin/migration scripts
-│   ├── services/         # Business logic services (email, notifications, verification, MailerLite)
-│   ├── styles/           # Global CSS (globals.css)
-│   ├── types/            # TypeScript type definitions and declarations
-│   ├── utils/            # Utility functions (database, cookies, lazy loading, strings)
+│   ├── services/
+│   │   ├── supabaseNotificationService.ts  # Supabase notifications (NEW)
+│   │   ├── supabaseEmailService.ts         # Supabase email service (NEW)
+│   │   └── ...                             # Legacy Firebase services
+│   ├── types/
+│   │   ├── supabase.ts             # Supabase DB types + aliases (NEW)
+│   │   └── index.ts                # Legacy app types
 │   ├── App.tsx           # Root component with routing
-│   ├── firebase.ts       # Firebase client initialization (exports auth, db, storage)
-│   ├── firebaseAdmin.ts  # Firebase Admin SDK init (server-side)
-│   ├── i18n.ts           # i18next configuration
-│   └── index.tsx         # Entry point, wraps App in CookieProvider
-├── functions/            # Firebase Cloud Functions (Node.js)
-│   ├── index.js          # All cloud functions (email triggers, scheduled tasks)
-│   └── package.json      # Separate dependency management
-├── patches/              # patch-package patches for react and react-dom 18.2.0
+│   ├── firebase.ts       # Legacy Firebase client init
+│   └── index.tsx         # Entry point
+├── api/                  # Vercel serverless API routes (NEW)
+│   └── send-email.ts     # SendGrid email endpoint
+├── supabase/             # Supabase project config (NEW)
+│   ├── config.toml
+│   └── migrations/
+│       └── 20250223000001_initial_schema.sql
+├── functions/            # Legacy Firebase Cloud Functions
+├── patches/              # patch-package patches for react/react-dom 18.2.0
 ├── public/               # Static public files
-├── nginx/                # Nginx configuration for VPS deployment
-├── server.js             # Express API server for SendGrid email sending
-├── firebase.json         # Firebase project config (hosting, firestore, functions)
-├── firestore.rules       # Firestore security rules
-├── firestore.indexes.json # Firestore composite indexes
-└── .github/workflows/    # CI/CD (deploy.yml for VPS, firebase-hosting-deploy.yml)
+├── vercel.json           # Vercel deployment config (updated for API routes)
+└── .github/workflows/    # CI/CD
 ```
+
+## Migration Status: Firebase → Supabase
+
+The project is migrating from Firebase to Supabase. Both systems coexist during the transition.
+
+### What has been migrated
+- **Database schema:** Full PostgreSQL migration in `supabase/migrations/` with RLS policies
+- **Auth hooks:** `useSupabaseAuth.ts` replaces `useAuth.ts`
+- **Auth context:** `SupabaseAuthContext.tsx` replaces `AuthContext.tsx`
+- **Events hook:** `useSupabaseEvents.ts` replaces `useEvents.ts`
+- **Notifications:** `supabaseNotificationService.ts` with Realtime subscriptions
+- **Email service:** `supabaseEmailService.ts` + Vercel API route (`api/send-email.ts`)
+- **Storage:** 3 Supabase storage buckets (avatars, event-covers, memory-images)
+- **Types:** Full Supabase DB types in `src/types/supabase.ts`
+
+### What still uses Firebase (to migrate)
+- Page components directly importing from `firebase/firestore` (EventDetails, Home, Community, etc.)
+- Component-level Firestore calls (CreateEventDialog, EditEventDialog, etc.)
+- Firebase Storage upload calls in components
+- `firebase.ts` and `firebaseAdmin.ts` client init files
+
+### Migration pattern for remaining components
+When migrating a component from Firebase to Supabase:
+1. Replace `import { db } from '../firebase'` with `import { supabase } from '../lib/supabase'`
+2. Replace `collection/doc/getDocs/getDoc` calls with `supabase.from('table').select()`
+3. Replace `addDoc/setDoc/updateDoc` with `supabase.from('table').insert/update/upsert`
+4. Replace `deleteDoc` with `supabase.from('table').delete()`
+5. Replace `arrayUnion/arrayRemove` with separate junction table operations
+6. Replace `onSnapshot` with Supabase Realtime channels
+7. Replace `ref/uploadBytes/getDownloadURL` with `supabase.storage.from('bucket')`
+
+## Supabase Database Schema
+
+### Tables (maps from Firestore collections)
+- **profiles** — User profiles (extends auth.users via trigger)
+- **events** — Sports events
+- **event_players** — Junction: players registered for events (was `events.players[]`)
+- **match_results** — Match scores (was `events.matchResults`)
+- **friends** — Bidirectional friend relationships (was `friends.friends[]`)
+- **friend_requests** — Pending friend requests (was `friends/{id}/requests`)
+- **notifications** — In-app notifications
+- **saved_events** — Bookmarked events
+- **memories** — Post-event photo memories
+- **memory_likes** — Memory likes (was `memories.likes[]`)
+
+### Key differences from Firestore
+- Arrays like `players[]`, `likes[]`, `friends[]` are normalized into junction tables
+- `match_results` is a separate table instead of nested in events
+- Email verification is handled natively by Supabase Auth (no custom tokens)
+- Profile creation is automatic via database trigger on `auth.users` insert
 
 ## Architecture & Key Patterns
 
-### Authentication Flow
-- Firebase Auth with email/password and Google sign-in (`src/hooks/useAuth.ts`)
-- On registration: creates Firestore user doc, sends verification email via SendGrid, adds to MailerLite welcome series
-- `AuthContext` wraps the app (via `useAuth` hook) providing `user`, `login`, `register`, `signInWithGoogle`, `signOut`
-- `CookieProvider` wraps the entire app at the top level in `index.tsx`
+### Authentication Flow (Supabase)
+- Supabase Auth with email/password and Google OAuth (`src/hooks/useSupabaseAuth.ts`)
+- Profile auto-created via PostgreSQL trigger on signup
+- Email verification handled natively by Supabase Auth
+- `SupabaseAuthProvider` wraps the app providing `user`, `session`, `login`, `register`, `signInWithGoogle`, `signOut`
 - Protected routes redirect to `/login` when unauthenticated
 
 ### State Management
-- React Context API (no Redux/Zustand) with 4 context providers:
-  - `AuthContext` - user authentication state
-  - `CookieContext` - cookie consent and preferences
-  - `ThemeContext` - light/dark theme toggle
-  - `ToastifyContext` - toast notifications
-- Custom hooks for data fetching (`useEvents`, `useAuth`, `useCookies`, `useProfileCompletion`)
-
-### Data Models (src/types/index.ts)
-- **User:** id, email, displayName, photoURL, level, sports[], friends[], isAdmin
-- **Event:** id, title, date, time, endTime, location, level, players[], maxPlayers, createdBy, price, status (active|completed), sportType, isPrivate, password, matchResults, customLocationCoordinates
-- **Player:** id, name, photoURL, displayName, level, uid
-- **Notification:** id, type (new_event|event_joined|event_cancelled), eventId, userId, read
-- **Memory:** id, eventId, imageUrl, createdBy, likes[], sportType, date, location
-- **MatchResult:** teamAScore, teamBScore, winner (Team A|Team B)
-
-### Firestore Collections
-- `users` - User profiles (read: public, write: own doc only)
-- `events` - Sports events (read: public, create/update: authenticated, delete: creator only)
-- `friends` - Friend lists with `requests` subcollection
-- `notifications` - Per-user notifications
-- `savedEvents` - Bookmarked events (doc ID format: `userId_eventId`)
-- `memories` - Post-event photo memories (read: public, likes: any authenticated user)
-- `mail` - Triggers Firestore Send Email extension
-- `verificationTokens` / `emailVerifications` - Email verification tokens
+- React Context API (no Redux/Zustand)
+- Custom hooks for data fetching (`useSupabaseEvents`, `useSupabaseAuth`, `useCookies`)
 
 ### Routing (src/App.tsx)
 ```
@@ -118,17 +157,9 @@ teamup/
 /location/:locationId → Single venue details (protected)
 ```
 
-### Email System (3 parallel approaches)
-1. **SendGrid via Express server** (`server.js` + `src/services/sendGridService.ts`) - verification, welcome, event notifications via local API at `/api/send-email`
-2. **MailerLite via Cloud Functions** (`functions/index.js`) - automated email flows triggered by Firestore events (welcome, player joined/left, reminders, memory sharing)
-3. **Firestore Send Email extension** (`src/services/emailService.ts`) - writes to `mail` collection to trigger Firebase extension
-
-### Firebase Cloud Functions (functions/index.js)
-- `sendWelcomeEmail` - triggers on Auth user creation
-- `onEventCreation` - triggers on new event document
-- `onEventUpdate` - triggers on event update (player join/leave detection)
-- `sendEventReminders` - scheduled every 60 minutes
-- `sendMemorySharingInvites` - scheduled every 6 hours
+### Email System
+- **SendGrid via Vercel API route** (`api/send-email.ts`) — all transactional emails
+- Client-side service in `src/services/supabaseEmailService.ts` calls the API route
 
 ### Styling Conventions
 - **Primary accent color:** `#C1FF2F` (lime green)
@@ -149,36 +180,30 @@ teamup/
 
 ## Environment Variables
 
-All prefixed with `REACT_APP_` for CRA compatibility:
-
 ```
-REACT_APP_FIREBASE_API_KEY
-REACT_APP_FIREBASE_AUTH_DOMAIN
-REACT_APP_FIREBASE_PROJECT_ID
-REACT_APP_FIREBASE_STORAGE_BUCKET
-REACT_APP_FIREBASE_MESSAGING_SENDER_ID
-REACT_APP_FIREBASE_APP_ID
-REACT_APP_SENDGRID_API_KEY
-REACT_APP_SENDER_EMAIL
-REACT_APP_MAILERLITE_API_KEY
-REACT_APP_API_URL              # Express server URL (default: http://localhost:3001)
+# Supabase (required)
+REACT_APP_SUPABASE_URL=https://your-project-id.supabase.co
+REACT_APP_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+# SendGrid (server-side, for Vercel API route)
+SENDGRID_API_KEY=your_sendgrid_api_key
+SENDER_EMAIL=info@weteamup.app
+
+# Optional
+REACT_APP_MAILERLITE_API_KEY=your_mailerlite_api_key
+REACT_APP_API_URL=              # Leave empty for Vercel (uses /api)
 ```
 
 ## Deployment
 
-### Firebase Hosting (`.github/workflows/firebase-hosting-deploy.yml`)
-- Triggers on push to `main`/`master`
-- Builds with `CI=false npm run build`, deploys to Firebase Hosting
+### Vercel (primary)
+- Static build via `@vercel/static-build` (outputs `build/` dir)
+- Serverless API routes in `api/` directory via `@vercel/node`
+- Config in `vercel.json` — SPA fallback + API routing
 
-### VPS Deployment (`.github/workflows/deploy.yml`)
-- Triggers on push/PR to `main`/`master`
-- Deploys build artifacts to `/var/www/weteamup/` via SCP
-- Configures Nginx, starts Express API server via PM2
-- Sends Slack notifications on success/failure
-
-### Firebase Functions
-- Deployed separately: `cd functions && npm run deploy`
-- Predeploy runs lint
+### Legacy deployments (being phased out)
+- Firebase Hosting (`.github/workflows/firebase-hosting-deploy.yml`)
+- VPS via SCP + Nginx + PM2 (`.github/workflows/deploy.yml`)
 
 ## Testing
 
@@ -193,8 +218,7 @@ REACT_APP_API_URL              # Express server URL (default: http://localhost:3
 - The project uses `patch-package` with patches for React and ReactDOM 18.2.0 (in `patches/`)
 - CRACO overrides webpack config for Node.js polyfill fallbacks (crypto, stream, path, etc.)
 - Hot module replacement is disabled in dev (`craco.config.js`: `devServer.hot: false`)
-- Firebase config has hardcoded fallback values in `src/firebase.ts` (used when env vars are absent)
-- The `server.js` Express server runs on port 3001 and handles SendGrid email sending
 - Locations are hardcoded in `src/constants/locations.ts` (Vilnius padel venues)
 - Avatar system uses pre-defined avatar images (Avatar1-4) rather than user uploads
 - The project name in `package.json` is "webpadel" but branding is "TeamUp" / "We Team Up"
+- During migration, both Firebase and Supabase code coexist; prefer the `supabase`/`useSupabase*` versions for new work
