@@ -15,13 +15,13 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Auth Page Migration
 
-- [ ] **AUTH-04**: Login page uses Supabase `auth.signInWithPassword` instead of Firebase
-- [ ] **AUTH-05**: Login page uses Supabase `auth.signInWithOAuth` for Google sign-in
-- [ ] **AUTH-06**: Login page plaintext password cookie removed (Supabase handles session natively)
-- [ ] **AUTH-07**: Login page Facebook OAuth code deleted (not configured in Supabase)
-- [ ] **AUTH-08**: Register page uses Supabase `auth.signUp` instead of Firebase
-- [ ] **AUTH-09**: Register page uses Supabase Google OAuth for social signup
-- [ ] **AUTH-10**: Register page Facebook OAuth code deleted
+- [x] **AUTH-04**: Login page uses Supabase `auth.signInWithPassword` instead of Firebase
+- [x] **AUTH-05**: Login page uses Supabase `auth.signInWithOAuth` for Google sign-in
+- [x] **AUTH-06**: Login page plaintext password cookie removed (Supabase handles session natively)
+- [x] **AUTH-07**: Login page Facebook OAuth code deleted (not configured in Supabase)
+- [x] **AUTH-08**: Register page uses Supabase `auth.signUp` instead of Firebase
+- [x] **AUTH-09**: Register page uses Supabase Google OAuth for social signup
+- [x] **AUTH-10**: Register page Facebook OAuth code deleted
 
 ### Data Page Migration
 
@@ -95,13 +95,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-01 | Phase 1 | Complete |
 | AUTH-02 | Phase 1 | Complete |
 | AUTH-03 | Phase 1 | Complete |
-| AUTH-04 | Phase 1 | Pending |
-| AUTH-05 | Phase 1 | Pending |
-| AUTH-06 | Phase 1 | Pending |
-| AUTH-07 | Phase 1 | Pending |
-| AUTH-08 | Phase 1 | Pending |
-| AUTH-09 | Phase 1 | Pending |
-| AUTH-10 | Phase 1 | Pending |
+| AUTH-04 | Phase 1 | Complete |
+| AUTH-05 | Phase 1 | Complete |
+| AUTH-06 | Phase 1 | Complete |
+| AUTH-07 | Phase 1 | Complete |
+| AUTH-08 | Phase 1 | Complete |
+| AUTH-09 | Phase 1 | Complete |
+| AUTH-10 | Phase 1 | Complete |
 | DATA-01 | Phase 2 | Complete |
 | DATA-02 | Phase 2 | Complete |
 | DATA-03 | Phase 2 | Complete |

@@ -38,6 +38,7 @@ Progress: [████████░░] 80%
 | Phase 02-data-page-migration-web-cleanup P02 | 1 | 1 task | 2 files |
 | Phase 02-data-page-migration-web-cleanup P03 | 1 | 1 task | 3 files |
 | Phase 01 P02 | 4 | 2 tasks | 2 files |
+| Phase 01-auth-provider-wiring-auth-page-migration P03 | 12 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -66,6 +67,8 @@ Recent decisions affecting current work:
 - [Phase 03-mobile-ui-primitives]: 03-02: runOnJS delayed unmount pattern prevents modal flash on dismiss
 - [Phase 01]: Remove rememberMe checkbox — its only function was gating plaintext password cookie writes (security bug)
 - [Phase 01]: signInWithGoogle handler does not call navigate() — Supabase OAuth triggers browser redirect, post-call code unreachable
+- [Phase 01-auth-provider-wiring-auth-page-migration]: 01-03: Sports selection UX preserved in Register.tsx multi-step flow — no sports column in Supabase profiles table, data not persisted but UX kept for future wiring
+- [Phase 01-auth-provider-wiring-auth-page-migration]: 01-03: rememberMe and plaintext password cookie removed from Register.tsx — storing plaintext passwords in cookies is a security vulnerability
 
 ### Pending Todos
 
@@ -81,5 +84,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 01-02-PLAN.md — Login.tsx and ResetPasswordDialog.tsx migrated to Supabase auth; Facebook OAuth and plaintext password cookie removed
+Stopped at: Completed 01-03-PLAN.md — Register.tsx migrated to Supabase auth; all Firebase/Firestore/Facebook/plaintext password cookie code removed
 Resume file: None
