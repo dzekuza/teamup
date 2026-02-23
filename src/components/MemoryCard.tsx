@@ -1,9 +1,8 @@
 import React, { useState, useEffect, FC } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Memory } from '../types';
-import { useAuth } from '../hooks/useAuth';
-import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, deleteDoc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
+import { supabase } from '../lib/supabase';
 import Avatar1 from '../assets/avatars/Avatar1.png';
 import Avatar2 from '../assets/avatars/Avatar2.png';
 import Avatar3 from '../assets/avatars/Avatar3.png';
@@ -34,10 +33,7 @@ interface MemoryCardProps {
 }
 
 export const MemoryCard: FC<MemoryCardProps> = ({ memory, onDelete }) => {
-  // Return null early if memory is not provided
-  if (!memory) return null;
-
-  const { user } = useAuth();
+  const { user } = useSupabaseAuth();
   const navigate = useNavigate();
   const [creatorInfo, setCreatorInfo] = useState<{
     displayName: string;
@@ -50,52 +46,63 @@ export const MemoryCard: FC<MemoryCardProps> = ({ memory, onDelete }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Check if current user is the creator of the memory
-  const isCreator = user?.uid === memory.createdBy;
-
   useEffect(() => {
     const fetchCreatorInfo = async () => {
-      if (memory.createdBy) {
-        const userDoc = await getDoc(doc(db, 'users', memory.createdBy));
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
+      if (memory?.createdBy) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('display_name, photo_url, email_verified')
+          .eq('id', memory.createdBy)
+          .single();
+
+        if (!error && data) {
           setCreatorInfo({
-            displayName: userData.displayName || 'Unknown User',
-            photoURL: userData.photoURL || 'Avatar1',
-            emailVerified: userData.emailVerified || false
+            displayName: data.display_name || 'Unknown User',
+            photoURL: data.photo_url || 'Avatar1',
+            emailVerified: data.email_verified || false
           });
         }
       }
     };
 
     fetchCreatorInfo();
-  }, [memory.createdBy]);
+  }, [memory?.createdBy]);
 
   useEffect(() => {
-    if (memory.likes && user) {
-      setIsLiked(memory.likes.includes(user.uid));
+    if (memory?.likes && user) {
+      setIsLiked(memory.likes.includes(user.id));
       setLikeCount(memory.likes.length);
     }
-  }, [memory.likes, user]);
+  }, [memory?.likes, user]);
+
+  // Return null early if memory is not provided
+  if (!memory) return null;
+
+  // Check if current user is the creator of the memory
+  const isCreator = user?.id === memory.createdBy;
 
   const handleLike = async () => {
     if (!user) return;
 
     try {
-      const memoryRef = doc(db, 'memories', memory.id);
-      
       if (isLiked) {
-        // Unlike
-        await updateDoc(memoryRef, {
-          likes: arrayRemove(user.uid)
-        });
+        const { error } = await supabase
+          .from('memory_likes')
+          .delete()
+          .eq('memory_id', memory.id)
+          .eq('user_id', user.id);
+
+        if (error) throw error;
+
         setIsLiked(false);
         setLikeCount(prev => Math.max(0, prev - 1));
       } else {
-        // Like
-        await updateDoc(memoryRef, {
-          likes: arrayUnion(user.uid)
-        });
+        const { error } = await supabase
+          .from('memory_likes')
+          .insert({ memory_id: memory.id, user_id: user.id });
+
+        if (error) throw error;
+
         setIsLiked(true);
         setLikeCount(prev => prev + 1);
       }
@@ -113,8 +120,12 @@ export const MemoryCard: FC<MemoryCardProps> = ({ memory, onDelete }) => {
     
     try {
       setIsDeleting(true);
-      // Delete the memory document from Firestore
-      await deleteDoc(doc(db, 'memories', memory.id));
+      const { error } = await supabase
+        .from('memories')
+        .delete()
+        .eq('id', memory.id);
+
+      if (error) throw error;
       toast.success('Memory deleted successfully');
       
       // Call the onDelete callback if provided

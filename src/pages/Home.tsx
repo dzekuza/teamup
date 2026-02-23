@@ -4,7 +4,7 @@ import { EditEventDialog } from '../components/EditEventDialog';
 import { Filters } from '../components/Filters';
 import { EventList } from '../components/EventList';
 import { FunnelIcon, PlusIcon, MagnifyingGlassIcon, MapPinIcon, Squares2X2Icon } from '@heroicons/react/24/outline';
-import { useAuth } from '../hooks/useAuth';
+import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
 import { useProfileCompletion } from '../hooks/useProfileCompletion';
 import { useNavigate } from 'react-router-dom';
 import ProfileCompletionAlert from '../components/ProfileCompletionAlert';
@@ -14,9 +14,8 @@ import { SportTypeFilter } from '../components/SportTypeFilter';
 import Map, { Marker } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '../firebase';
-import { Event, Player } from '../types/index';
+import { supabase } from '../lib/supabase';
+import { Event } from '../types/index';
 import { PADEL_LOCATIONS } from '../constants/locations'; // Import locations if needed for default images
 import { CalendarDaysIcon, ClockIcon, ScaleIcon } from '@heroicons/react/20/solid'; // Icons for popup
 
@@ -79,7 +78,7 @@ const getEventCoverImageUrl = (event: Event): string => {
 };
 
 export const Home: FC<HomeProps> = ({ myEventsOnly = false, notificationsOnly = false }) => {
-  const { user } = useAuth();
+  const { user } = useSupabaseAuth();
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -151,40 +150,83 @@ export const Home: FC<HomeProps> = ({ myEventsOnly = false, notificationsOnly = 
     const fetchEvents = async () => {
       try {
         setLoadingEvents(true);
-        let eventsQuery = query(collection(db, 'events'));
+        let eventsQuery = supabase
+          .from('events')
+          .select('*');
 
         if (filters.location) {
           const normalizedLocation = filters.location.trim();
-          eventsQuery = query(eventsQuery, where('location', '==', normalizedLocation));
+          eventsQuery = eventsQuery.eq('location', normalizedLocation);
         }
         if (filters.level) {
-          eventsQuery = query(eventsQuery, where('level', '==', filters.level));
+          eventsQuery = eventsQuery.eq('level', filters.level);
         }
         if (filters.sportType) {
-          eventsQuery = query(eventsQuery, where('sportType', '==', filters.sportType));
-        }
-        
-        const now = new Date();
-        const today = now.toISOString().split('T')[0];
-        
-        if (filters.eventStatus === 'active' || filters.eventStatus === '') {
-          eventsQuery = query(
-            eventsQuery,
-            where('status', '==', 'active'),
-            where('date', '>=', today)
-          );
-        } else if (filters.eventStatus === 'completed') {
-          eventsQuery = query(
-            eventsQuery,
-            where('status', '==', 'completed')
-          );
+          eventsQuery = eventsQuery.eq('sport_type', filters.sportType);
         }
 
-        const querySnapshot = await getDocs(eventsQuery);
-        let eventsList = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Event[];
+        const today = new Date().toISOString().split('T')[0];
+        if (filters.eventStatus === 'active' || filters.eventStatus === '') {
+          eventsQuery = eventsQuery.eq('status', 'active').gte('date', today);
+        } else if (filters.eventStatus === 'completed') {
+          eventsQuery = eventsQuery.eq('status', 'completed');
+        }
+
+        const { data: eventsData, error: eventsError } = await eventsQuery
+          .order('date', { ascending: true })
+          .order('time', { ascending: true });
+
+        if (eventsError) throw eventsError;
+
+        const eventIds = (eventsData || []).map(e => e.id);
+        const playersByEvent: Record<string, any[]> = {};
+
+        if (eventIds.length > 0) {
+          const { data: playersData, error: playersError } = await supabase
+            .from('event_players')
+            .select('*')
+            .in('event_id', eventIds);
+
+          if (playersError) throw playersError;
+
+          for (const player of playersData || []) {
+            if (!playersByEvent[player.event_id]) {
+              playersByEvent[player.event_id] = [];
+            }
+            playersByEvent[player.event_id].push(player);
+          }
+        }
+
+        let eventsList: Event[] = (eventsData || []).map(eventRow => ({
+          id: eventRow.id,
+          title: eventRow.title,
+          date: eventRow.date,
+          time: eventRow.time,
+          endTime: eventRow.end_time,
+          location: eventRow.location,
+          level: eventRow.level,
+          players: (playersByEvent[eventRow.id] || []).map(p => ({
+            id: p.user_id,
+            name: p.display_name || 'Unknown Player',
+            photoURL: p.photo_url || undefined,
+            displayName: p.display_name || undefined,
+            level: p.level || undefined,
+            uid: p.user_id,
+          })),
+          maxPlayers: eventRow.max_players,
+          createdBy: eventRow.created_by,
+          price: Number(eventRow.price),
+          status: eventRow.status,
+          isPrivate: eventRow.is_private,
+          password: eventRow.password ?? undefined,
+          sportType: eventRow.sport_type,
+          description: eventRow.description ?? undefined,
+          coverImageURL: eventRow.cover_image_url ?? undefined,
+          createdAt: eventRow.created_at,
+          customLocationCoordinates: eventRow.custom_location_lat != null
+            ? { lat: eventRow.custom_location_lat, lng: eventRow.custom_location_lng }
+            : undefined,
+        }));
 
         if (filters.searchTerm) {
           const searchTerm = filters.searchTerm.toLowerCase();
@@ -203,7 +245,7 @@ export const Home: FC<HomeProps> = ({ myEventsOnly = false, notificationsOnly = 
           if (user) {
             eventsList = eventsList.filter(event =>
               event.players && event.players.some(player => 
-                player && typeof player === 'object' && player.id === user.uid
+                player && typeof player === 'object' && player.id === user.id
               )
             );
           } else {
@@ -527,7 +569,7 @@ export const Home: FC<HomeProps> = ({ myEventsOnly = false, notificationsOnly = 
 
       {user && (
         <UserProfileDialog
-          userId={user.uid}
+          userId={user.id}
           open={isProfileDialogOpen}
           onClose={() => setIsProfileDialogOpen(false)}
         />

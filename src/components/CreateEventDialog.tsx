@@ -1,16 +1,14 @@
 import { FC, useState, useRef, useEffect } from 'react';
-import { addDoc, collection, getDocs, query, where, getDoc, doc, setDoc } from 'firebase/firestore';
-import { db, storage } from '../firebase';
-import { useAuth } from '../hooks/useAuth';
+import { supabase } from '../lib/supabase';
+import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
 import { useNavigate } from 'react-router-dom';
 import { useClickOutside } from '../hooks/useClickOutside';
 import { SuccessMessage } from './SuccessMessage';
 import { Dialog } from '@headlessui/react';
 import { Event, Player } from '../types';
 import { PADEL_LOCATIONS, Location } from '../constants/locations';
-import { sendEventInvitation, sendEventCreationEmail } from '../services/sendGridService';
-import { createNotification } from '../services/notificationService';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { sendEventInvitation, sendEventCreationEmail } from '../services/supabaseEmailService';
+import { createNotification } from '../services/supabaseNotificationService';
 import {
   DialogTitle,
   DialogContent,
@@ -26,6 +24,7 @@ import { Close as CloseIcon, Add as AddIcon, Remove as RemoveIcon } from '@mui/i
 import StyledRadio from './StyledRadio';
 import { addToAppleWallet } from '../utils/appleWallet';
 import { LocationSearch } from './LocationSearch';
+import type { Database } from '../types/supabase';
 
 interface CreateEventDialogProps {
   open: boolean;
@@ -42,6 +41,12 @@ interface FriendInfo {
   email?: string;
 }
 
+type FriendRow = Database['public']['Tables']['friends']['Row'];
+type ProfileRow = Database['public']['Tables']['profiles']['Row'];
+type EventRow = Database['public']['Tables']['events']['Row'];
+type EventInsert = Database['public']['Tables']['events']['Insert'];
+type EventPlayerInsert = Database['public']['Tables']['event_players']['Insert'];
+
 const SPORTS = [
   { id: 'Padel', name: 'Padel', icon: '🎾' },
   { id: 'Tennis', name: 'Tennis', icon: '🎾' },
@@ -52,7 +57,7 @@ const SPORTS = [
 ];
 
 export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, onEventCreated }) => {
-  const { user } = useAuth();
+  const { user } = useSupabaseAuth();
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState<Step>(1);
   const [sportType, setSportType] = useState('');
@@ -145,39 +150,40 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
   useEffect(() => {
     const fetchFriendsInfo = async () => {
       if (!open || !user) return;
-      
+
       setLoadingFriends(true);
       try {
-        // Get the user's friends directly from Firestore
-        const friendsDoc = await getDoc(doc(db, 'friends', user.uid));
-        let friendIds: string[] = [];
-        
-        if (friendsDoc.exists()) {
-          const friendsData = friendsDoc.data();
-          friendIds = friendsData.friends || [];
-        }
-        
+        const { data: friendsRows, error: friendsError } = await supabase
+          .from('friends')
+          .select('friend_id')
+          .eq('user_id', user.id);
+
+        if (friendsError) throw friendsError;
+
+        const friendIds = ((friendsRows as Array<Pick<FriendRow, 'friend_id'>>) || []).map(
+          row => row.friend_id
+        );
+
         if (friendIds.length === 0) {
           setFriendsList([]);
           setLoadingFriends(false);
           return;
         }
-        
-        const friendsData: FriendInfo[] = [];
-        
-        for (const friendId of friendIds) {
-          const friendDoc = await getDoc(doc(db, 'users', friendId));
-          if (friendDoc.exists()) {
-            const data = friendDoc.data();
-            friendsData.push({
-              id: friendId,
-              displayName: data.displayName || 'Unknown User',
-              photoURL: data.photoURL,
-              email: data.email
-            });
-          }
-        }
-        
+
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, display_name, photo_url, email')
+          .in('id', friendIds);
+
+        if (profilesError) throw profilesError;
+
+        const friendsData: FriendInfo[] = ((profiles as Array<Pick<ProfileRow, 'id' | 'display_name' | 'photo_url' | 'email'>>) || []).map(profile => ({
+          id: profile.id,
+          displayName: profile.display_name || 'Unknown User',
+          photoURL: profile.photo_url || undefined,
+          email: profile.email || undefined,
+        }));
+
         setFriendsList(friendsData);
       } catch (error) {
         console.error('Error fetching friends info:', error);
@@ -185,7 +191,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
         setLoadingFriends(false);
       }
     };
-    
+
     fetchFriendsInfo();
   }, [open, user]);
 
@@ -331,24 +337,42 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
 
     try {
       // Initialize players array with the creator
+      const { data: currentProfile, error: currentProfileError } = await supabase
+        .from('profiles')
+        .select('display_name, photo_url, level')
+        .eq('id', user.id)
+        .single();
+
+      if (currentProfileError) throw currentProfileError;
+
+      const safeCurrentProfile = currentProfile as Pick<ProfileRow, 'display_name' | 'photo_url' | 'level'> | null;
+
       const players: Player[] = [{
-        id: user.uid,
-        name: user.displayName || 'Unknown Player',
-        photoURL: user.photoURL || undefined
+        id: user.id,
+        name: safeCurrentProfile?.display_name || user.user_metadata?.display_name || user.email || 'Unknown Player',
+        photoURL: safeCurrentProfile?.photo_url || user.user_metadata?.photo_url || undefined,
+        displayName: safeCurrentProfile?.display_name || user.user_metadata?.display_name || undefined,
+        level: safeCurrentProfile?.level || undefined,
       }];
 
-      // Add selected friends as players
+      let selectedFriendProfiles: Array<Pick<ProfileRow, 'id' | 'display_name' | 'photo_url' | 'level' | 'email'>> = [];
       if (selectedFriends.length > 0) {
-        for (const friendId of selectedFriends) {
-          const friendDoc = await getDoc(doc(db, 'users', friendId));
-          if (friendDoc.exists()) {
-            const friendData = friendDoc.data();
-            players.push({
-              id: friendId,
-              name: friendData.displayName || 'Unknown Player',
-              photoURL: friendData.photoURL || undefined
-            });
-          }
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, display_name, photo_url, level, email')
+          .in('id', selectedFriends);
+
+        if (profilesError) throw profilesError;
+        selectedFriendProfiles = (profiles as Array<Pick<ProfileRow, 'id' | 'display_name' | 'photo_url' | 'level' | 'email'>>) || [];
+
+        for (const profile of selectedFriendProfiles) {
+          players.push({
+            id: profile.id,
+            name: profile.display_name || 'Unknown Player',
+            photoURL: profile.photo_url || undefined,
+            displayName: profile.display_name || undefined,
+            level: profile.level || undefined,
+          });
         }
       }
 
@@ -359,37 +383,90 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
       const locationString = typeof location === 'object' && location !== null && (location as any).name ? (location as any).name : String(location);
 
       // Upload cover image if provided
-      let coverImageURL = undefined;
+      let coverImageURL: string | undefined = undefined;
       if (coverImage) {
-        // Create a unique filename for storage
-        const storageRef = ref(storage, `eventCovers/${user.uid}_${Date.now()}_${coverImage.name}`);
-        const uploadResult = await uploadBytes(storageRef, coverImage);
-        coverImageURL = await getDownloadURL(uploadResult.ref);
+        const filePath = `${user.id}/${Date.now()}_${coverImage.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from('event-covers')
+          .upload(filePath, coverImage);
+
+        if (uploadError) throw uploadError;
+
+        const { data: publicUrlData } = supabase.storage
+          .from('event-covers')
+          .getPublicUrl(filePath);
+
+        coverImageURL = publicUrlData.publicUrl;
       }
 
-      const eventData: Omit<Event, 'id'> = {
-        title: eventTitle,
-        date,
-        time: startTime,
-        endTime,
-        location: locationString,
-        level,
+      const eventInsert: EventInsert = {
+          title: eventTitle,
+          date,
+          time: startTime,
+          end_time: endTime,
+          location: locationString,
+          level,
+          max_players: parseInt(maxPlayers),
+          created_by: user.id,
+          price: isPaid ? parseFloat(price) : 0,
+          status: 'active',
+          is_private: isPrivate,
+          password: isPrivate ? password : null,
+          sport_type: sportType,
+          description: description || null,
+          cover_image_url: coverImageURL || null,
+          custom_location_lat: customLocationCoordinates?.lat ?? null,
+          custom_location_lng: customLocationCoordinates?.lng ?? null,
+        };
+
+      const { data: createdEvent, error: createError } = await (supabase.from('events') as any)
+        .insert(eventInsert)
+        .select('*')
+        .single();
+
+      if (createError || !createdEvent) throw createError;
+
+      const createdEventRow = createdEvent as EventRow;
+
+      const eventPlayersInserts: EventPlayerInsert[] = players.map(player => ({
+        event_id: createdEventRow.id,
+        user_id: player.id,
+        display_name: player.displayName || player.name,
+        photo_url: player.photoURL || null,
+        level: player.level || null,
+      }));
+
+      const { error: playersInsertError } = await (supabase.from('event_players') as any)
+        .insert(eventPlayersInserts);
+
+      if (playersInsertError) throw playersInsertError;
+
+      const newEvent: Event = {
+        id: createdEventRow.id,
+        title: createdEventRow.title,
+        date: createdEventRow.date,
+        time: createdEventRow.time,
+        endTime: createdEventRow.end_time,
+        location: createdEventRow.location,
+        level: createdEventRow.level,
         players,
-        maxPlayers: parseInt(maxPlayers),
-        createdBy: user.uid,
-        price: isPaid ? parseFloat(price) : 0,
-        status: 'active',
-        isPrivate,
-        sportType,
-        description,
-        ...(isPrivate && { password }),
-        ...(customLocationCoordinates && { customLocationCoordinates }),
-        ...(coverImageURL && { coverImageURL })
+        maxPlayers: createdEventRow.max_players,
+        createdBy: createdEventRow.created_by,
+        price: Number(createdEventRow.price),
+        status: createdEventRow.status,
+        isPrivate: createdEventRow.is_private,
+        password: createdEventRow.password ?? undefined,
+        sportType: createdEventRow.sport_type,
+        description: createdEventRow.description ?? undefined,
+        coverImageURL: createdEventRow.cover_image_url ?? undefined,
+        createdAt: createdEventRow.created_at,
+        customLocationCoordinates:
+          createdEventRow.custom_location_lat != null && createdEventRow.custom_location_lng != null
+            ? { lat: createdEventRow.custom_location_lat, lng: createdEventRow.custom_location_lng }
+            : undefined,
       };
 
-      const docRef = await addDoc(collection(db, 'events'), eventData);
-      const newEvent: Event = { ...eventData, id: docRef.id };
-      setEventId(docRef.id);
+      setEventId(createdEventRow.id);
       
       // Send event creation email to the creator
       if (user.email) {
@@ -406,33 +483,24 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
       // Send notifications and invitation emails to selected friends
       if (selectedFriends.length > 0) {
         try {
-          for (const friendId of selectedFriends) {
-            const friendDoc = await getDoc(doc(db, 'users', friendId));
-            if (friendDoc.exists()) {
-              const friendData = friendDoc.data();
-              
-              // Create notification
-              await createNotification({
-                type: 'new_event',
-                eventId: docRef.id,
-                eventTitle: eventTitle,
-                createdBy: user.uid,
-                createdAt: new Date().toISOString(),
-                read: false,
-                userId: friendId
-              });
+          for (const friend of selectedFriendProfiles) {
+            await createNotification({
+              type: 'new_event',
+              event_id: createdEventRow.id,
+              event_title: eventTitle,
+              created_by: user.id,
+              user_id: friend.id,
+            });
 
-              // Send email invitation if email is available
-              if (friendData.email) {
-                await sendEventInvitation(
-                  friendData.email,
-                  eventTitle,
-                  date,
-                  `${startTime} - ${endTime}`,
-                  location,
-                  user.displayName || user.email || 'A friend'
-                );
-              }
+            if (friend.email) {
+              await sendEventInvitation(
+                friend.email,
+                eventTitle,
+                date,
+                `${startTime} - ${endTime}`,
+                location,
+                safeCurrentProfile?.display_name || user.user_metadata?.display_name || user.email || 'A friend'
+              );
             }
           }
         } catch (error) {
@@ -450,7 +518,7 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
               date,
               `${startTime} - ${endTime}`,
               location,
-              user.displayName || user.email || 'A friend'
+              safeCurrentProfile?.display_name || user.user_metadata?.display_name || user.email || 'A friend'
             );
           }
         } catch (error) {
@@ -482,23 +550,29 @@ export const CreateEventDialog: FC<CreateEventDialogProps> = ({ open, onClose, o
   const handleAddEmail = async () => {
     if (inviteEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail)) {
       if (!invitedEmails.includes(inviteEmail)) {
-        // Check if user with this email exists
-        const usersRef = collection(db, 'users');
-        const q = query(usersRef, where('email', '==', inviteEmail));
-        const querySnapshot = await getDocs(q);
-        
-        if (!querySnapshot.empty) {
-          // User exists, create friend request
-          const targetUser = querySnapshot.docs[0];
-          try {
-            await addDoc(collection(db, `friends/${targetUser.id}/requests`), {
-              fromUserId: user!.uid,
-              toUserId: targetUser.id,
-              status: 'pending',
-              timestamp: new Date().toISOString()
-            });
-          } catch (error) {
-            console.error('Error creating friend request:', error);
+        if (user) {
+          const { data: targetUser, error: targetError } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('email', inviteEmail)
+            .maybeSingle();
+
+          const targetProfile = targetUser as Pick<ProfileRow, 'id'> | null;
+
+          if (!targetError && targetProfile?.id) {
+            try {
+              const { error: requestError } = await (supabase.from('friend_requests') as any)
+                .insert({
+                  from_user_id: user.id,
+                  to_user_id: targetProfile.id,
+                });
+
+              if (requestError) {
+                console.error('Error creating friend request:', requestError);
+              }
+            } catch (error) {
+              console.error('Error creating friend request:', error);
+            }
           }
         }
         

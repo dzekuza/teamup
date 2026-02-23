@@ -1,50 +1,59 @@
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs, query, orderBy, getDoc, doc, updateDoc, arrayUnion, arrayRemove, where } from 'firebase/firestore';
-import { db } from '../firebase';
-import { useAuth } from '../hooks/useAuth';
+import { supabase } from '../lib/supabase';
+import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
 import { toast } from 'react-hot-toast';
 import { MemoryCard } from '../components/MemoryCard';
 import { Memory } from '../types/index';
-import { useNavigate } from 'react-router-dom';
 
 export const Community: React.FC = () => {
   const [memories, setMemories] = useState<Memory[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useSupabaseAuth();
 
   useEffect(() => {
     const fetchMemories = async () => {
       try {
         setLoading(true);
-        const memoriesRef = collection(db, 'memories');
-        const q = query(memoriesRef, orderBy('createdAt', 'desc'));
-        const querySnapshot = await getDocs(q);
-        
-        const memoriesData: Memory[] = [];
-        
-        // Process each memory
-        for (const docSnapshot of querySnapshot.docs) {
-          const memoryData = docSnapshot.data();
-          
-          // Create memory object matching the Memory interface
-          const memory: Memory = {
-            id: docSnapshot.id,
-            eventId: memoryData.eventId || '',
-            eventTitle: memoryData.eventTitle || '',
-            imageUrl: memoryData.imageUrl || '',
-            createdBy: memoryData.createdBy || '',
-            createdAt: memoryData.createdAt || new Date().toISOString(),
-            likes: memoryData.likes || [],
-            sportType: memoryData.sportType || '',
-            date: memoryData.date || new Date().toISOString(),
-            location: memoryData.location || '',
-            description: memoryData.description || ''
-          };
-          
-          memoriesData.push(memory);
+        const { data: memoriesRows, error: memoriesError } = await supabase
+          .from('memories')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (memoriesError) throw memoriesError;
+
+        const memoryIds = (memoriesRows || []).map(m => m.id);
+        const likesByMemory: Record<string, string[]> = {};
+
+        if (memoryIds.length > 0) {
+          const { data: likesRows, error: likesError } = await supabase
+            .from('memory_likes')
+            .select('memory_id, user_id')
+            .in('memory_id', memoryIds);
+
+          if (likesError) throw likesError;
+
+          for (const like of likesRows || []) {
+            if (!likesByMemory[like.memory_id]) {
+              likesByMemory[like.memory_id] = [];
+            }
+            likesByMemory[like.memory_id].push(like.user_id);
+          }
         }
-        
+
+        const memoriesData: Memory[] = (memoriesRows || []).map(memoryRow => ({
+          id: memoryRow.id,
+          eventId: memoryRow.event_id || '',
+          eventTitle: memoryRow.event_title || '',
+          imageUrl: memoryRow.image_url || '',
+          createdBy: memoryRow.created_by || '',
+          createdAt: memoryRow.created_at || new Date().toISOString(),
+          likes: likesByMemory[memoryRow.id] || [],
+          sportType: memoryRow.sport_type || '',
+          date: memoryRow.date || new Date().toISOString(),
+          location: memoryRow.location || '',
+          description: memoryRow.description || ''
+        }));
+
         setMemories(memoriesData);
       } catch (error) {
         console.error('Error fetching memories:', error);
@@ -63,34 +72,35 @@ export const Community: React.FC = () => {
     }
 
     try {
-      const memoryRef = doc(db, 'memories', memory.id);
-      const isLiked = memory.likes.includes(user.uid);
-      
+      const isLiked = memory.likes.includes(user.id);
+
       if (isLiked) {
-        // Unlike the memory
-        await updateDoc(memoryRef, {
-          likes: arrayRemove(user.uid)
-        });
-        
-        // Update local state
-        setMemories(prevMemories => 
-          prevMemories.map(m => 
-            m.id === memory.id 
-              ? { ...m, likes: m.likes.filter(id => id !== user.uid) } 
+        const { error } = await supabase
+          .from('memory_likes')
+          .delete()
+          .eq('memory_id', memory.id)
+          .eq('user_id', user.id);
+
+        if (error) throw error;
+
+        setMemories(prevMemories =>
+          prevMemories.map(m =>
+            m.id === memory.id
+              ? { ...m, likes: m.likes.filter(id => id !== user.id) }
               : m
           )
         );
       } else {
-        // Like the memory
-        await updateDoc(memoryRef, {
-          likes: arrayUnion(user.uid)
-        });
-        
-        // Update local state
-        setMemories(prevMemories => 
-          prevMemories.map(m => 
-            m.id === memory.id 
-              ? { ...m, likes: [...m.likes, user.uid] } 
+        const { error } = await supabase
+          .from('memory_likes')
+          .insert({ memory_id: memory.id, user_id: user.id });
+
+        if (error) throw error;
+
+        setMemories(prevMemories =>
+          prevMemories.map(m =>
+            m.id === memory.id
+              ? { ...m, likes: [...m.likes, user.id] }
               : m
           )
         );

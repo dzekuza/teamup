@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, Timestamp, deleteDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { db, auth } from '../firebase';
-import { useAuth } from '../hooks/useAuth';
-import { Event, Player, User } from '../types';
+import { supabase } from '../lib/supabase';
+import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
+import { Event, Player, MatchResult } from '../types';
+import type { Profile } from '../types/supabase';
 import { UserProfileDialog } from '../components/UserProfileDialog';
 import Avatar1 from '../assets/avatars/Avatar1.png';
 import Avatar2 from '../assets/avatars/Avatar2.png';
@@ -92,7 +92,7 @@ const isPlayerObject = (player: any): player is Player => {
 
 const EventDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuth();
+  const { user } = useSupabaseAuth();
   const navigate = useNavigate();
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
@@ -112,7 +112,7 @@ const EventDetails: React.FC = () => {
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [resultsDialogOpen, setResultsDialogOpen] = useState(false);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<Profile | null>(null);
   const [isSaved, setIsSaved] = useState(false);
   const [savingEvent, setSavingEvent] = useState(false);
   const [interestedCount, setInterestedCount] = useState(0);
@@ -120,7 +120,7 @@ const EventDetails: React.FC = () => {
   // Hide navigation on mobile screens when viewing event details
   const [hideNavigation, setHideNavigation] = useState(true);
   // Check if user is admin or creator of the event
-  const isUserCreator = user?.uid === event?.createdBy;
+  const isUserCreator = user?.id === event?.createdBy;
   
   // Map view state
   const [viewState, setViewState] = useState<ViewState>({
@@ -159,72 +159,109 @@ const EventDetails: React.FC = () => {
           setError('No event ID provided');
           return;
         }
-        const eventDoc = await getDoc(doc(db, 'events', id));
-        if (eventDoc.exists()) {
-          const eventData = eventDoc.data() as Event;
-          
-          // Ensure players array is clean by filtering out null/undefined
-          const cleanPlayers = eventData.players?.filter(Boolean) || [];
-          
-          // Set the event with processed players array
-          setEvent({ 
-            ...eventData, 
-            id: eventDoc.id,
-            players: cleanPlayers
-          });
-          
-          // Check if user is in the event
-          if (user && cleanPlayers.length > 0) {
-            const isPlayerInEvent = cleanPlayers.some(p => 
-              isPlayerObject(p) ? p.id === user.uid : p === user.uid
-            );
-            setIsPlayerInEvent(isPlayerInEvent);
-          }
-          
-          // For Padel events, use predefined locations, for other events use custom coordinates
-          if (eventData.sportType === 'Padel') {
-            const locationObj = PADEL_LOCATIONS.find(loc => loc.name === eventData.location);
-            setLocationData(locationObj || null);
-          } else if (eventData.customLocationCoordinates) {
-            // For non-Padel events with custom coordinates, create a location object
-            setLocationData({
-              name: eventData.location,
-              address: eventData.location,
-              coordinates: eventData.customLocationCoordinates,
-              image: DEFAULT_COVER_IMAGE
-            });
-          } else {
-            // Fallback to default coordinates if no custom coordinates
-            setLocationData({
-              name: eventData.location,
-              address: eventData.location,
-              coordinates: DEFAULT_COORDINATES,
-              image: DEFAULT_COVER_IMAGE
-            });
-          }
-          
-          // Log to debug
-          console.log("Location data:", locationData);
-          console.log("Event data:", eventData);
-          
-          // Extract and set players
-          if (eventData.players && Array.isArray(eventData.players)) {
-            setPlayers(cleanPlayers);
-          }
+        const { data: eventRow, error: eventError } = await supabase
+          .from('events')
+          .select('*')
+          .eq('id', id)
+          .single();
 
-          // Fetch creator info
-          if (eventData.createdBy) {
-            const creatorDoc = await getDoc(doc(db, 'users', eventData.createdBy));
-            if (creatorDoc.exists()) {
-              const creatorData = creatorDoc.data();
-              setCreatorInfo({
-                displayName: creatorData.displayName || 'Unknown User',
-                photoURL: creatorData.photoURL || 'Avatar1',
-              });
-            }
-          }
-        } else {
+        if (eventError || !eventRow) {
           setError('Event not found');
+          return;
+        }
+
+        const [{ data: playersRows, error: playersError }, { data: matchRows, error: matchError }] = await Promise.all([
+          supabase.from('event_players').select('*').eq('event_id', id),
+          supabase.from('match_results').select('*').eq('event_id', id),
+        ]);
+
+        if (playersError) throw playersError;
+        if (matchError) throw matchError;
+
+        const mappedPlayers: Player[] = (playersRows || []).map(p => ({
+          id: p.user_id,
+          name: p.display_name || 'Unknown Player',
+          photoURL: p.photo_url || undefined,
+          displayName: p.display_name || undefined,
+          level: p.level || undefined,
+          uid: p.user_id,
+        }));
+
+        const mappedMatchResults: MatchResult[] = (matchRows || []).map(r => ({
+          teamAScore: r.team_a_score,
+          teamBScore: r.team_b_score,
+          winner: r.winner,
+        }));
+
+        const eventData: Event = {
+          id: eventRow.id,
+          title: eventRow.title,
+          date: eventRow.date,
+          time: eventRow.time,
+          endTime: eventRow.end_time,
+          location: eventRow.location,
+          level: eventRow.level,
+          players: mappedPlayers,
+          maxPlayers: eventRow.max_players,
+          createdBy: eventRow.created_by,
+          price: Number(eventRow.price),
+          status: eventRow.status,
+          isPrivate: eventRow.is_private,
+          password: eventRow.password ?? undefined,
+          sportType: eventRow.sport_type,
+          description: eventRow.description ?? undefined,
+          coverImageURL: eventRow.cover_image_url ?? undefined,
+          createdAt: eventRow.created_at,
+          customLocationCoordinates: eventRow.custom_location_lat != null
+            ? { lat: eventRow.custom_location_lat, lng: eventRow.custom_location_lng }
+            : undefined,
+          matchResults: mappedMatchResults.length === 0
+            ? undefined
+            : mappedMatchResults.length === 1
+              ? mappedMatchResults[0]
+              : mappedMatchResults,
+        };
+
+        setEvent(eventData);
+        setPlayers(mappedPlayers);
+
+        if (user && mappedPlayers.length > 0) {
+          const isPlayerInEvent = mappedPlayers.some(p => p.id === user.id);
+          setIsPlayerInEvent(isPlayerInEvent);
+        }
+
+        if (eventData.sportType === 'Padel') {
+          const locationObj = PADEL_LOCATIONS.find(loc => loc.name === eventData.location);
+          setLocationData(locationObj || null);
+        } else if (eventData.customLocationCoordinates) {
+          setLocationData({
+            name: eventData.location,
+            address: eventData.location,
+            coordinates: eventData.customLocationCoordinates,
+            image: DEFAULT_COVER_IMAGE,
+          });
+        } else {
+          setLocationData({
+            name: eventData.location,
+            address: eventData.location,
+            coordinates: DEFAULT_COORDINATES,
+            image: DEFAULT_COVER_IMAGE,
+          });
+        }
+
+        if (eventData.createdBy) {
+          const { data: creatorData, error: creatorError } = await supabase
+            .from('profiles')
+            .select('display_name, photo_url')
+            .eq('id', eventData.createdBy)
+            .single();
+
+          if (!creatorError && creatorData) {
+            setCreatorInfo({
+              displayName: creatorData.display_name || 'Unknown User',
+              photoURL: creatorData.photo_url || 'Avatar1',
+            });
+          }
         }
       } catch (err) {
         console.error('Error fetching event:', err);
@@ -242,28 +279,44 @@ const EventDetails: React.FC = () => {
 
   useEffect(() => {
     const fetchCurrentUser = async () => {
-      if (auth.currentUser) {
-        const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
-        if (userDoc.exists()) {
-          setCurrentUser(userDoc.data() as User);
-        }
+      if (!user) {
+        setCurrentUser(null);
+        return;
       }
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (error) {
+        console.error('Error fetching current user profile:', error);
+        return;
+      }
+
+      setCurrentUser(data);
     };
     
     fetchCurrentUser();
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     const checkSavedStatus = async () => {
       if (!user || !event) return;
       
       try {
-        // Check if event is saved by the current user
-        const savedDoc = await getDoc(doc(db, 'savedEvents', `${user.uid}_${event.id}`));
-        setIsSaved(savedDoc.exists());
-        
-        // Set interested count based on current user's status only
-        setInterestedCount(savedDoc.exists() ? 1 : 0);
+        const { data, error } = await supabase
+          .from('saved_events')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('event_id', event.id)
+          .maybeSingle();
+
+        if (error) throw error;
+
+        setIsSaved(!!data);
+        setInterestedCount(data ? 1 : 0);
       } catch (error) {
         console.error('Error checking saved status:', error);
       }
@@ -277,7 +330,7 @@ const EventDetails: React.FC = () => {
     
     // Check if the user is already in the event
     const isAlreadyJoined = event.players.filter(Boolean).some(player => 
-      isPlayerObject(player) ? player.id === user.uid : player === user.uid
+      isPlayerObject(player) ? player.id === user.id : player === user.id
     );
     
     if (isAlreadyJoined) {
@@ -287,33 +340,37 @@ const EventDetails: React.FC = () => {
 
     try {
       setActionInProgress(true);
-      const eventRef = doc(db, 'events', event.id);
       const newPlayer: Player = {
-        id: user.uid,
-        name: user.displayName || user.email || 'Unknown Player',
-        photoURL: user.photoURL || undefined
+        id: user.id,
+        name: user.user_metadata?.display_name || user.email || 'Unknown Player',
+        photoURL: user.user_metadata?.photo_url || undefined,
+        displayName: user.user_metadata?.display_name || undefined,
+        level: currentUser?.level || undefined,
       };
 
-      // Get the latest event data
-      const eventDoc = await getDoc(eventRef);
-      if (!eventDoc.exists()) {
-        toast.error('Event not found');
-        return;
-      }
+      const { count, error: countError } = await supabase
+        .from('event_players')
+        .select('user_id', { count: 'exact' })
+        .eq('event_id', event.id);
 
-      const currentEvent = eventDoc.data() as Event;
-      const currentPlayers = currentEvent.players?.filter(Boolean) || [];
-      
-      // Check if we've reached the maximum players
-      if (currentPlayers.length >= event.maxPlayers) {
+      if (countError) throw countError;
+
+      if ((count ?? 0) >= event.maxPlayers) {
         toast.error('This event is now full');
         return;
       }
 
-      // Update in database
-      await updateDoc(eventRef, {
-        players: arrayUnion(newPlayer)
-      });
+      const { error: insertError } = await supabase
+        .from('event_players')
+        .insert({
+          event_id: event.id,
+          user_id: user.id,
+          display_name: newPlayer.displayName || newPlayer.name,
+          photo_url: newPlayer.photoURL || null,
+          level: newPlayer.level || null,
+        });
+
+      if (insertError) throw insertError;
 
       // Update local state with accurate player list
       const updatedPlayers = [...event.players.filter(Boolean), newPlayer];
@@ -349,9 +406,8 @@ const EventDetails: React.FC = () => {
     
     try {
       setActionInProgress(true);
-      const eventRef = doc(db, 'events', id || '');
       const currentPlayer = event.players.find(p => 
-        isPlayerObject(p) ? p.id === user.uid : p === user.uid
+        isPlayerObject(p) ? p.id === user.id : p === user.id
       );
       
       if (!currentPlayer) {
@@ -359,14 +415,17 @@ const EventDetails: React.FC = () => {
         return;
       }
 
-      // Remove the player from the event
-      await updateDoc(eventRef, {
-        players: arrayRemove(currentPlayer)
-      });
+      const { error: deleteError } = await supabase
+        .from('event_players')
+        .delete()
+        .eq('event_id', event.id)
+        .eq('user_id', user.id);
+
+      if (deleteError) throw deleteError;
 
       // Update local state with filtered player list
       const updatedPlayers = event.players.filter(p => 
-        isPlayerObject(p) ? p.id !== user.uid : p !== user.uid
+        isPlayerObject(p) ? p.id !== user.id : p !== user.id
       );
       
       setEvent({
@@ -405,26 +464,24 @@ const EventDetails: React.FC = () => {
     
     try {
       setActionInProgress(true);
-      const eventRef = doc(db, 'events', event.id);
       
       // Check if user is creator or admin
-      if (event.createdBy !== user.uid && !(currentUser?.isAdmin)) {
+      if (event.createdBy !== user.id && !(currentUser?.is_admin)) {
         toast.error('You do not have permission to delete this event');
         return;
       }
       
-      // Delete the event document
-      await deleteDoc(eventRef);
-      
-      // Also delete any saved references to this event
-      const savedEventsQuery = query(
-        collection(db, 'savedEvents'), 
-        where('eventId', '==', event.id)
-      );
-      
-      const savedEventsDocs = await getDocs(savedEventsQuery);
-      const deletePromises = savedEventsDocs.docs.map(doc => deleteDoc(doc.ref));
-      await Promise.all(deletePromises);
+      const { error: deleteEventError } = await supabase
+        .from('events')
+        .delete()
+        .eq('id', event.id);
+
+      if (deleteEventError) throw deleteEventError;
+
+      await supabase
+        .from('saved_events')
+        .delete()
+        .eq('event_id', event.id);
       
       toast.success('Event deleted successfully');
       navigate('/');
@@ -443,25 +500,29 @@ const EventDetails: React.FC = () => {
     setSavingEvent(true);
     
     try {
-      const savedEventRef = doc(db, 'savedEvents', `${user.uid}_${event.id}`);
-      
       if (isSaved) {
-        // Remove from saved events
-        await deleteDoc(savedEventRef);
+        const { error: deleteError } = await supabase
+          .from('saved_events')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('event_id', event.id);
+
+        if (deleteError) throw deleteError;
+
         setIsSaved(false);
         setInterestedCount(0); // Set to 0 since we're only tracking current user's status
         toast.success('Event removed from saved');
       } else {
-        // Add to saved events
-        await setDoc(savedEventRef, {
-          userId: user.uid,
-          eventId: event.id,
-          savedAt: new Date().toISOString(),
-          eventTitle: event.title,
-          eventDate: event.date,
-          eventLocation: event.location,
-          sportType: event.sportType
-        });
+        const { error: insertError } = await supabase
+          .from('saved_events')
+          .insert({
+            user_id: user.id,
+            event_id: event.id,
+            saved_at: new Date().toISOString(),
+          });
+
+        if (insertError) throw insertError;
+
         setIsSaved(true);
         setInterestedCount(1); // Set to 1 since we're only tracking current user's status
         toast.success('Event saved');
@@ -496,7 +557,7 @@ const EventDetails: React.FC = () => {
   }
 
   const isJoined = user ? event.players.filter(Boolean).some(player => 
-    isPlayerObject(player) ? player.id === user.uid : player === user.uid
+    isPlayerObject(player) ? player.id === user.id : player === user.id
   ) : false;
   const canJoin = user && !isJoined && event.players.length < event.maxPlayers && event.status !== 'completed';
   
@@ -689,7 +750,7 @@ const EventDetails: React.FC = () => {
                   <BookmarkBorderIcon />
                 )}
               </button>
-              {(isUserCreator || currentUser?.isAdmin) && (
+              {(isUserCreator || currentUser?.is_admin) && (
                 <>
                   <button
                     onClick={handleEditEvent}

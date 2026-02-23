@@ -1,14 +1,17 @@
 import { FC, useState, useEffect, useRef } from 'react';
-import { doc, getDoc, updateDoc, deleteDoc, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
-import { db, storage } from '../firebase';
-import { useAuth } from '../hooks/useAuth';
+import { supabase } from '../lib/supabase';
+import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
+import type { Database } from '../types/supabase';
 import { Event } from '../types/index';
 import { useClickOutside } from '../hooks/useClickOutside';
-import { PADEL_LOCATIONS, Location } from '../constants/locations';
-import { sendEventInvitation } from '../services/emailService';
-import { createNotification } from '../services/notificationService';
+import { PADEL_LOCATIONS } from '../constants/locations';
+import { sendEventInvitation } from '../services/supabaseEmailService';
+import { createNotification } from '../services/supabaseNotificationService';
 import { FriendSearch } from './FriendSearch';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+
+type EventRow = Database['public']['Tables']['events']['Row'];
+type EventUpdate = Database['public']['Tables']['events']['Update'];
+type ProfileRow = Database['public']['Tables']['profiles']['Row'];
 
 interface EditEventDialogProps {
   open: boolean;
@@ -34,7 +37,7 @@ export const EditEventDialog: FC<EditEventDialogProps> = ({ open, onClose, onEve
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
   const [inviteEmail, setInviteEmail] = useState('');
   const [invitedEmails, setInvitedEmails] = useState<string[]>([]);
-  const { user, userFriends } = useAuth();
+  const { user, userFriends } = useSupabaseAuth();
   const dialogRef = useRef<HTMLDivElement>(null);
   
   // New state for cover image
@@ -49,29 +52,37 @@ export const EditEventDialog: FC<EditEventDialogProps> = ({ open, onClose, onEve
     const fetchEvent = async () => {
       if (!eventId || !user) return;
       try {
-        const eventDoc = await getDoc(doc(db, 'events', eventId));
-        if (eventDoc.exists()) {
-          const eventData = eventDoc.data() as Event;
-          if (eventData.createdBy !== user.uid) {
-            onClose();
-            return;
-          }
-          setTitle(eventData.title);
-          setLocation(eventData.location);
-          setDate(eventData.date.split('T')[0]);
-          setTime(eventData.time);
-          setEndTime(eventData.endTime);
-          setLevel(eventData.level);
-          setPrice(eventData.price.toString());
-          setMaxPlayers(eventData.maxPlayers.toString());
-          setIsPrivate(eventData.isPrivate || false);
-          setPassword(eventData.password || '');
-          
-          // Load cover image URL if it exists
-          if (eventData.coverImageURL) {
-            setCoverImageURL(eventData.coverImageURL);
-            setImagePreview(eventData.coverImageURL);
-          }
+        const { data: eventRow, error } = await supabase
+          .from('events')
+          .select('*')
+          .eq('id', eventId)
+          .single();
+
+        if (error || !eventRow) {
+          setError('Failed to fetch event details.');
+          return;
+        }
+
+        const eventData = eventRow as EventRow;
+        if (eventData.created_by !== user.id) {
+          onClose();
+          return;
+        }
+
+        setTitle(eventData.title);
+        setLocation(eventData.location);
+        setDate(eventData.date);
+        setTime(eventData.time);
+        setEndTime(eventData.end_time);
+        setLevel(eventData.level);
+        setPrice(eventData.price.toString());
+        setMaxPlayers(eventData.max_players.toString());
+        setIsPrivate(eventData.is_private || false);
+        setPassword(eventData.password || '');
+
+        if (eventData.cover_image_url) {
+          setCoverImageURL(eventData.cover_image_url);
+          setImagePreview(eventData.cover_image_url);
         }
       } catch (error) {
         console.error('Error fetching event:', error);
@@ -121,56 +132,71 @@ export const EditEventDialog: FC<EditEventDialogProps> = ({ open, onClose, onEve
       
       // If a new image is selected, upload it
       if (coverImage) {
-        const storageRef = ref(storage, `eventCovers/${eventId}/${Date.now()}_${coverImage.name}`);
-        const uploadResult = await uploadBytes(storageRef, coverImage);
-        updatedCoverImageURL = await getDownloadURL(uploadResult.ref);
+        const filePath = `${user!.id}/${eventId}/${Date.now()}_${coverImage.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from('event-covers')
+          .upload(filePath, coverImage);
+
+        if (uploadError) throw uploadError;
+
+        const { data: publicUrlData } = supabase.storage
+          .from('event-covers')
+          .getPublicUrl(filePath);
+
+        updatedCoverImageURL = publicUrlData.publicUrl;
       }
 
-      const eventRef = doc(db, 'events', eventId);
-      await updateDoc(eventRef, {
+      const updatePayload: EventUpdate = {
         title,
         location,
-        date: new Date(date).toISOString(),
+        date,
         time,
-        endTime,
+        end_time: endTime,
         level,
         price: parseFloat(price),
-        maxPlayers: parseInt(maxPlayers),
-        isPrivate,
-        ...(isPrivate && { password }),
-        ...(updatedCoverImageURL && { coverImageURL: updatedCoverImageURL }),
-      });
+        max_players: parseInt(maxPlayers),
+        is_private: isPrivate,
+        password: isPrivate ? password : null,
+        cover_image_url: updatedCoverImageURL || null,
+      };
+
+      const { error: updateError } = await (supabase.from('events') as any)
+        .update(updatePayload)
+        .eq('id', eventId);
+
+      if (updateError) throw updateError;
 
       // Send notifications and invitation emails to selected friends
       if (selectedFriends.length > 0) {
         try {
-          for (const friendId of selectedFriends) {
-            const friendDoc = await getDoc(doc(db, 'users', friendId));
-            if (friendDoc.exists()) {
-              const friendData = friendDoc.data();
-              
-              // Create notification
-              await createNotification({
-                type: 'new_event',
-                eventId,
-                eventTitle: title,
-                createdBy: user!.uid,
-                createdAt: new Date().toISOString(),
-                read: false,
-                userId: friendId
-              });
+          const { data: friendProfiles, error: friendProfilesError } = await supabase
+            .from('profiles')
+            .select('id, email, display_name')
+            .in('id', selectedFriends);
 
-              // Send email invitation if email is available
-              if (friendData.email) {
-                await sendEventInvitation(
-                  friendData.email,
-                  title,
-                  date,
-                  `${time} - ${endTime}`,
-                  location,
-                  user!.displayName || user!.email || 'A friend'
-                );
-              }
+          if (friendProfilesError) throw friendProfilesError;
+
+          const senderName =
+            user!.user_metadata?.display_name || user!.email || 'A friend';
+
+          for (const friend of (friendProfiles as Array<Pick<ProfileRow, 'id' | 'email' | 'display_name'>> || [])) {
+            await createNotification({
+              type: 'new_event',
+              event_id: eventId,
+              event_title: title,
+              created_by: user!.id,
+              user_id: friend.id,
+            });
+
+            if (friend.email) {
+              await sendEventInvitation(
+                friend.email,
+                title,
+                date,
+                `${time} - ${endTime}`,
+                location,
+                senderName
+              );
             }
           }
         } catch (error) {
@@ -188,7 +214,7 @@ export const EditEventDialog: FC<EditEventDialogProps> = ({ open, onClose, onEve
               date,
               `${time} - ${endTime}`,
               location,
-              user!.displayName || user!.email || 'A friend'
+              user!.user_metadata?.display_name || user!.email || 'A friend'
             );
           }
         } catch (error) {
@@ -209,7 +235,12 @@ export const EditEventDialog: FC<EditEventDialogProps> = ({ open, onClose, onEve
     if (!eventId || !user) return;
 
     try {
-      await deleteDoc(doc(db, 'events', eventId));
+      const { error: deleteError } = await supabase
+        .from('events')
+        .delete()
+        .eq('id', eventId);
+
+      if (deleteError) throw deleteError;
       onEventUpdated();
       onClose();
     } catch (error) {
@@ -222,22 +253,29 @@ export const EditEventDialog: FC<EditEventDialogProps> = ({ open, onClose, onEve
     if (inviteEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail)) {
       if (!invitedEmails.includes(inviteEmail)) {
         // Check if user with this email exists
-        const usersRef = collection(db, 'users');
-        const q = query(usersRef, where('email', '==', inviteEmail));
-        const querySnapshot = await getDocs(q);
-        
-        if (!querySnapshot.empty) {
-          // User exists, create friend request
-          const targetUser = querySnapshot.docs[0];
-          try {
-            await addDoc(collection(db, `friends/${targetUser.id}/requests`), {
-              fromUserId: user!.uid,
-              toUserId: targetUser.id,
-              status: 'pending',
-              timestamp: new Date().toISOString()
-            });
-          } catch (error) {
-            console.error('Error creating friend request:', error);
+        if (user) {
+          const { data: targetUser, error: targetError } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('email', inviteEmail)
+            .maybeSingle();
+
+          const targetProfile = targetUser as Pick<ProfileRow, 'id'> | null;
+
+          if (!targetError && targetProfile?.id) {
+            try {
+              const { error: requestError } = await (supabase.from('friend_requests') as any)
+                .insert({
+                  from_user_id: user.id,
+                  to_user_id: targetProfile.id,
+                });
+
+              if (requestError) {
+                console.error('Error creating friend request:', requestError);
+              }
+            } catch (error) {
+              console.error('Error creating friend request:', error);
+            }
           }
         }
         
