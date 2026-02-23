@@ -54,7 +54,10 @@ Plans:
   3. A developer can open and dismiss a bottom sheet that slides up from the bottom with a handle, dark backdrop, and `#C1FF2F` handle accent — implemented with Reanimated 4, not gorhom
   4. All form screens in the mobile app have keyboard avoidance that works on both iOS and Android via `react-native-keyboard-controller`
   5. All components pass basic accessibility checks — inputs have accessible labels, buttons have roles and sufficient hit targets (44x44pt minimum)
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 03-01-PLAN.md — Theme tokens + TextInput + Button primitives
+- [ ] 03-02-PLAN.md — BottomSheet component + KeyboardProvider wiring
 
 ## Progress
 
@@ -62,4 +65,4 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Auth Provider Wiring + Auth Page Migration | 0/3 | Not started | - |
 | 2. Data Page Migration + Web Cleanup | 0/3 | Not started | - |
-| 3. Mobile UI Primitives | 0/TBD | Not started | - |
+| 3. Mobile UI Primitives | 0/2 | Not started | - |
