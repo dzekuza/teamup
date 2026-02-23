@@ -1,4 +1,18 @@
 // TeamUp Design System - matching web app
+
+export const Brand = {
+  accent: '#C1FF2F',
+  accentDark: '#111111',
+  background: '#111111',
+  surface: '#1E1E1E',
+  border: '#333333',
+  borderFocused: '#C1FF2F',
+  borderError: '#FF4D4F',
+  textPrimary: '#FFFFFF',
+  textSecondary: '#888888',
+  textDisabled: '#444444',
+} as const;
+
 export const Colors = {
   // Brand
   primary: '#C1FF2F',
