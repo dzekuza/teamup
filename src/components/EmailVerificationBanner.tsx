@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { useAuth } from '../hooks/useAuth';
-import { sendEmailVerification } from 'firebase/auth';
-import { auth } from '../firebase';
+import { useAuth } from '../contexts/SupabaseAuthContext';
+import { supabase } from '../lib/supabase';
 
 export const EmailVerificationBanner: React.FC = () => {
   const { user } = useAuth();
@@ -9,7 +8,7 @@ export const EmailVerificationBanner: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
-  if (!user || user.emailVerified) {
+  if (!user || user.email_confirmed_at) {
     return null;
   }
 
@@ -19,7 +18,8 @@ export const EmailVerificationBanner: React.FC = () => {
     setSuccess(false);
 
     try {
-      await sendEmailVerification(auth.currentUser!);
+      const { error } = await supabase.auth.resend({ type: 'signup', email: user.email! });
+      if (error) throw error;
       setSuccess(true);
     } catch (error: any) {
       setError('Failed to send verification email. Please try again.');
@@ -53,4 +53,4 @@ export const EmailVerificationBanner: React.FC = () => {
       </div>
     </div>
   );
-}; 
+};
