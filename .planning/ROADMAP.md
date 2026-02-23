@@ -38,7 +38,11 @@ Plans:
   3. User can view padel venue locations loaded from Supabase instead of Firestore
   4. `AuthContext.tsx` and `useAuth.ts` (Firebase versions) no longer exist in the codebase
   5. `npm run build` completes with no Firebase imports in the six migrated files
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 02-01-PLAN.md — Migrate Profile + SavedEvents to Supabase (export toAppEvent, join query)
+- [ ] 02-02-PLAN.md — Migrate Locations + SingleLocation to Supabase (remove convertTimestampsToStrings)
+- [ ] 02-03-PLAN.md — Replace AuthContext.tsx + useAuth.ts with Supabase re-export shims + build verify
 
 ### Phase 3: Mobile UI Primitives
 **Goal**: The React Native Expo app has a set of brand-consistent, production-quality UI primitives — TextInput, Button (primary + secondary), and a custom bottom sheet — that all future mobile screens can build on.
@@ -57,5 +61,5 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Auth Provider Wiring + Auth Page Migration | 0/3 | Not started | - |
-| 2. Data Page Migration + Web Cleanup | 0/TBD | Not started | - |
+| 2. Data Page Migration + Web Cleanup | 0/3 | Not started | - |
 | 3. Mobile UI Primitives | 0/TBD | Not started | - |
