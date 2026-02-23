@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 Phase: v1.0 complete — all 3 phases shipped
 Plan: N/A — milestone archived
 Status: Milestone Complete
-Last activity: 2026-02-23 - Completed quick task 1: Consolidate event cards into single consistent component for mobile app
+Last activity: 2026-02-24 - Completed quick task 2: Polish calendar tab UI with Ionicons, improved chip contrast, month/year label, today dot, and haptic feedback
 
 Progress: [██████████] 100%
 
@@ -51,9 +51,10 @@ None.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 1 | Consolidate event cards into single consistent component for mobile app | 2026-02-23 | 8cb958c4 | [1-consolidate-event-cards-into-single-cons](./quick/1-consolidate-event-cards-into-single-cons/) |
+| 2 | Polish calendar tab UI: Ionicons for sport chips, surfaceLight contrast, month/year label, today dot, haptic feedback | 2026-02-24 | ab5282e7 | [2-review-and-improve-mobile-app-events-cal](./quick/2-review-and-improve-mobile-app-events-cal/) |
 
 ## Session Continuity
 
-Last session: 2026-02-23
-Stopped at: Completed quick-1 (consolidate event cards)
+Last session: 2026-02-24
+Stopped at: Completed quick-2 (calendar tab UI polish)
 Resume file: None
