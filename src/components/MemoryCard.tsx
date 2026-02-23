@@ -27,6 +27,12 @@ const formatEventDate = (dateString: string) => {
   return `${month} ${day}`;
 };
 
+type CreatorProfile = {
+  display_name: string | null;
+  photo_url: string | null;
+  email_verified: boolean | null;
+};
+
 interface MemoryCardProps {
   memory: Memory;
   onDelete?: (memoryId: string) => void;
@@ -55,11 +61,13 @@ export const MemoryCard: FC<MemoryCardProps> = ({ memory, onDelete }) => {
           .eq('id', memory.createdBy)
           .single();
 
-        if (!error && data) {
+        const profile = data as CreatorProfile | null;
+
+        if (!error && profile) {
           setCreatorInfo({
-            displayName: data.display_name || 'Unknown User',
-            photoURL: data.photo_url || 'Avatar1',
-            emailVerified: data.email_verified || false
+            displayName: profile.display_name || 'Unknown User',
+            photoURL: profile.photo_url || 'Avatar1',
+            emailVerified: profile.email_verified || false
           });
         }
       }
